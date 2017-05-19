@@ -1,9 +1,6 @@
 Start of discussion on python-ideas
 https://mail.python.org/pipermail/python-ideas/2017-May/045618.html
 
-Verify this is covered:
-https://mail.python.org/pipermail/python-ideas/2017-May/045679.html
-
 Definitions
 -----------
 
