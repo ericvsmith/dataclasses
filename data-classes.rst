@@ -155,7 +155,9 @@ Issues
   parameters (hashable, frozen, etc).
 
 - The only meaningful changes I've seen so far from attrs are:
+
   - Specification of types using PEP 526 and defaults using assignment
     syntax. But this is not to be underestimated for the simple cases!
+
   - Possibly moving converters and validators to the extension
     (metadata) mechanism.
