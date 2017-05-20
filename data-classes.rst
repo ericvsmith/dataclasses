@@ -158,3 +158,9 @@ Issues
 
   - Possibly moving converters and validators to the extension
     (metadata) mechanism.
+
+- Brett's PyCon talk reminded me that with __init_subclass__ (PEP
+  487), inheritance might be an attractive way to implement this.  Plus,
+  it looks more like "do something to a class" and less like "create a
+  new class", as it does with a decorator.
+
