@@ -246,6 +246,19 @@ class TestCase(unittest.TestCase):
         self.assertTrue (C.__dataclass_fields__[2].init)
         self.assertFalse(C.__dataclass_fields__[2].repr)
 
+    def test_mutable_defaults(self):
+        @dataclass
+        class C:
+            l: list = []
+
+        o1 = C()
+        o2 = C()
+        self.assertEqual(o1, o2)
+        o1.l.extend([1, 2])
+        self.assertNotEqual(o1, o2)
+        self.assertEqual(o1.l, [1, 2])
+        self.assertEqual(o2.l, [])
+
 
 def main():
     unittest.main()

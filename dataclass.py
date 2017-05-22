@@ -12,6 +12,7 @@
 
 # if needed for efficiency, compute self_tuple and other_tuple just once, and pass them around
 
+import copy
 import collections
 
 __all__ = ['dataclass', 'field']
@@ -88,7 +89,7 @@ def _init(fields):
                 raise ValueError(f'non-default argument {k} follows default argument')
 
     args = [_SELF_NAME] + [(f if info.default is _MISSING else f"{f}=_def_{f}") for f, info in fields.items()]
-    body_lines = [f'{_SELF_NAME}.{f}={f}' for f in fields]
+    body_lines = [f'{_SELF_NAME}.{f}=copy.copy({f})' for f in fields]
     if len(body_lines) == 0:
         body_lines = ['pass']
 
@@ -205,13 +206,13 @@ def dataclass(cls):
             for name, info in _find_fields(m):
                 fields[name] = info
 
-                # Field validations for our class.  This is delayed
-                #  until now, instead of in the field() constructor,
-                #  since only here do we know the field name, which
-                #  allows better error reporting.
+                # Field validations for fields directly on our class.
+                # This is delayed until now, instead of in the field()
+                # constructor, since only here do we know the field
+                # name, which allows better error reporting.
                 if m is cls:
                     info.name = name
-                    our_fields.extend([info])
+                    our_fields.append(info)
 
                     # If init=False, we must have a default value.
                     #  Otherwise, how would it get initialized?
