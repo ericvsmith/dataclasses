@@ -164,3 +164,4 @@ Issues
   it looks more like "do something to a class" and less like "create a
   new class", as it does with a decorator.
 
+- Add annotations to all functions: __init__, __eq__, __hash__, etc?
