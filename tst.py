@@ -169,7 +169,9 @@ class TestCase(unittest.TestCase):
 
         with self.assertRaises(TypeError) as ex:
             C()
-        self.assertEqual(str(ex.exception), "__init__() missing 1 required positional argument: 'x'")
+        self.assertEqual(str(ex.exception),
+                         "__init__() missing 1 required positional argument: "
+                         "'x'")
 
     def test_field_default(self):
         default = object()
@@ -177,8 +179,77 @@ class TestCase(unittest.TestCase):
         class C:
             x: object = field(default=default)
 
-        self.assertIs(C.__dict__['x'], default)
-        self.assertEqual(repr(C(10)), 'C(x=10)')
+        self.assertIs(C.x, default)
+        c = C(10)
+        self.assertEqual(repr(c), 'C(x=10)')
+        self.assertEqual(c.x, 10)
+
+        # If we delete the instance attribute, we should then see the
+        #  class attribute.
+        del c.x
+        self.assertIs(c.x, default)
+
+    def test_not_in_repr(self):
+        @dataclass
+        class C:
+            x: int = field(repr=False)
+        with self.assertRaises(TypeError):
+            C()
+        c = C(10)
+        self.assertEqual(repr(c), 'C()')
+
+        @dataclass
+        class C:
+            x: int = field(repr=False)
+            y: int
+        c = C(10, 20)
+        self.assertEqual(repr(c), 'C(y=20)')
+
+    def test_not_in_init(self):
+        # If init=False, we must have a default value.
+        # Otherwise, how would it get initialized?
+        with self.assertRaises(ValueError) as ex:
+            @dataclass
+            class C:
+                x: int = field(init=False)
+        self.assertEqual(str(ex.exception), 'field x has init=False, but has no default value')
+
+        with self.assertRaises(ValueError) as ex:
+            @dataclass
+            class C:
+                x: int
+                y: int = 0
+                z: int = field(init=False)
+                t: int
+        self.assertEqual(str(ex.exception), 'field z has init=False, but has no default value')
+
+    def test_class_marker(self):
+        @dataclass
+        class C:
+            x: int
+            y: str = field(init=False, default=None)
+            z: str = field(repr=False)
+
+        # __dataclass_fields__ is a list of 3 elements, all of which are in __annotations__
+        self.assertIsInstance(C.__dataclass_fields__, list)
+        for f in C.__dataclass_fields__:
+            self.assertIn(f.name, C.__annotations__)
+
+        self.assertEqual(len(C.__dataclass_fields__), 3)
+        self.assertEqual(C.__dataclass_fields__[0].name, 'x')
+        self.assertTrue (C.__dataclass_fields__[0].init)
+        self.assertTrue (C.__dataclass_fields__[0].repr)
+        self.assertEqual(C.__dataclass_fields__[1].name, 'y')
+        self.assertFalse(C.__dataclass_fields__[1].init)
+        self.assertTrue (C.__dataclass_fields__[1].repr)
+        self.assertEqual(C.__dataclass_fields__[2].name, 'z')
+        self.assertTrue (C.__dataclass_fields__[2].init)
+        self.assertFalse(C.__dataclass_fields__[2].repr)
 
 
-unittest.main()
+def main():
+    unittest.main()
+
+
+if __name__ == '__main__':
+    main()
