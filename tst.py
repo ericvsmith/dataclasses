@@ -259,6 +259,26 @@ class TestCase(unittest.TestCase):
         self.assertEqual(o1.l, [1, 2])
         self.assertEqual(o2.l, [])
 
+    def XXX_test_default_identity(self):
+        class MyClass:
+            pass
+        m = MyClass()
+
+        @dataclass
+        class C:
+            x: MyClass = m
+
+        c = C()
+        self.assertIs(c.x, m)
+
+    def test_no_options(self):
+        # call with dataclass()
+        @dataclass()
+        class C:
+            x: int
+
+        self.assertEqual(repr(C(42)), 'C(x=42)')
+
 
 def main():
     unittest.main()

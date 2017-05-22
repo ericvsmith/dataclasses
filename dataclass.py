@@ -192,55 +192,68 @@ def _field_filter(fields, predicate):
     return filtered
 
 
-def dataclass(cls):
-    fields = collections.OrderedDict()
-    our_fields = []
+def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
+               slots=False, frozen=False):
+    def wrap(cls):
+        fields = collections.OrderedDict()
+        our_fields = []
 
-    # In reversed order so that most derived class overrides earlier
-    #  definitions.
-    for m in reversed(cls.__mro__):
-        # Only process classes marked with our decorator, or our own
-        #  class.  Special case for ourselves because we haven't added
-        #  _MARKER to ourselves yet.
-        if m is cls or hasattr(m, _MARKER):
-            for name, info in _find_fields(m):
-                fields[name] = info
+        # In reversed order so that most derived class overrides earlier
+        #  definitions.
+        for m in reversed(cls.__mro__):
+            # Only process classes marked with our decorator, or our own
+            #  class.  Special case for ourselves because we haven't added
+            #  _MARKER to ourselves yet.
+            if m is cls or hasattr(m, _MARKER):
+                for name, info in _find_fields(m):
+                    fields[name] = info
 
-                # Field validations for fields directly on our class.
-                # This is delayed until now, instead of in the field()
-                # constructor, since only here do we know the field
-                # name, which allows better error reporting.
-                if m is cls:
-                    info.name = name
-                    our_fields.append(info)
+                    # Field validations for fields directly on our class.
+                    # This is delayed until now, instead of in the field()
+                    # constructor, since only here do we know the field
+                    # name, which allows better error reporting.
+                    if m is cls:
+                        info.name = name
+                        our_fields.append(info)
 
-                    # If init=False, we must have a default value.
-                    #  Otherwise, how would it get initialized?
-                    if not info.init and info.default == _MISSING:
-                        raise ValueError(f'field {name} has init=False, but '
-                                         'has no default value')
+                        # If init=False, we must have a default value.
+                        #  Otherwise, how would it get initialized?
+                        if not info.init and info.default == _MISSING:
+                            raise ValueError(f'field {name} has init=False, but '
+                                             'has no default value')
 
-                    # If the class attribute (which is the default
-                    #  value for this field) exists and is of type
-                    #  'field', replace it with the real default.
-                    #  This is so that normal class introspection sees
-                    #  a real default value.
-                    if isinstance(getattr(cls, name, None), field):
-                        setattr(cls, name, info.default)
+                        # If the class attribute (which is the default
+                        #  value for this field) exists and is of type
+                        #  'field', replace it with the real default.
+                        #  This is so that normal class introspection sees
+                        #  a real default value.
+                        if isinstance(getattr(cls, name, None), field):
+                            setattr(cls, name, info.default)
 
-    setattr(cls, _MARKER, our_fields)
+        setattr(cls, _MARKER, our_fields)
 
-    cls.__init__ = _init(_field_filter(fields, lambda k, info: info.init))
-    cls.__repr__ = _repr(_field_filter(fields, lambda k, info: info.repr))
-    cls.__hash__ = _hash(_field_filter(fields, lambda k, info: info.hash))
+        if init:
+            cls.__init__ = _init(_field_filter(fields, lambda k, info: info.init))
+        if repr:
+            cls.__repr__ = _repr(_field_filter(fields, lambda k, info: info.repr))
+        cls.__hash__ = _hash(_field_filter(fields, lambda k, info: info.hash))
 
-    # Create comparison functions.
-    cmp_fields = _field_filter(fields, lambda k, info: info.cmp)
-    cls.__eq__ = _eq(cmp_fields)
-    cls.__ne__ = _ne()
-    cls.__lt__ = _lt(cmp_fields)
-    cls.__le__ = _le(cmp_fields)
-    cls.__gt__ = _gt(cmp_fields)
-    cls.__ge__ = _ge(cmp_fields)
+        if cmp:
+            # Create comparison functions.
+            cmp_fields = _field_filter(fields, lambda k, info: info.cmp)
+            cls.__eq__ = _eq(cmp_fields)
+            cls.__ne__ = _ne()
+            cls.__lt__ = _lt(cmp_fields)
+            cls.__le__ = _le(cmp_fields)
+            cls.__gt__ = _gt(cmp_fields)
+            cls.__ge__ = _ge(cmp_fields)
 
-    return cls
+        return cls
+
+    # See if we're being called as @dataclass or @dataclass().
+    if _cls is None:
+        # We're called as @dataclass()
+        return wrap
+
+    # We're called as @dataclass, with a class
+    return wrap(_cls)
