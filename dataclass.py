@@ -12,7 +12,6 @@
 
 # if needed for efficiency, compute self_tuple and other_tuple just once, and pass them around
 
-import copy
 import collections
 
 __all__ = ['dataclass', 'field']
@@ -60,7 +59,7 @@ def _tuple_str(obj_name, fields):
     if len(fields) == 0:
         return '()'
     # Note the trailing comma, needed for 1-tuple
-    return f'({",".join([f"{obj_name}.{f}" for f in fields])},)'
+    return f'({",".join([f"{obj_name}.{f.name}" for f in fields])},)'
 
 
 def _create_fn(name, args, body, locals=None):
@@ -75,27 +74,39 @@ def _create_fn(name, args, body, locals=None):
     return locals[name]
 
 
+def _field_init(info):
+    if info.default == _MISSING:
+        # There's no default, just use the value from our parameter list.
+        return f'{_SELF_NAME}.{info.name} = {info.name}'
+
+    if isinstance(info.default, (list, dict, set)):
+        # We're a type we know how to copy. If no default is given, copy the default.
+        return f'{_SELF_NAME}.{info.name} = {_SELF_NAME}.__class__.{info.name}.copy() if {info.name} is {_SELF_NAME}.__class__.{info.name} else {info.name}'
+
+    # XXX Is our default a factory function?
+    return f'{_SELF_NAME}.{info.name} = {info.name}'
+
+
 def _init(fields):
     # Make sure we don't have fields without defaults following fields
     #  with defaults.  If I switch to building the source to the
     #  __init__ function and compiling it, this isn't needed, since it
     #  will catch the problem.
     seen_default = False
-    for k, v in fields.items():
-        if v.default is not _MISSING:
+    for f in fields:
+        if f.default is not _MISSING:
             seen_default = True
         else:
             if seen_default:
-                raise ValueError(f'non-default argument {k} follows default argument')
+                raise ValueError(f'non-default argument {f.name} follows default argument')
 
-    args = [_SELF_NAME] + [(f if info.default is _MISSING else f"{f}=_def_{f}") for f, info in fields.items()]
-    body_lines = [f'{_SELF_NAME}.{f}=copy.copy({f})' for f in fields]
+    args = [_SELF_NAME] + [(f.name if f.default is _MISSING else f"{f.name}=_def_{f.name}") for f in fields]
+    body_lines = [_field_init(f) for f in fields]
     if len(body_lines) == 0:
         body_lines = ['pass']
 
     # Locals contains defaults, supply them.
-    locals = {f'_def_{f}': info.default
-              for f, info in fields.items() if info.default is not _MISSING}
+    locals = {f'_def_{f.name}': f.default for f in fields if f.default is not _MISSING}
     return _create_fn('__init__',
                       args,
                       body_lines,
@@ -105,7 +116,7 @@ def _init(fields):
 def _repr(fields):
     return _create_fn('__repr__',
                       [f'{_SELF_NAME}'],
-                      [f'return {_SELF_NAME}.__class__.__name__ + f"(' + ','.join([f"{k}={{{_SELF_NAME}.{k}!r}}" for k in fields]) + ')"'],
+                      [f'return {_SELF_NAME}.__class__.__name__ + f"(' + ','.join([f"{f.name}={{{_SELF_NAME}.{f.name}!r}}" for f in fields]) + ')"'],
                       )
 
 
@@ -184,12 +195,11 @@ def _find_fields(cls):
 
 
 def _field_filter(fields, predicate):
-    # Use an OrderedDict to guarantee order.
-    filtered = collections.OrderedDict()
-    for k, v in fields.items():
-        if predicate(k, v):
-            filtered[k] = v
-    return filtered
+    return [f for f in fields if predicate(f)]
+
+
+class Factory:
+    pass
 
 
 def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
@@ -202,45 +212,62 @@ def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
         #  definitions.
         for m in reversed(cls.__mro__):
             # Only process classes marked with our decorator, or our own
-            #  class.  Special case for ourselves because we haven't added
-            #  _MARKER to ourselves yet.
-            if m is cls or hasattr(m, _MARKER):
+            #  class.
+            if hasattr(m, _MARKER):
+                # This is a base class, collect the fields we've
+                #  already processed.
+                for name, f in _find_fields(m):
+                    fields[name] = f
+            elif m is cls:
+                # This is our class, process each field we find in it.
                 for name, info in _find_fields(m):
                     fields[name] = info
+                    our_fields.append(info)
 
-                    # Field validations for fields directly on our class.
-                    # This is delayed until now, instead of in the field()
-                    # constructor, since only here do we know the field
-                    # name, which allows better error reporting.
-                    if m is cls:
-                        info.name = name
-                        our_fields.append(info)
+                    # XXX: instead of mutating info, maybe copy
+                    # this to a different object with the same
+                    # fields, but adding name?
+                    info.name = name
 
-                        # If init=False, we must have a default value.
-                        #  Otherwise, how would it get initialized?
-                        if not info.init and info.default == _MISSING:
-                            raise ValueError(f'field {name} has init=False, but '
-                                             'has no default value')
+                    # Field validations for fields directly on our
+                    # class.  This is delayed until now, instead
+                    # of in the field() constructor, since only
+                    # here do we know the field name, which allows
+                    # better error reporting.
 
-                        # If the class attribute (which is the default
-                        #  value for this field) exists and is of type
-                        #  'field', replace it with the real default.
-                        #  This is so that normal class introspection sees
-                        #  a real default value.
-                        if isinstance(getattr(cls, name, None), field):
-                            setattr(cls, name, info.default)
+                    # If init=False, we must have a default value.
+                    #  Otherwise, how would it get initialized?
+                    if not info.init and info.default == _MISSING:
+                        raise ValueError(f'field {name} has init=False, but '
+                                         'has no default value')
 
-        setattr(cls, _MARKER, our_fields)
+                    # If the class attribute (which is the default
+                    #  value for this field) exists and is of type
+                    #  'field', replace it with the real default.
+                    #  This is so that normal class introspection sees
+                    #  a real default value.
+                    if isinstance(getattr(cls, name, None), field):
+                        setattr(cls, name, info.default)
+            else:
+                # Not a base class we care about
+                pass
+
+        # We've de-duped and have the fields in order, no longer need
+        # a dict of them.
+        fields = list(fields.values())
+
+        # Remember the total set of fields on our class (included bases).
+        setattr(cls, _MARKER, fields)
 
         if init:
-            cls.__init__ = _init(_field_filter(fields, lambda k, info: info.init))
+            cls.__init__ = _init(_field_filter(fields, lambda f: f.init))
         if repr:
-            cls.__repr__ = _repr(_field_filter(fields, lambda k, info: info.repr))
-        cls.__hash__ = _hash(_field_filter(fields, lambda k, info: info.hash))
+            cls.__repr__ = _repr(_field_filter(fields, lambda f: f.repr))
+        cls.__hash__ = _hash(_field_filter(fields, lambda f: f.hash))
 
         if cmp:
             # Create comparison functions.
-            cmp_fields = _field_filter(fields, lambda k, info: info.cmp)
+            cmp_fields = _field_filter(fields, lambda f: f.cmp)
             cls.__eq__ = _eq(cmp_fields)
             cls.__ne__ = _ne()
             cls.__lt__ = _lt(cmp_fields)
