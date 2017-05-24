@@ -16,23 +16,20 @@ import collections
 
 __all__ = ['dataclass', 'field']
 
-_MISSING = "MISSING"
+_MISSING = object()
 _MARKER = '__dataclass_fields__'
 _SELF_NAME = '_self'
 _OTHER_NAME = '_other'
 
 
-# XXX: can't use slots, because we fill in name later
-# maybe create another (derived?) type that adds the name, so we can use slots?
-# not sure how many of these we're going to have
 class field:
-    ## __slots__ = ('name',
-    ##              'default',
-    ##              'repr',
-    ##              'hash',
-    ##              'init',
-    ##              'cmp',
-    ##              )
+    __slots__ = ('name',
+                 'default',
+                 'repr',
+                 'hash',
+                 'init',
+                 'cmp',
+                 )
     def __init__(self, *, default=_MISSING, repr=True, hash=True, init=True,
                  cmp=True):
         self.name = None  # added later
@@ -44,7 +41,7 @@ class field:
 
     # XXX: currently for testing. either complete this, or delete it
     def __repr__(self):
-        return f'field(name={self.name!r},default={self.default!r})'
+        return f'field(name={self.name!r},default={"_MISSING" if self.default is _MISSING else self.default!r})'
 
 
 def _to_field_definition(type):
