@@ -106,8 +106,8 @@ class TestCase(unittest.TestCase):
         class C:
             pass
         self.assertEqual(C(), C())
-#        self.assertNotEqual(C(), C())
-#        self.assertLess(C(), C())
+        self.assertLessEqual(C(), C())
+        self.assertGreaterEqual(C(), C())
 
     def test_1_field_cmp(self):
         @dataclass
@@ -143,7 +143,17 @@ class TestCase(unittest.TestCase):
         self.assertGreaterEqual(C(1, 0), C(0, 0))
         self.assertGreaterEqual(C(1, 0), C(1, 0))
 
-        # XXX: These all test operator returning True. What about operator returning False
+        # For operators returning False, we have to use assertFalse.
+        self.assertFalse(C(0, 1) < C(0, 0))
+        self.assertFalse(C(1, 0) < C(0, 0))
+        self.assertFalse(C(0, 1) <= C(0, 0))
+        self.assertFalse (C(0, 2) <= C(0, 1))
+        self.assertFalse(C(1, 0) <=  C(0, 0))
+        self.assertFalse(C(0, 0) > C(0, 1))
+        self.assertFalse(C(0, 0) > C(1, 0))
+        self.assertFalse(C(0, 0) >= C(0, 1))
+        self.assertFalse(C(0, 0) >= C(0, 1))
+        self.assertFalse(C(0, 0) >= C(1, 0))
 
     def test_0_field_hash(self):
         @dataclass
