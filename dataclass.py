@@ -32,7 +32,10 @@ class field:
                  )
     def __init__(self, *, default=_MISSING, repr=True, hash=True, init=True,
                  cmp=True):
-        self.name = None  # added later
+        # Initialize name to None.  It's filled in later, when
+        #  scanning through the class's fields.  We don't know it when
+        #  the field is being initialized.
+        self.name = None
         self.default = default
         self.repr = repr
         self.hash = hash
@@ -61,7 +64,7 @@ def _tuple_str(obj_name, fields):
 
 
 def _create_fn(name, args, body, locals=None):
-    # Note that we mutate locals. Caller beware!
+    # Note that we mutate locals when exec() is called. Caller beware!
     if locals is None:
         locals = {}
     args = ','.join(args)
@@ -93,9 +96,9 @@ def _field_init(info):
 
 def _init(fields):
     # Make sure we don't have fields without defaults following fields
-    #  with defaults.  If I switch to building the source to the
-    #  __init__ function and compiling it, this isn't needed, since it
-    #  will catch the problem.
+    #  with defaults.  This actually would be caught when exec-ing the
+    #  function source code, but catching it here gives a better error
+    #  message.
     seen_default = False
     for f in fields:
         if f.default is not _MISSING:
@@ -111,7 +114,7 @@ def _init(fields):
     if len(body_lines) == 0:
         body_lines = ['pass']
 
-    # Locals contains defaults, supply them.
+    # locals needs to contain the defaults values: supply them.
     locals = {f'_def_{f.name}': f.default for f in fields
                                 if f.default is not _MISSING}
     return _create_fn('__init__',
