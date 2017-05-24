@@ -77,6 +77,11 @@ class TestCase(unittest.TestCase):
         o = C(4)
         self.assertEqual(repr(o), 'C(x=4,y=10)')
 
+        @dataclass
+        class D(C):
+            x: int = 20
+        self.assertEqual(repr(D()), 'D(x=20,y=10)')
+
     def test_overwrite_fields_in_derived_class(self):
         # Note that x from C1 replaces x in Base, but the order remains
         #  the same as defined in Base.
