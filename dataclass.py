@@ -43,7 +43,7 @@ class field:
 
     # XXX: currently for testing. either complete this, or delete it
     def __repr__(self):
-        return f'field({self.name})'
+        return f'field(name={self.name!r},default={self.default!r})'
 
 
 def _to_field_definition(type):
@@ -75,6 +75,8 @@ def _create_fn(name, args, body, locals=None):
 
 
 def _field_init(info):
+    # Return the text of the line in __init__ that will initialize
+    #  this field.
     if info.default == _MISSING:
         # There's no default, just use the value from our parameter list.
         return f'{_SELF_NAME}.{info.name} = {info.name}'
@@ -213,12 +215,7 @@ def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
         for m in reversed(cls.__mro__):
             # Only process classes marked with our decorator, or our own
             #  class.
-            if hasattr(m, _MARKER):
-                # This is a base class, collect the fields we've
-                #  already processed.
-                for name, f in _find_fields(m):
-                    fields[name] = f
-            elif m is cls:
+            if m is cls:
                 # This is our class, process each field we find in it.
                 for name, info in _find_fields(m):
                     fields[name] = info
@@ -248,12 +245,17 @@ def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
                     #  a real default value.
                     if isinstance(getattr(cls, name, None), field):
                         setattr(cls, name, info.default)
+            elif hasattr(m, _MARKER):
+                # This is a base class, collect the fields we've
+                #  already processed.
+                for f in getattr(m, _MARKER):
+                    fields[f.name] = f
             else:
                 # Not a base class we care about
                 pass
 
         # We've de-duped and have the fields in order, no longer need
-        # a dict of them.
+        # a dict of them.  Convert to a list of just the values.
         fields = list(fields.values())
 
         # Remember the total set of fields on our class (included bases).
