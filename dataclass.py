@@ -33,7 +33,8 @@ class field:
     ##              'init',
     ##              'cmp',
     ##              )
-    def __init__(self, *, default=_MISSING, repr=True, hash=True, init=True, cmp=True):
+    def __init__(self, *, default=_MISSING, repr=True, hash=True, init=True,
+                 cmp=True):
         self.name = None  # added later
         self.default = default
         self.repr = repr
@@ -82,8 +83,12 @@ def _field_init(info):
         return f'{_SELF_NAME}.{info.name} = {info.name}'
 
     if isinstance(info.default, (list, dict, set)):
-        # We're a type we know how to copy. If no default is given, copy the default.
-        return f'{_SELF_NAME}.{info.name} = {_SELF_NAME}.__class__.{info.name}.copy() if {info.name} is {_SELF_NAME}.__class__.{info.name} else {info.name}'
+        # We're a type we know how to copy. If no default is given,
+        #  copy the default.
+        return (f'{_SELF_NAME}.{info.name} = '
+                f'{_SELF_NAME}.__class__.{info.name}.copy() '
+                f'if {info.name} is {_SELF_NAME}.__class__.{info.name} '
+                f'else {info.name}')
 
     # XXX Is our default a factory function?
     return f'{_SELF_NAME}.{info.name} = {info.name}'
@@ -100,15 +105,18 @@ def _init(fields):
             seen_default = True
         else:
             if seen_default:
-                raise ValueError(f'non-default argument {f.name} follows default argument')
+                raise ValueError(f'non-default argument {f.name} '
+                                 'follows default argument')
 
-    args = [_SELF_NAME] + [(f.name if f.default is _MISSING else f"{f.name}=_def_{f.name}") for f in fields]
+    args = [_SELF_NAME] + [(f.name if f.default is _MISSING
+                            else f"{f.name}=_def_{f.name}") for f in fields]
     body_lines = [_field_init(f) for f in fields]
     if len(body_lines) == 0:
         body_lines = ['pass']
 
     # Locals contains defaults, supply them.
-    locals = {f'_def_{f.name}': f.default for f in fields if f.default is not _MISSING}
+    locals = {f'_def_{f.name}': f.default for f in fields
+                                if f.default is not _MISSING}
     return _create_fn('__init__',
                       args,
                       body_lines,
@@ -139,7 +147,7 @@ def _eq(fields):
 
 
 def _ne():
-    # __ne__ is slightly different, use a different pattern.
+    # __ne__ is slightly different, so use a different pattern.
     return _create_fn('__ne__',
                       [_SELF_NAME, _OTHER_NAME],
                       [f'result = {_SELF_NAME}.__eq__({_OTHER_NAME})',
@@ -182,6 +190,10 @@ def _find_fields(cls):
     #  used to identify fields.  The actual value of the type
     #  annotation is not saved anywhere.  It can be retrieved from
     #  __annotations__ if needed.
+
+    # XXX: are __annotations__ known to ordered? I don't think so.
+    #  Maybe iterate over class members (which are in order) and only
+    #  consider ones that are in __annotations__?
 
     annotations = getattr(cls, '__annotations__', {})
 
