@@ -196,10 +196,6 @@ def _find_fields(cls):
     return results
 
 
-def _field_filter(predicate, fields):
-    return [f for f in fields if predicate(f)]
-
-
 class Factory:
     pass
 
