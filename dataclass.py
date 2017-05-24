@@ -194,7 +194,7 @@ def _find_fields(cls):
     return results
 
 
-def _field_filter(fields, predicate):
+def _field_filter(predicate, fields):
     return [f for f in fields if predicate(f)]
 
 
@@ -260,14 +260,14 @@ def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
         setattr(cls, _MARKER, fields)
 
         if init:
-            cls.__init__ = _init(_field_filter(fields, lambda f: f.init))
+            cls.__init__ = _init(list(filter(lambda f: f.init, fields)))
         if repr:
-            cls.__repr__ = _repr(_field_filter(fields, lambda f: f.repr))
-        cls.__hash__ = _hash(_field_filter(fields, lambda f: f.hash))
+            cls.__repr__ = _repr(list(filter(lambda f: f.repr, fields)))
+        cls.__hash__ = _hash(list(filter(lambda f: f.hash, fields)))
 
         if cmp:
             # Create comparison functions.
-            cmp_fields = _field_filter(fields, lambda f: f.cmp)
+            cmp_fields = list(filter(lambda f: f.cmp, fields))
             cls.__eq__ = _eq(cmp_fields)
             cls.__ne__ = _ne()
             cls.__lt__ = _lt(cmp_fields)
