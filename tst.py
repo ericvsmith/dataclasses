@@ -294,10 +294,25 @@ class TestCase(unittest.TestCase):
 
         self.assertEqual(repr(C(42)), 'C(x=42)')
 
+    def test_not_tuple(self):
+        # Make sure we can't be compared to a tuple.
+        @dataclass
+        class Point:
+            x: int
+            y: int
+        self.assertNotEqual(Point(1, 2), (1, 2))
+
+        # And that we can't compare to another unrelated dataclass
+        @dataclass
+        class C:
+            x: int
+            y: int
+        self.assertNotEqual(Point(1, 3), C(1, 3))
+
     def test_make_simple(self):
         C = make_class('C', 'a b')
 
-        
+
 def main():
     unittest.main()
 
