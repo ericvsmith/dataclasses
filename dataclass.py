@@ -212,79 +212,83 @@ class Factory:
     pass
 
 
+def _process_class(cls, repr, cmp, hash, init, slots, frozen):
+    # Use an OrderedDict because:
+    #  - Order matters!
+    #  - Derived class fields overwrite base class fields.
+    fields = collections.OrderedDict()
+
+    # Find our base classes in reverse MRO order, and exclude
+    #  ourselves.  In reversed order so that more derived classes
+    #  overrides earlier field definitions in base classes.
+    bases = [b for b in cls.__mro__ if not b is cls]
+
+    for b in bases:
+        # Only process classes marked with our decorator.
+        if hasattr(b, _MARKER):
+            # This is one of our base classes, where we've already
+            #  set _MARKER with a list of fields.  Add them to the
+            #  fields we're building up.  already processed.
+            for f in getattr(b, _MARKER):
+                fields[f.name] = f
+
+    # Now process our class.
+    for name, info in _find_fields(cls):
+        fields[name] = info
+
+        # For fields defined in our class, set the name, which we
+        #  don't know until now.
+        info.name = name
+
+        # Field validations for fields directly on our class.
+        #  This is delayed until now, instead of in the field()
+        #  constructor, since only here do we know the field name,
+        #  which allows better error reporting.
+
+        # If init=False, we must have a default value.  Otherwise,
+        # how would it get initialized?
+        if not info.init and info.default == _MISSING:
+            raise ValueError(f'field {name} has init=False, but '
+                             'has no default value')
+
+        # If the class attribute (which is the default value for
+        #  this field) exists and is of type 'field', replace it
+        #  with the real default.  This is so that normal class
+        #  introspection sees a real default value.
+        if isinstance(getattr(cls, name, None), field):
+            setattr(cls, name, info.default)
+
+    # We've de-duped and have the fields in order, so we no longer
+    #  need a dict of them.  Convert to a list of just the values.
+    fields = list(fields.values())
+
+    # Remember the total set of fields on our class (including
+    #  bases).
+    setattr(cls, _MARKER, fields)
+
+    if init:
+        cls.__init__ = _init(list(filter(lambda f: f.init, fields)))
+    if repr:
+        cls.__repr__ = _repr(list(filter(lambda f: f.repr, fields)))
+    cls.__hash__ = _hash(list(filter(lambda f: f.hash, fields)))
+
+    if cmp:
+        # Create comparison functions.
+        cmp_fields = list(filter(lambda f: f.cmp, fields))
+        cls.__eq__ = _eq(cmp_fields)
+        cls.__ne__ = _ne()
+        cls.__lt__ = _lt(cmp_fields)
+        cls.__le__ = _le(cmp_fields)
+        cls.__gt__ = _gt(cmp_fields)
+        cls.__ge__ = _ge(cmp_fields)
+
+    return cls
+
+
 def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
                slots=False, frozen=False):
     def wrap(cls):
-        # Use an OrderedDict because:
-        #  - Order matters!
-        #  - Derived class fields overwrite base class fields.
-        fields = collections.OrderedDict()
-
-        # Find our base classes in reverse MRO order, and exclude
-        #  ourselves.  In reversed order so that more derived classes
-        #  overrides earlier field definitions in base classes.
-        bases = [b for b in cls.__mro__ if not b is cls]
-
-        for b in bases:
-            # Only process classes marked with our decorator.
-            if hasattr(b, _MARKER):
-                # This is one of our base classes, where we've already
-                #  set _MARKER with a list of fields.  Add them to the
-                #  fields we're building up.  already processed.
-                for f in getattr(b, _MARKER):
-                    fields[f.name] = f
-
-        # Now process our class.
-        for name, info in _find_fields(cls):
-            fields[name] = info
-
-            # For fields defined in our class, set the name, which we
-            #  don't know until now.
-            info.name = name
-
-            # Field validations for fields directly on our class.
-            #  This is delayed until now, instead of in the field()
-            #  constructor, since only here do we know the field name,
-            #  which allows better error reporting.
-
-            # If init=False, we must have a default value.  Otherwise,
-            # how would it get initialized?
-            if not info.init and info.default == _MISSING:
-                raise ValueError(f'field {name} has init=False, but '
-                                 'has no default value')
-
-            # If the class attribute (which is the default value for
-            #  this field) exists and is of type 'field', replace it
-            #  with the real default.  This is so that normal class
-            #  introspection sees a real default value.
-            if isinstance(getattr(cls, name, None), field):
-                setattr(cls, name, info.default)
-
-        # We've de-duped and have the fields in order, so we no longer
-        #  need a dict of them.  Convert to a list of just the values.
-        fields = list(fields.values())
-
-        # Remember the total set of fields on our class (including
-        #  bases).
-        setattr(cls, _MARKER, fields)
-
-        if init:
-            cls.__init__ = _init(list(filter(lambda f: f.init, fields)))
-        if repr:
-            cls.__repr__ = _repr(list(filter(lambda f: f.repr, fields)))
-        cls.__hash__ = _hash(list(filter(lambda f: f.hash, fields)))
-
-        if cmp:
-            # Create comparison functions.
-            cmp_fields = list(filter(lambda f: f.cmp, fields))
-            cls.__eq__ = _eq(cmp_fields)
-            cls.__ne__ = _ne()
-            cls.__lt__ = _lt(cmp_fields)
-            cls.__le__ = _le(cmp_fields)
-            cls.__gt__ = _gt(cmp_fields)
-            cls.__ge__ = _ge(cmp_fields)
-
-        return cls
+        return _process_class(cls, repr, cmp, hash, init, slots, frozen)
 
     # See if we're being called as @dataclass or @dataclass().
     if _cls is None:
