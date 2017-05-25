@@ -313,6 +313,15 @@ class TestCase(unittest.TestCase):
         C = make_class('C', 'a b')
         self.assertEqual(repr(C(1, 2)), 'C(a=1,b=2)')
 
+    def test_make_derived(self):
+        @dataclass
+        class Base:
+            x: int
+            y: int
+
+        C = make_class('C', 'z x', bases=(Base,))
+        self.assertEqual(repr(C(4,5,6)), 'C(x=4,y=5,z=6)')
+
 
 def main():
     unittest.main()

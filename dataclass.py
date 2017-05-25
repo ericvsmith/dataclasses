@@ -295,7 +295,7 @@ def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
     return wrap(_cls)
 
 
-def make_class(cls_name, fields, bases=None, repr=True, cmp=True,
+def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
                hash=None, init=True, slots=False, frozen=False):
     # fields is a list of (name, type, field)
     if bases is None:
