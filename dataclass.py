@@ -215,58 +215,57 @@ class Factory:
 def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
                slots=False, frozen=False):
     def wrap(cls):
+        # Use an OrderedDict because:
+        #  - Order matters!
+        #  - Derived class fields overwrite base class fields.
         fields = collections.OrderedDict()
-        our_fields = []
 
-        # In reversed order so that most derived class overrides earlier
-        #  definitions.
-        for m in reversed(cls.__mro__):
-            # Only process classes marked with our decorator, or our own
-            #  class.
-            if m is cls:
-                # This is our class, process each field we find in it.
-                for name, info in _find_fields(m):
-                    fields[name] = info
-                    our_fields.append(info)
+        # Find our base classes in reverse MRO order, and exclude
+        #  ourselves.  In reversed order so that more derived classes
+        #  overrides earlier field definitions in base classes.
+        bases = [b for b in cls.__mro__ if not b is cls]
 
-                    # XXX: instead of mutating info, maybe copy
-                    # this to a different object with the same
-                    # fields, but adding name?
-                    info.name = name
-
-                    # Field validations for fields directly on our
-                    # class.  This is delayed until now, instead
-                    # of in the field() constructor, since only
-                    # here do we know the field name, which allows
-                    # better error reporting.
-
-                    # If init=False, we must have a default value.
-                    #  Otherwise, how would it get initialized?
-                    if not info.init and info.default == _MISSING:
-                        raise ValueError(f'field {name} has init=False, but '
-                                         'has no default value')
-
-                    # If the class attribute (which is the default
-                    #  value for this field) exists and is of type
-                    #  'field', replace it with the real default.
-                    #  This is so that normal class introspection sees
-                    #  a real default value.
-                    if isinstance(getattr(cls, name, None), field):
-                        setattr(cls, name, info.default)
-            elif hasattr(m, _MARKER):
-                # This is a base class, collect the fields we've
-                #  already processed.
-                for f in getattr(m, _MARKER):
+        for b in bases:
+            # Only process classes marked with our decorator.
+            if hasattr(b, _MARKER):
+                # This is one of our base classes, where we've already
+                #  set _MARKER with a list of fields.  Add them to the
+                #  fields we're building up.  already processed.
+                for f in getattr(b, _MARKER):
                     fields[f.name] = f
-            else:
-                # Not a base class we care about
-                pass
 
-        # We've de-duped and have the fields in order, no longer need
-        # a dict of them.  Convert to a list of just the values.
+        # Now process our class.
+        for name, info in _find_fields(cls):
+            fields[name] = info
+
+            # For fields defined in our class, set the name, which we
+            #  don't know until now.
+            info.name = name
+
+            # Field validations for fields directly on our class.
+            #  This is delayed until now, instead of in the field()
+            #  constructor, since only here do we know the field name,
+            #  which allows better error reporting.
+
+            # If init=False, we must have a default value.  Otherwise,
+            # how would it get initialized?
+            if not info.init and info.default == _MISSING:
+                raise ValueError(f'field {name} has init=False, but '
+                                 'has no default value')
+
+            # If the class attribute (which is the default value for
+            #  this field) exists and is of type 'field', replace it
+            #  with the real default.  This is so that normal class
+            #  introspection sees a real default value.
+            if isinstance(getattr(cls, name, None), field):
+                setattr(cls, name, info.default)
+
+        # We've de-duped and have the fields in order, so we no longer
+        #  need a dict of them.  Convert to a list of just the values.
         fields = list(fields.values())
 
-        # Remember the total set of fields on our class (included bases).
+        # Remember the total set of fields on our class (including
+        #  bases).
         setattr(cls, _MARKER, fields)
 
         if init:
