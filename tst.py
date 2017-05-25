@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.6
 
-from dataclass import dataclass, field
+from dataclass import dataclass, field, make_class
 
 import unittest
 
@@ -294,7 +294,10 @@ class TestCase(unittest.TestCase):
 
         self.assertEqual(repr(C(42)), 'C(x=42)')
 
+    def test_make_simple(self):
+        C = make_class('C', 'a b')
 
+        
 def main():
     unittest.main()
 

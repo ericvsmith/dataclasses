@@ -14,7 +14,7 @@
 
 import collections
 
-__all__ = ['dataclass', 'field']
+__all__ = ['dataclass', 'field', 'make_class']
 
 _MISSING = object()
 _MARKER = '__dataclass_fields__'
@@ -45,10 +45,6 @@ class field:
     # XXX: currently for testing. either complete this, or delete it
     def __repr__(self):
         return f'field(name={self.name!r},default={"_MISSING" if self.default is _MISSING else self.default!r})'
-
-
-def _to_field_definition(type):
-    return type
 
 
 def _tuple_str(obj_name, fields):
@@ -198,7 +194,7 @@ def _find_fields(cls):
     annotations = getattr(cls, '__annotations__', {})
 
     results = []
-    for name, type in annotations.items():
+    for name, type_ in annotations.items():
         # If the default value isn't derived from field, then it's
         # only a normal default value.  Convert it to a field().
         default = getattr(cls, name, _MISSING)
@@ -297,3 +293,50 @@ def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
 
     # We're called as @dataclass, with a class
     return wrap(_cls)
+
+
+def make_class(cls_name, fields, bases=None, repr=True, cmp=True,
+               hash=None, init=True, slots=False, frozen=False):
+    # fields is a list of (name, type, field)
+    if bases is None:
+        bases = (object,)
+
+    if isinstance(fields, str):
+        # This is for the case of using 'x y' as a shortcut for
+        #  ['x', 'y'].
+        fields = fields.replace(',', ' ').split()
+
+    # Normalize the fields.  The user can supply:
+    #  - just a name
+    #  - tuple of (name, default)
+    #  - tuple of (name, field())
+    #  - tuple of (name,
+    fields1 = {}  # XXX needs to be an orderedict
+    annotations = {}  # XXX also ordered?
+    for v in fields:
+        type_ = default = _MISSING
+        if len(v) == 3:
+            name, type_, default = v
+        elif len(v) == 2:
+            name, type_ = v
+        else:
+            name = v
+
+        if type_ is _MISSING:
+            pass
+
+        # If the default value isn't derived from field, then it's
+        # only a normal default value.  Convert it to a field().
+        if not isinstance(default, field):
+            f = field(default=default)
+        else:
+            f = default
+
+        f.name = name
+
+        fields1[f.name] = f
+        annotations[f.name] = type_
+
+    fields1['__annotations__'] = annotations
+    return _process_class(type(cls_name, bases, fields1),
+                          repr, cmp, hash, init, slots, frozen)
