@@ -20,8 +20,10 @@ __all__ = ['dataclass', 'field', 'make_class']
 
 _MISSING = object()
 _MARKER = '__dataclass_fields__'
-_SELF_NAME = '_self'
-_OTHER_NAME = '_other'
+
+# Use '_self' instead of 'self' so that fields can be named 'self'.
+_SELF = '_self'
+_OTHER = '_other'
 
 
 # This is used for both static field specs (in a class statement), and
@@ -52,7 +54,8 @@ class field:
 
     # XXX: currently for testing. either complete this, or delete it
     def __repr__(self):
-        return f'field(name={self.name!r},default={"_MISSING" if self.default is _MISSING else self.default!r})'
+        return f'''field(name={self.name!r},default={"_MISSING"
+                if self.default is _MISSING else self.default!r})'''
 
 
 def _tuple_str(obj_name, fields):
@@ -84,18 +87,18 @@ def _field_init(info):
     #  this field.
     if info.default == _MISSING:
         # There's no default, just use the value from our parameter list.
-        return f'{_SELF_NAME}.{info.name} = {info.name}'
+        return f'{_SELF}.{info.name} = {info.name}'
 
     if isinstance(info.default, (list, dict, set)):
         # We're a type we know how to copy. If no default is given,
         #  copy the default.
-        return (f'{_SELF_NAME}.{info.name} = '
-                f'{_SELF_NAME}.__class__.{info.name}.copy() '
-                f'if {info.name} is {_SELF_NAME}.__class__.{info.name} '
+        return (f'{_SELF}.{info.name} = '
+                f'{_SELF}.__class__.{info.name}.copy() '
+                f'if {info.name} is {_SELF}.__class__.{info.name} '
                 f'else {info.name}')
 
     # XXX Is our default a factory function?
-    return f'{_SELF_NAME}.{info.name} = {info.name}'
+    return f'{_SELF}.{info.name} = {info.name}'
 
 
 def _init(fields):
@@ -112,7 +115,7 @@ def _init(fields):
                 raise ValueError(f'non-default argument {f.name} '
                                  'follows default argument')
 
-    args = [_SELF_NAME] + [(f.name if f.default is _MISSING
+    args = [_SELF] + [(f.name if f.default is _MISSING
                             else f"{f.name}=_def_{f.name}") for f in fields]
     body_lines = [_field_init(f) for f in fields]
     if len(body_lines) == 0:
@@ -129,18 +132,17 @@ def _init(fields):
 
 def _repr(fields):
     return _create_fn('__repr__',
-                      [f'{_SELF_NAME}'],
-                      [f'return {_SELF_NAME}.__class__.__name__ + f"(' + ','.join([f"{f.name}={{{_SELF_NAME}.{f.name}!r}}" for f in fields]) + ')"'],
+                      [f'{_SELF}'],
+                      [f'return {_SELF}.__class__.__name__ + f"(' + ','.join([f"{f.name}={{{_SELF}.{f.name}!r}}" for f in fields]) + ')"'],
                       )
 
 
 def _create_cmp_fn(name, op, fields):
-    self_tuple = _tuple_str(_SELF_NAME, fields)
-    other_tuple = _tuple_str(_OTHER_NAME, fields)
+    self_tuple = _tuple_str(_SELF, fields)
+    other_tuple = _tuple_str(_OTHER, fields)
     return _create_fn(name,
-                      [_SELF_NAME, _OTHER_NAME],
-                      [f'if {_OTHER_NAME}.__class__ is '
-                          f'{_SELF_NAME}.__class__:',
+                      [_SELF, _OTHER],
+                      [f'if {_OTHER}.__class__ is {_SELF}.__class__:',
                        f'    return {self_tuple}{op}{other_tuple}',
                         'return NotImplemented'],
                       )
@@ -153,8 +155,8 @@ def _eq(fields):
 def _ne():
     # __ne__ is slightly different, so use a different pattern.
     return _create_fn('__ne__',
-                      [_SELF_NAME, _OTHER_NAME],
-                      [f'result = {_SELF_NAME}.__eq__({_OTHER_NAME})',
+                      [_SELF, _OTHER],
+                      [f'result = {_SELF}.__eq__({_OTHER})',
                         'return NotImplemented if result is NotImplemented '
                             'else not result',
                        ],
@@ -178,9 +180,9 @@ def _ge(fields):
 
 
 def _hash(fields):
-    self_tuple = _tuple_str(_SELF_NAME, fields)
+    self_tuple = _tuple_str(_SELF, fields)
     return _create_fn('__hash__',
-                      [_SELF_NAME],
+                      [_SELF],
                       [f'return hash({self_tuple})'])
 
 
