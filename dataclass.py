@@ -346,8 +346,8 @@ def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
     # Normalize the fields.  The user can supply:
     #  - just a name
     #  - a field() with name and type specified
-    fields1 = {}  # XXX needs to be an orderedict
-    annotations = {}  # XXX also ordered?
+    fields1 = collections.OrderedDict()
+    annotations = collections.OrderedDict()
     for idx, f in enumerate(fields, 1):
         if isinstance(f, str):
             # Only a name specified, assume it's of type default_type.
