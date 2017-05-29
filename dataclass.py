@@ -10,6 +10,8 @@
 #  directly? recommended by PEP 526, but that's importing a lot just
 #  to get at __annotations__
 
+# is __annotations__ guaranteed to be an ordered mapping?
+
 # if needed for efficiency, compute self_tuple and other_tuple just once, and pass them around
 
 import collections
@@ -22,6 +24,13 @@ _SELF_NAME = '_self'
 _OTHER_NAME = '_other'
 
 
+# This is used for both static field specs (in a class statement), and
+#  in dynamic class creation (using make_class).  In the static case,
+#  name and type must not be specified (they're inferred from
+#  cls.__dict__ and __annocations__, respectively).  In the dynamic
+#  case, they must be specified.
+# In either case, when cls._MARKER is filled in with fields(), the
+#  name and type fields will have been populated.
 class field:
     __slots__ = ('name',
                  'type',
