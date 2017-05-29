@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.6
 
-from dataclass import dataclass, field, dynfield, make_class
+from dataclass import dataclass, field, make_class
 
 import unittest
 
@@ -313,16 +313,7 @@ class TestCase(unittest.TestCase):
         C = make_class('C', 'a b')
         self.assertEqual(repr(C(1, 2)), 'C(a=1,b=2)')
 
-    def test_make_with_defaults(self):
-        C = make_class('C',
-                       [dynfield('x', int, default=10),
-                        dynfield('y', int, default=20),
-                        ])
-        self.assertEqual(repr(C()), 'C(x=10,y=20)')
-        self.assertEqual(repr(C(11)), 'C(x=11,y=20)')
-
     def test_make_derived(self):
-        # With no defaults.
         @dataclass
         class Base:
             x: int
@@ -330,27 +321,6 @@ class TestCase(unittest.TestCase):
 
         C = make_class('C', 'z x', bases=(Base,))
         self.assertEqual(repr(C(4,5,6)), 'C(x=4,y=5,z=6)')
-
-        # With a default.
-        C = make_class('C',
-                       [dynfield('z', int, default=20),
-                        dynfield('x', int),
-                        ],
-                        bases=(Base,))
-        self.assertEqual(repr(C(1,2)), 'C(x=1,y=2,z=20)')
-
-        # With an over-ridden default.
-        @dataclass
-        class Base:
-            x: int = 5
-            y: int = 20
-
-        C = make_class('C',
-                       [dynfield('z', int, default=30),
-                        dynfield('x', int, default=10),
-                        ],
-                        bases=(Base,))
-        self.assertEqual(repr(C()), 'C(x=10,y=20,z=30)')
 
 
 def main():

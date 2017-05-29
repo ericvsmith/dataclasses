@@ -30,7 +30,6 @@ class field:
                  'init',
                  'cmp',
                  )
-
     def __init__(self, *, default=_MISSING, repr=True, hash=True, init=True,
                  cmp=True):
         # Initialize name to None.  It's filled in later, when
@@ -43,43 +42,9 @@ class field:
         self.init = init
         self.cmp = cmp
 
-    @classmethod
-    def _from_dynfield(cls, dynfield):
-        o = cls(default=dynfield.default,
-                repr=dynfield.repr,
-                hash=dynfield.hash,
-                init=dynfield.init,
-                cmp=dynfield.cmp)
-        # name can't be initialized by __init__, since we don't want
-        #  it to be specified until we scan the class.  But with
-        #  dynfield, we know the name in advance (and this is the only
-        #  place we know it).
-        o.name = dynfield.name
-        return o
-
     # XXX: currently for testing. either complete this, or delete it
     def __repr__(self):
         return f'field(name={self.name!r},default={"_MISSING" if self.default is _MISSING else self.default!r})'
-
-
-class dynfield:
-    __slots__ = ('name',
-                 'type',
-                 'default',
-                 'repr',
-                 'hash',
-                 'init',
-                 'cmp',
-                 )
-    def __init__(self, name, type, *, default=_MISSING, repr=True, hash=True, init=True,
-                 cmp=True):
-        self.name = name
-        self.type = type
-        self.default = default
-        self.repr = repr
-        self.hash = hash
-        self.init = init
-        self.cmp = cmp
 
 
 def _tuple_str(obj_name, fields):
@@ -342,16 +307,35 @@ def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
         fields = fields.replace(',', ' ').split()
 
     # Normalize the fields.  The user can supply:
-    #  - just a name. assume type str?
-    #  - a dynfield
+    #  - just a name
+    #  - tuple of (name, default)
+    #  - tuple of (name, field())
+    #  - tuple of (name,
     fields1 = {}  # XXX needs to be an orderedict
     annotations = {}  # XXX also ordered?
-    for f in fields:
-        if isinstance(f, str):
-            f = dynfield(f, str)
+    for v in fields:
+        type_ = default = _MISSING
+        if len(v) == 3:
+            name, type_, default = v
+        elif len(v) == 2:
+            name, type_ = v
+        else:
+            name = v
 
-        annotations[f.name] = f.type
-        fields1[f.name] = field._from_dynfield(f)
+        if type_ is _MISSING:
+            pass
+
+        # If the default value isn't derived from field, then it's
+        # only a normal default value.  Convert it to a field().
+        if not isinstance(default, field):
+            f = field(default=default)
+        else:
+            f = default
+
+        f.name = name
+
+        fields1[f.name] = f
+        annotations[f.name] = type_
 
     fields1['__annotations__'] = annotations
     return _process_class(type(cls_name, bases, fields1),
