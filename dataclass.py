@@ -295,11 +295,13 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     if repr:
         cls.__repr__ = _repr(list(filter(lambda f: f.repr, fields)))
     if hash is None:
-        # Not hashable
+        # Not hashable.
         cls.__hash__ = None
     elif hash:
-        cls.__hash__ = _hash(list(filter(lambda f: f.hash or f.hash is None, fields)))
-    # Otherwise, use the base class definition of hash().
+        cls.__hash__ = _hash(list(filter(lambda f: f.hash or f.hash is None,
+                                         fields)))
+    # Otherwise, use the base class definition of hash().  That is,
+    #  don't set anything on this class.
 
     if cmp:
         # Create comparison functions.
@@ -322,10 +324,10 @@ def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
 
     # See if we're being called as @dataclass or @dataclass().
     if _cls is None:
-        # We're called as @dataclass()
+        # We're called as @dataclass().
         return wrap
 
-    # We're called as @dataclass, with a class
+    # We're called as @dataclass, with a class.
     return wrap(_cls)
 
 
