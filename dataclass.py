@@ -244,8 +244,8 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
         # The checks for dynamic=True happen in make_class(), since it
         #  can generate better error message for missing f.name.
         if not dynamic:
-            # The name and type must not be filled in: we grab them
-            #  from the annotations.
+            # The name and type must not be filled in before hand: we
+            #  grab them from the annotations.
             if f.name is not None or f.type is not None:
                 raise ValueError(f'cannot specify name or type for {name!r}')
 
@@ -320,7 +320,7 @@ def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
                slots=False, frozen=False):
     def wrap(cls):
         return _process_class(cls, repr, cmp, hash, init, slots, frozen,
-                              False)
+                              dynamic=False)
 
     # See if we're being called as @dataclass or @dataclass().
     if _cls is None:
@@ -360,7 +360,13 @@ def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
 
         fields1[f.name] = f
         annotations[f.name] = type
-
     fields1['__annotations__'] = annotations
-    return _process_class(type(cls_name, bases, fields1), repr, cmp, hash,
-                          init, slots, frozen, True)
+
+    # Create the class
+    cls = type(cls_name, bases, fields1)
+
+    # And now process it normally, except pass in dynamic=True to skip
+    #  some checks that don't hold when the fields are pre-created
+    #  with a valid name and type.
+    return _process_class(cls, repr, cmp, hash, init, slots, frozen,
+                          dynamic=True)
