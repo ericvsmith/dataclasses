@@ -320,9 +320,9 @@ def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
             f = field(f, str)
 
         if f.name is None:
-            raise ValueError(f'field name must be specified for field {idx}')
+            raise ValueError(f'name must be specified for field {idx}')
         if f.type is None:
-            raise ValueError(f'field type must be specified for field {f.name}')
+            raise ValueError(f'type must be specified for field {f.name!r}')
 
         fields1[f.name] = f
         annotations[f.name] = type

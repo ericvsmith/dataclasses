@@ -374,6 +374,20 @@ class TestCase(unittest.TestCase):
                        bases=(Base,))
         self.assertEqual(repr(C(1)), 'C(x=10,y=1,z=30)')
 
+    def test_make_invalid_fields(self):
+        with self.assertRaises(ValueError) as ex:
+            C = make_class('C',
+                           [field('x', int),
+                            field(),
+                            ])
+        self.assertEqual(str(ex.exception), 'name must be specified for field 2')
+
+        with self.assertRaises(ValueError) as ex:
+            C = make_class('C',
+                           [field('x'),
+                            ])
+        self.assertEqual(str(ex.exception), "type must be specified for field 'x'")
+
 
 def main():
     unittest.main()
