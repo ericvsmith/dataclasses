@@ -24,18 +24,17 @@ _OTHER_NAME = '_other'
 
 class field:
     __slots__ = ('name',
+                 'type',
                  'default',
                  'repr',
                  'hash',
                  'init',
                  'cmp',
                  )
-    def __init__(self, *, default=_MISSING, repr=True, hash=True, init=True,
-                 cmp=True):
-        # Initialize name to None.  It's filled in later, when
-        #  scanning through the class's fields.  We don't know it when
-        #  the field is being initialized.
-        self.name = None
+    def __init__(self, name=None, type=None, *, default=_MISSING, repr=True,
+                 hash=True, init=True, cmp=True):
+        self.name = name
+        self.type = type
         self.default = default
         self.repr = repr
         self.hash = hash
@@ -177,15 +176,10 @@ def _hash(fields):
 
 
 def _find_fields(cls):
-    # Return a list tuples of tuples of (name, field()), in order, for
-    #  this class (and no subclasses).  Fields are found from
-    #  __annotations__.  Default values are from class attributes, if
-    #  a field has a default.
-
-    # Note that the type (as retrieved from __annotations__) is only
-    #  used to identify fields.  The actual value of the type
-    #  annotation is not saved anywhere.  It can be retrieved from
-    #  __annotations__ if needed.
+    # Return a list tuples of tuples of (name, type, field()), in
+    #  order, for this class (and no subclasses).  Fields are found
+    #  from __annotations__.  Default values are from class
+    #  attributes, if a field has a default.
 
     # XXX: are __annotations__ known to ordered? I don't think so.
     #  Maybe iterate over class members (which are in order) and only
@@ -194,13 +188,14 @@ def _find_fields(cls):
     annotations = getattr(cls, '__annotations__', {})
 
     results = []
-    for name, type_ in annotations.items():
+    for name, type in annotations.items():
         # If the default value isn't derived from field, then it's
         # only a normal default value.  Convert it to a field().
         default = getattr(cls, name, _MISSING)
         if not isinstance(default, field):
             default = field(default=default)
-        results.append((name, default))
+        # Note that default holds a field() here.
+        results.append((name, type, default))
     return results
 
 
@@ -208,7 +203,7 @@ class Factory:
     pass
 
 
-def _process_class(cls, repr, cmp, hash, init, slots, frozen):
+def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     # Use an OrderedDict because:
     #  - Order matters!
     #  - Derived class fields overwrite base class fields.
@@ -229,12 +224,19 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen):
                 fields[f.name] = f
 
     # Now process our class.
-    for name, info in _find_fields(cls):
-        fields[name] = info
+    for name, type, info in _find_fields(cls):
+        if not dynamic:
+            # The name and type must not be filled in: we grab them
+            #  from the annotations
+            if info.name is not None or info.type is not None:
+                raise ValueError(f'cannot specify name or type for {name!r}')
 
-        # For fields defined in our class, set the name, which we
-        #  don't know until now.
-        info.name = name
+            # For fields defined in our class, set the name and type,
+            #  which we don't know until now.
+            info.name = name
+            info.type = type
+
+        fields[name] = info
 
         # Field validations for fields directly on our class.
         #  This is delayed until now, instead of in the field()
@@ -284,7 +286,8 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen):
 def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
                slots=False, frozen=False):
     def wrap(cls):
-        return _process_class(cls, repr, cmp, hash, init, slots, frozen)
+        return _process_class(cls, repr, cmp, hash, init, slots, frozen,
+                              False)
 
     # See if we're being called as @dataclass or @dataclass().
     if _cls is None:
@@ -308,35 +311,22 @@ def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
 
     # Normalize the fields.  The user can supply:
     #  - just a name
-    #  - tuple of (name, default)
-    #  - tuple of (name, field())
-    #  - tuple of (name,
+    #  - a field() with name and type specified
     fields1 = {}  # XXX needs to be an orderedict
     annotations = {}  # XXX also ordered?
-    for v in fields:
-        type_ = default = _MISSING
-        if len(v) == 3:
-            name, type_, default = v
-        elif len(v) == 2:
-            name, type_ = v
-        else:
-            name = v
+    for idx, f in enumerate(fields, 1):
+        if isinstance(f, str):
+            # Only a name specified, assume it's a str.
+            f = field(f, str)
 
-        if type_ is _MISSING:
-            pass
-
-        # If the default value isn't derived from field, then it's
-        # only a normal default value.  Convert it to a field().
-        if not isinstance(default, field):
-            f = field(default=default)
-        else:
-            f = default
-
-        f.name = name
+        if f.name is None:
+            raise ValueError(f'field name must be specified for field {idx}')
+        if f.type is None:
+            raise ValueError(f'field type must be specified for field {f.name}')
 
         fields1[f.name] = f
-        annotations[f.name] = type_
+        annotations[f.name] = type
 
     fields1['__annotations__'] = annotations
-    return _process_class(type(cls_name, bases, fields1),
-                          repr, cmp, hash, init, slots, frozen)
+    return _process_class(type(cls_name, bases, fields1), repr, cmp, hash,
+                          init, slots, frozen, True)

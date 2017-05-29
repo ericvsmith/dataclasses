@@ -245,21 +245,34 @@ class TestCase(unittest.TestCase):
             y: str = field(init=False, default=None)
             z: str = field(repr=False)
 
-        # __dataclass_fields__ is a list of 3 elements, all of which are in __annotations__
-        self.assertIsInstance(C.__dataclass_fields__, list)
-        for f in C.__dataclass_fields__:
-            self.assertIn(f.name, C.__annotations__)
+        # And the equivalent dynamically created class:
+        D = make_class('D',
+                       [field('x', int),
+                        field('y', str, init=False, default=None),
+                        field('z', str, repr=False),
+                        ])
 
-        self.assertEqual(len(C.__dataclass_fields__), 3)
-        self.assertEqual(C.__dataclass_fields__[0].name, 'x')
-        self.assertTrue (C.__dataclass_fields__[0].init)
-        self.assertTrue (C.__dataclass_fields__[0].repr)
-        self.assertEqual(C.__dataclass_fields__[1].name, 'y')
-        self.assertFalse(C.__dataclass_fields__[1].init)
-        self.assertTrue (C.__dataclass_fields__[1].repr)
-        self.assertEqual(C.__dataclass_fields__[2].name, 'z')
-        self.assertTrue (C.__dataclass_fields__[2].init)
-        self.assertFalse(C.__dataclass_fields__[2].repr)
+        for cls in C, D:
+            # __dataclass_fields__ is a list of 3 elements, all of which are in __annotations__
+            self.assertIsInstance(cls.__dataclass_fields__, list)
+            for f in cls.__dataclass_fields__:
+                self.assertIn(f.name, cls.__annotations__)
+
+            self.assertEqual(len(cls.__dataclass_fields__), 3)
+            self.assertEqual(cls.__dataclass_fields__[0].name, 'x')
+            self.assertEqual(cls.__dataclass_fields__[0].type, int)
+            self.assertTrue (cls.__dataclass_fields__[0].init)
+            self.assertTrue (cls.__dataclass_fields__[0].repr)
+            self.assertEqual(cls.__dataclass_fields__[1].name, 'y')
+            self.assertEqual(cls.__dataclass_fields__[1].type, str)
+            self.assertFalse(cls.__dataclass_fields__[1].init)
+            self.assertTrue (cls.__dataclass_fields__[1].repr)
+            self.assertEqual(cls.__dataclass_fields__[2].name, 'z')
+            self.assertEqual(cls.__dataclass_fields__[2].type, str)
+            self.assertTrue (cls.__dataclass_fields__[2].init)
+            self.assertFalse(cls.__dataclass_fields__[2].repr)
+            # XXX check defaults as class variables:
+            # XXX ensure x and z aren't defined in the class, but y is, with value None
 
     def XXX_test_mutable_defaults(self):
         @dataclass
@@ -309,6 +322,21 @@ class TestCase(unittest.TestCase):
             y: int
         self.assertNotEqual(Point(1, 3), C(1, 3))
 
+    def test_no_name_or_type(self):
+        with self.assertRaises(ValueError) as ex:
+            @dataclass
+            class Point:
+                x: int = field('x')
+        self.assertEqual(str(ex.exception), 'cannot specify name or type '
+                                            "for 'x'")
+
+        with self.assertRaises(ValueError) as ex:
+            @dataclass
+            class Point:
+                x: int = field(type=str)
+        self.assertEqual(str(ex.exception), 'cannot specify name or type '
+                                            "for 'x'")
+
     def test_make_simple(self):
         C = make_class('C', 'a b')
         self.assertEqual(repr(C(1, 2)), 'C(a=1,b=2)')
@@ -319,8 +347,32 @@ class TestCase(unittest.TestCase):
             x: int
             y: int
 
-        C = make_class('C', 'z x', bases=(Base,))
+        C = make_class('C',
+                       [field('z', int),
+                        field('x', int),
+                        ],
+                       bases=(Base,))
         self.assertEqual(repr(C(4,5,6)), 'C(x=4,y=5,z=6)')
+
+    def test_make_derived_defaults(self):
+        @dataclass
+        class Base:
+            x: int = 5
+            y: int = 20
+
+        C = make_class('C',
+                       [field('z', int, default=30),
+                        field('x', int, default=10),
+                        ],
+                       bases=(Base,))
+        self.assertEqual(repr(C()), 'C(x=10,y=20,z=30)')
+
+        C = make_class('C',
+                       [field('z', int, default=30),
+                        field('x', int, default=10, init=False),
+                        ],
+                       bases=(Base,))
+        self.assertEqual(repr(C(1)), 'C(x=10,y=1,z=30)')
 
 
 def main():
