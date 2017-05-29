@@ -31,8 +31,8 @@ _OTHER = '_other'
 #  name and type must not be specified (they're inferred from
 #  cls.__dict__ and __annocations__, respectively).  In the dynamic
 #  case, they must be specified.
-# In either case, when cls._MARKER is filled in with fields(), the
-#  name and type fields will have been populated.
+# In either case, when cls._MARKER is filled in with a list of
+#  fields(), the name and type fields will have been populated.
 class field:
     __slots__ = ('name',
                  'type',
@@ -105,7 +105,8 @@ def _init(fields):
     # Make sure we don't have fields without defaults following fields
     #  with defaults.  This actually would be caught when exec-ing the
     #  function source code, but catching it here gives a better error
-    #  message.
+    #  message, and future-proofs us in case we build up function using
+    #  ast.
     seen_default = False
     for f in fields:
         if f.default is not _MISSING:
@@ -190,10 +191,12 @@ def _hash(fields):
 
 
 def _find_fields(cls):
-    # Return a list tuples of tuples of (name, type, field()), in
-    #  order, for this class (and no subclasses).  Fields are found
-    #  from __annotations__.  Default values are from class
-    #  attributes, if a field has a default.
+    # Return a list tuples of of (name, type, field()), in order, for
+    #  this class (and no subclasses).  Fields are found from
+    #  __annotations__.  Default values are from class attributes, if
+    #  a field has a default.  If the default value is a field(), then
+    #  it contains additional info beyond (and possibly including) the
+    #  actual default value.
 
     # XXX: are __annotations__ known to ordered? I don't think so.
     #  Maybe iterate over class members (which are in order) and only
@@ -206,10 +209,11 @@ def _find_fields(cls):
         # If the default value isn't derived from field, then it's
         # only a normal default value.  Convert it to a field().
         default = getattr(cls, name, _MISSING)
-        if not isinstance(default, field):
-            default = field(default=default)
-        # Note that default holds a field() here.
-        results.append((name, type, default))
+        if isinstance(default, field):
+            f = default
+        else:
+            f = field(default=default)
+        results.append((name, type, f))
     return results
 
 
@@ -236,28 +240,30 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
                 fields[f.name] = f
 
     # Now process our class.
-    for name, type, info in _find_fields(cls):
+    for name, type, f in _find_fields(cls):
+        # The checks for dynamic=True happen in make_class(), since it
+        #  can generate better error message for missing f.name.
         if not dynamic:
             # The name and type must not be filled in: we grab them
-            #  from the annotations
-            if info.name is not None or info.type is not None:
+            #  from the annotations.
+            if f.name is not None or f.type is not None:
                 raise ValueError(f'cannot specify name or type for {name!r}')
 
             # For fields defined in our class, set the name and type,
             #  which we don't know until now.
-            info.name = name
-            info.type = type
+            f.name = name
+            f.type = type
 
-        fields[name] = info
+        fields[name] = f
 
-        # Field validations for fields directly on our class.
-        #  This is delayed until now, instead of in the field()
-        #  constructor, since only here do we know the field name,
-        #  which allows better error reporting.
+        # Validations for fields directly on our class.  This is
+        #  delayed until now, instead of in the field() constructor,
+        #  since only here do we know the field name, which allows
+        #  better error reporting.
 
         # If init=False, we must have a default value.  Otherwise,
         # how would it get initialized?
-        if not info.init and info.default == _MISSING:
+        if not f.init and f.default == _MISSING:
             raise ValueError(f'field {name} has init=False, but '
                              'has no default value')
 
@@ -266,7 +272,14 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
         #  with the real default.  This is so that normal class
         #  introspection sees a real default value.
         if isinstance(getattr(cls, name, None), field):
-            setattr(cls, name, info.default)
+            setattr(cls, name, f.default)
+
+        # If there's no default, delete the class attribute.  This
+        #  happens if we specify field(repr=False), for example.  The
+        #  class attribute should not be set at all in the
+        #  post-processed class.
+        if getattr(cls, name, None) is _MISSING:
+            delattr(cls, name)
 
     # We've de-duped and have the fields in order, so we no longer
     #  need a dict of them.  Convert to a list of just the values.

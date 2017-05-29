@@ -261,18 +261,35 @@ class TestCase(unittest.TestCase):
             self.assertEqual(len(cls.__dataclass_fields__), 3)
             self.assertEqual(cls.__dataclass_fields__[0].name, 'x')
             self.assertEqual(cls.__dataclass_fields__[0].type, int)
+            self.assertFalse(hasattr(cls, 'x'))
             self.assertTrue (cls.__dataclass_fields__[0].init)
             self.assertTrue (cls.__dataclass_fields__[0].repr)
             self.assertEqual(cls.__dataclass_fields__[1].name, 'y')
             self.assertEqual(cls.__dataclass_fields__[1].type, str)
+            self.assertIsNone(getattr(cls, 'y'))
             self.assertFalse(cls.__dataclass_fields__[1].init)
             self.assertTrue (cls.__dataclass_fields__[1].repr)
             self.assertEqual(cls.__dataclass_fields__[2].name, 'z')
             self.assertEqual(cls.__dataclass_fields__[2].type, str)
+            self.assertFalse(hasattr(cls, 'z'))
             self.assertTrue (cls.__dataclass_fields__[2].init)
             self.assertFalse(cls.__dataclass_fields__[2].repr)
-            # XXX check defaults as class variables:
-            # XXX ensure x and z aren't defined in the class, but y is, with value None
+
+    def test_class_attrs(self):
+        # We only have a class attribute if a default value is
+        #  specified, either directly or via a field with a default.
+        default = object()
+        @dataclass
+        class C:
+            x: int
+            y: int = field(repr=False)
+            z: object = default
+            t: int = field(default=100)
+
+        self.assertFalse(hasattr(C, 'x'))
+        self.assertFalse(hasattr(C, 'y'))
+        self.assertIs   (C.z, default)
+        self.assertEqual(C.t, 100)
 
     def XXX_test_mutable_defaults(self):
         @dataclass
