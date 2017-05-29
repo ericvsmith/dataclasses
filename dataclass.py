@@ -272,14 +272,15 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
         #  with the real default.  This is so that normal class
         #  introspection sees a real default value.
         if isinstance(getattr(cls, name, None), field):
-            setattr(cls, name, f.default)
+            if f.default is _MISSING:
+                # If there's no default, delete the class attribute.
+                #  This happens if we specify field(repr=False), for
+                #  example.  The class attribute should not be set at
+                #  all in the post-processed class.
+                delattr(cls, name)
+            else:
+                setattr(cls, name, f.default)
 
-        # If there's no default, delete the class attribute.  This
-        #  happens if we specify field(repr=False), for example.  The
-        #  class attribute should not be set at all in the
-        #  post-processed class.
-        if getattr(cls, name, None) is _MISSING:
-            delattr(cls, name)
 
     # We've de-duped and have the fields in order, so we no longer
     #  need a dict of them.  Convert to a list of just the values.
