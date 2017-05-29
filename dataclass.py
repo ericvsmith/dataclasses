@@ -263,7 +263,7 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
 
         # If init=False, we must have a default value.  Otherwise,
         # how would it get initialized?
-        if not f.init and f.default == _MISSING:
+        if not f.init and f.default is _MISSING:
             raise ValueError(f'field {name} has init=False, but '
                              'has no default value')
 
