@@ -380,7 +380,7 @@ class TestCase(unittest.TestCase):
                            [field('x', int),
                             field(),
                             ])
-        self.assertEqual(str(ex.exception), 'name must be specified for field 2')
+        self.assertEqual(str(ex.exception), 'name must be specified for field #2')
 
         with self.assertRaises(ValueError) as ex:
             C = make_class('C',

@@ -132,8 +132,11 @@ def _init(fields):
 
 def _repr(fields):
     return _create_fn('__repr__',
-                      [f'{_SELF}'],
-                      [f'return {_SELF}.__class__.__name__ + f"(' + ','.join([f"{f.name}={{{_SELF}.{f.name}!r}}" for f in fields]) + ')"'],
+                      [_SELF],
+                      [f'return {_SELF}.__class__.__name__ + f"(' +
+                         ','.join([f"{f.name}={{{_SELF}.{f.name}!r}}"
+                                   for f in fields]) +
+                         ')"'],
                       )
 
 
@@ -223,14 +226,12 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     # Find our base classes in reverse MRO order, and exclude
     #  ourselves.  In reversed order so that more derived classes
     #  overrides earlier field definitions in base classes.
-    bases = [b for b in cls.__mro__ if not b is cls]
-
-    for b in bases:
+    for b in [b for b in cls.__mro__ if not b is cls]:
         # Only process classes marked with our decorator.
         if hasattr(b, _MARKER):
             # This is one of our base classes, where we've already
             #  set _MARKER with a list of fields.  Add them to the
-            #  fields we're building up.  already processed.
+            #  fields we're building up.
             for f in getattr(b, _MARKER):
                 fields[f.name] = f
 
@@ -310,7 +311,8 @@ def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
 
 
 def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
-               hash=None, init=True, slots=False, frozen=False):
+               hash=None, init=True, slots=False, frozen=False,
+               default_type=str):
     # fields is a list of (name, type, field)
     if bases is None:
         bases = (object,)
@@ -327,11 +329,11 @@ def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
     annotations = {}  # XXX also ordered?
     for idx, f in enumerate(fields, 1):
         if isinstance(f, str):
-            # Only a name specified, assume it's a str.
-            f = field(f, str)
+            # Only a name specified, assume it's of type default_type.
+            f = field(f, default_type)
 
         if f.name is None:
-            raise ValueError(f'name must be specified for field {idx}')
+            raise ValueError(f'name must be specified for field #{idx}')
         if f.type is None:
             raise ValueError(f'type must be specified for field {f.name!r}')
 
