@@ -43,7 +43,7 @@ class field:
                  'cmp',
                  )
     def __init__(self, name=None, type=None, *, default=_MISSING, repr=True,
-                 hash=True, init=True, cmp=True):
+                 hash=None, init=True, cmp=True):
         self.name = name
         self.type = type
         self.default = default
@@ -294,7 +294,12 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
         cls.__init__ = _init(list(filter(lambda f: f.init, fields)))
     if repr:
         cls.__repr__ = _repr(list(filter(lambda f: f.repr, fields)))
-    cls.__hash__ = _hash(list(filter(lambda f: f.hash, fields)))
+    if hash is None:
+        # Not hashable
+        cls.__hash__ = None
+    elif hash:
+        cls.__hash__ = _hash(list(filter(lambda f: f.hash or f.hash is None, fields)))
+    # Otherwise, use the base class definition of hash().
 
     if cmp:
         # Create comparison functions.

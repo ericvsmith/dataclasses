@@ -156,24 +156,32 @@ class TestCase(unittest.TestCase):
         self.assertFalse(C(0, 0) >= C(1, 0))
 
     def test_0_field_hash(self):
-        @dataclass
+        @dataclass(hash=True)
         class C:
             pass
         self.assertEqual(hash(C()), hash(()))
 
     def test_1_field_hash(self):
-        @dataclass
+        @dataclass(hash=True)
         class C:
             x: int
         self.assertEqual(hash(C(4)), hash((4,)))
         self.assertEqual(hash(C(42)), hash((42,)))
 
     def test_hash(self):
-        @dataclass
+        @dataclass(hash=True)
         class C:
             x: int
             y: str
         self.assertEqual(hash(C(1, 'foo')), hash((1, 'foo')))
+
+    def test_no_hash(self):
+        @dataclass(hash=None)
+        class C:
+            x: int
+        with self.assertRaises(TypeError) as ex:
+            hash(C(1))
+        self.assertEqual(str(ex.exception), "unhashable type: 'C'")
 
     def test_field_no_default(self):
         @dataclass
