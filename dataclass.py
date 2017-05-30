@@ -313,6 +313,9 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
         cls.__gt__ = _gt(cmp_fields)
         cls.__ge__ = _ge(cmp_fields)
 
+    if slots:
+        cls.__slots__ = tuple(f.name for f in fields)
+
     return cls
 
 

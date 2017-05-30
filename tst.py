@@ -413,6 +413,22 @@ class TestCase(unittest.TestCase):
                             ])
         self.assertEqual(str(ex.exception), "type must be specified for field 'x'")
 
+    def test_slots(self):
+        @dataclass(slots=True)
+        class C:
+            x: int
+            y: int = 0
+
+        c = C(10)
+        self.assertEqual(C.__slots__, ('x', 'y'))
+        self.assertEqual(c.__slots__, ('x', 'y'))
+        c.x = 4
+        c.y = 12
+        self.assertEqual(repr(c), 'C(x=4,y=12)')
+        
+        with self.assertRaises(NameError) as ex:
+            c.z = 0
+        self.assertEqual(str(ex.exception), '')
 
 def main():
     unittest.main()
