@@ -425,10 +425,10 @@ class TestCase(unittest.TestCase):
         c.x = 4
         c.y = 12
         self.assertEqual(repr(c), 'C(x=4,y=12)')
-        
-        with self.assertRaises(NameError) as ex:
+
+        with self.assertRaises(AttributeError) as ex:
             c.z = 0
-        self.assertEqual(str(ex.exception), '')
+        self.assertEqual(str(ex.exception), "'C' object has no attribute 'z'")
 
 def main():
     unittest.main()

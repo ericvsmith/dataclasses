@@ -240,7 +240,7 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
                 fields[f.name] = f
 
     # Now process our class.
-    for name, type, f in _find_fields(cls):
+    for name, type_, f in _find_fields(cls):
         # The checks for dynamic=True happen in make_class(), since it
         #  can generate better error message for missing f.name.
         if not dynamic:
@@ -252,7 +252,7 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
             # For fields defined in our class, set the name and type,
             #  which we don't know until now.
             f.name = name
-            f.type = type
+            f.type = type_
 
         fields[name] = f
 
@@ -316,7 +316,16 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     if slots:
         # Need to create a new class, since we can't set __slots__
         #  after it's been created.
-        slots_tuple = tuple(f.name for f in fields)
+
+        # Create a new dict for our new class
+        cls_dict = dict(cls.__dict__)
+        cls_dict["__slots__"] = tuple(f.name for f in fields)
+        for f in fields:
+            # Remove our attributes. They'll still be available in _MARKER.
+            cls_dict.pop(f.name, None)
+        cls_dict.pop("__dict__", None)
+
+        cls = type(cls)(cls.__name__, cls.__bases__, cls_dict)
 
     return cls
 
