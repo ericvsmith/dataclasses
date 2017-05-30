@@ -314,7 +314,9 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
         cls.__ge__ = _ge(cmp_fields)
 
     if slots:
-        cls.__slots__ = tuple(f.name for f in fields)
+        # Need to create a new class, since we can't set __slots__
+        #  after it's been created.
+        slots_tuple = tuple(f.name for f in fields)
 
     return cls
 
