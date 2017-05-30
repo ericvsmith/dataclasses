@@ -430,6 +430,28 @@ class TestCase(unittest.TestCase):
             c.z = 0
         self.assertEqual(str(ex.exception), "'C' object has no attribute 'z'")
 
+    def test_no_slots(self):
+        @dataclass
+        class C:
+            pass
+        # We can create new member variables
+        C().x = 3
+
+        # Same behavior with slots=False
+        @dataclass(slots=False)
+        class C:
+            pass
+        # We can create new member variables
+        C().x = 3
+
+        # Even though we can create a new member, it's not included in
+        #  the equality check.
+        a = C()
+        a.x = 10
+        b = C()
+        b.x = ''
+        self.assertEqual(a, b)
+
 def main():
     unittest.main()
 

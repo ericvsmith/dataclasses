@@ -323,6 +323,7 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
         for f in fields:
             # Remove our attributes. They'll still be available in _MARKER.
             cls_dict.pop(f.name, None)
+        # Remove __dict__ itself.
         cls_dict.pop("__dict__", None)
 
         cls = type(cls)(cls.__name__, cls.__bases__, cls_dict)
