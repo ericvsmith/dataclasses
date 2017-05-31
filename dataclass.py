@@ -101,7 +101,7 @@ def _field_init(info):
     return f'{_SELF}.{info.name} = {info.name}'
 
 
-def _init(fields):
+def _init_fn(fields):
     # Make sure we don't have fields without defaults following fields
     #  with defaults.  This actually would be caught when exec-ing the
     #  function source code, but catching it here gives a better error
@@ -131,7 +131,7 @@ def _init(fields):
                       locals)
 
 
-def _repr(fields):
+def _repr_fn(fields):
     return _create_fn('__repr__',
                       [_SELF],
                       [f'return {_SELF}.__class__.__name__ + f"(' +
@@ -152,10 +152,6 @@ def _create_cmp_fn(name, op, fields):
                       )
 
 
-def _eq(fields):
-    return _create_cmp_fn('__eq__', '==', fields)
-
-
 def _ne():
     # __ne__ is slightly different, so use a different pattern.
     return _create_fn('__ne__',
@@ -167,23 +163,7 @@ def _ne():
                       )
 
 
-def _lt(fields):
-    return _create_cmp_fn('__lt__', '<',  fields)
-
-
-def _le(fields):
-    return _create_cmp_fn('__le__', '<=', fields)
-
-
-def _gt(fields):
-    return _create_cmp_fn('__gt__', '>',  fields)
-
-
-def _ge(fields):
-    return _create_cmp_fn('__ge__', '>=', fields)
-
-
-def _hash(fields):
+def _hash_fn(fields):
     self_tuple = _tuple_str(_SELF, fields)
     return _create_fn('__hash__',
                       [_SELF],
@@ -291,27 +271,27 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     setattr(cls, _MARKER, fields)
 
     if init:
-        cls.__init__ = _init(list(filter(lambda f: f.init, fields)))
+        cls.__init__ = _init_fn(list(filter(lambda f: f.init, fields)))
     if repr:
-        cls.__repr__ = _repr(list(filter(lambda f: f.repr, fields)))
+        cls.__repr__ = _repr_fn(list(filter(lambda f: f.repr, fields)))
     if hash is None:
         # Not hashable.
         cls.__hash__ = None
     elif hash:
-        cls.__hash__ = _hash(list(filter(lambda f: f.hash or f.hash is None,
-                                         fields)))
+        cls.__hash__ = _hash_fn(list(filter(lambda f: f.hash or f.hash is None,
+                                            fields)))
     # Otherwise, use the base class definition of hash().  That is,
     #  don't set anything on this class.
 
     if cmp:
         # Create comparison functions.
         cmp_fields = list(filter(lambda f: f.cmp, fields))
-        cls.__eq__ = _eq(cmp_fields)
+        cls.__eq__ = _create_cmp_fn('__eq__', '==', fields)
         cls.__ne__ = _ne()
-        cls.__lt__ = _lt(cmp_fields)
-        cls.__le__ = _le(cmp_fields)
-        cls.__gt__ = _gt(cmp_fields)
-        cls.__ge__ = _ge(cmp_fields)
+        cls.__lt__ = _create_cmp_fn('__lt__', '<',  fields)
+        cls.__le__ = _create_cmp_fn('__le__', '<=', fields)
+        cls.__gt__ = _create_cmp_fn('__gt__', '>',  fields)
+        cls.__ge__ = _create_cmp_fn('__ge__', '>=', fields)
 
     if slots:
         # Need to create a new class, since we can't set __slots__
