@@ -144,6 +144,18 @@ def _repr_fn(fields):
 
 def _create_cmp_fn(name, op, fields):
     # Create a comparison function.
+
+    if op == '!=':
+        # __ne__ is slightly different from other comparison functions, so
+        #  use a different pattern.
+        return _create_fn('__ne__',
+                          [_SELF, _OTHER],
+                          [f'result = {_SELF}.__eq__({_OTHER})',
+                            'return NotImplemented if result is NotImplemented '
+                                'else not result',
+                           ],
+                          )
+
     self_tuple = _tuple_str(_SELF, fields)
     other_tuple = _tuple_str(_OTHER, fields)
     return _create_fn(name,
@@ -151,18 +163,6 @@ def _create_cmp_fn(name, op, fields):
                       [f'if {_OTHER}.__class__ is {_SELF}.__class__:',
                        f'    return {self_tuple}{op}{other_tuple}',
                         'return NotImplemented'],
-                      )
-
-
-def _ne():
-    # __ne__ is slightly different from other comparison functions, so
-    #  use a different pattern.
-    return _create_fn('__ne__',
-                      [_SELF, _OTHER],
-                      [f'result = {_SELF}.__eq__({_OTHER})',
-                        'return NotImplemented if result is NotImplemented '
-                            'else not result',
-                       ],
                       )
 
 
@@ -225,7 +225,7 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
         #  can generate better error message for missing f.name.
         if not dynamic:
             # The name and type must not be filled in before hand: we
-            #  grab them from the annotations.
+            #  grabbed them from the annotations.
             if f.name is not None or f.type is not None:
                 raise ValueError(f'cannot specify name or type for {name!r}')
 
@@ -287,7 +287,7 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
         # Create comparison functions.
         cmp_fields = list(filter(lambda f: f.cmp, fields))
         cls.__eq__ = _create_cmp_fn('__eq__', '==', cmp_fields)
-        cls.__ne__ = _ne()
+        cls.__ne__ = _create_cmp_fn('__ne__', '!=', cmp_fields)
         cls.__lt__ = _create_cmp_fn('__lt__', '<',  cmp_fields)
         cls.__le__ = _create_cmp_fn('__le__', '<=', cmp_fields)
         cls.__gt__ = _create_cmp_fn('__gt__', '>',  cmp_fields)
