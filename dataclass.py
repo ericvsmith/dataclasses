@@ -63,10 +63,10 @@ def _tuple_str(obj_name, fields):
     #  member. So, if fields is ['x', 'y'] and obj_name is "self",
     #  return "(self.x,self.y)".
 
-    #Special case for the 0-tuple
+    # Special case for the 0-tuple.
     if len(fields) == 0:
         return '()'
-    # Note the trailing comma, needed for 1-tuple
+    # Note the trailing comma, needed for 1-tuple.
     return f'({",".join([f"{obj_name}.{f.name}" for f in fields])},)'
 
 
@@ -90,7 +90,7 @@ def _field_init(info):
         return f'{_SELF}.{info.name} = {info.name}'
 
     if isinstance(info.default, (list, dict, set)):
-        # We're a type we know how to copy. If no default is given,
+        # We're a type we know how to copy.  If no default is given,
         #  copy the default.
         return (f'{_SELF}.{info.name} = '
                 f'{_SELF}.__class__.{info.name}.copy() '
@@ -111,13 +111,10 @@ def _init_fn(fields):
     for f in fields:
         if f.default is not _MISSING:
             seen_default = True
-        else:
-            if seen_default:
-                raise ValueError(f'non-default argument {f.name} '
-                                 'follows default argument')
+        elif seen_default:
+            raise ValueError(f'non-default argument {f.name} '
+                             'follows default argument')
 
-    args = [_SELF] + [(f.name if f.default is _MISSING
-                            else f"{f.name}=_def_{f.name}") for f in fields]
     body_lines = [_field_init(f) for f in fields]
     if len(body_lines) == 0:
         body_lines = ['pass']
@@ -126,7 +123,10 @@ def _init_fn(fields):
     locals = {f'_def_{f.name}': f.default for f in fields
                                 if f.default is not _MISSING}
     return _create_fn('__init__',
-                      args,
+                      [_SELF] +
+                      [(f.name if f.default is _MISSING
+                        else f"{f.name}=_def_{f.name}")
+                        for f in fields],
                       body_lines,
                       locals)
 
@@ -142,6 +142,7 @@ def _repr_fn(fields):
 
 
 def _create_cmp_fn(name, op, fields):
+    # Create a comparison function.
     self_tuple = _tuple_str(_SELF, fields)
     other_tuple = _tuple_str(_OTHER, fields)
     return _create_fn(name,
@@ -153,7 +154,8 @@ def _create_cmp_fn(name, op, fields):
 
 
 def _ne():
-    # __ne__ is slightly different, so use a different pattern.
+    # __ne__ is slightly different from other comparison functions, so
+    #  use a different pattern.
     return _create_fn('__ne__',
                       [_SELF, _OTHER],
                       [f'result = {_SELF}.__eq__({_OTHER})',
@@ -264,7 +266,7 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     fields = list(fields.values())
 
     # Remember the total set of fields on our class (including
-    #  bases).
+    #  bases).  This marks this class as being a dataclass.
     setattr(cls, _MARKER, fields)
 
     if init:
@@ -292,9 +294,9 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
 
     if slots:
         # Need to create a new class, since we can't set __slots__
-        #  after it's been created.
+        #  after a class has been created.
 
-        # Create a new dict for our new class
+        # Create a new dict for our new class.
         cls_dict = dict(cls.__dict__)
         cls_dict["__slots__"] = tuple(f.name for f in fields)
         for f in fields:
@@ -302,12 +304,14 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
             cls_dict.pop(f.name, None)
         # Remove __dict__ itself.
         cls_dict.pop("__dict__", None)
-
+        # And finally create the class.
         cls = type(cls)(cls.__name__, cls.__bases__, cls_dict)
 
     return cls
 
 
+# _cls should never be specified by keyword, so start it with an
+#  underscore.
 def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
                slots=False, frozen=False):
     def wrap(cls):
