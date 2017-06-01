@@ -209,7 +209,7 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
 
     # Find our base classes in reverse MRO order, and exclude
     #  ourselves.  In reversed order so that more derived classes
-    #  overrides earlier field definitions in base classes.
+    #  override earlier field definitions in base classes.
     for b in cls.__mro__[-1:0:-1]:
         # Only process classes that have been processed by our
         #  decorator.  That is, they have a _MARKER attribute.
