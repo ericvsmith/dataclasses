@@ -55,7 +55,8 @@ class field:
     # XXX: currently for testing. either complete this, or delete it
     def __repr__(self):
         return f'''field(name={self.name!r},default={"_MISSING"
-                if self.default is _MISSING else self.default!r})'''
+                if self.default is _MISSING else self.default!r},
+                cmp={self.cmp})'''
 
 
 def _tuple_str(obj_name, fields):
@@ -285,12 +286,12 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     if cmp:
         # Create comparison functions.
         cmp_fields = list(filter(lambda f: f.cmp, fields))
-        cls.__eq__ = _create_cmp_fn('__eq__', '==', fields)
+        cls.__eq__ = _create_cmp_fn('__eq__', '==', cmp_fields)
         cls.__ne__ = _ne()
-        cls.__lt__ = _create_cmp_fn('__lt__', '<',  fields)
-        cls.__le__ = _create_cmp_fn('__le__', '<=', fields)
-        cls.__gt__ = _create_cmp_fn('__gt__', '>',  fields)
-        cls.__ge__ = _create_cmp_fn('__ge__', '>=', fields)
+        cls.__lt__ = _create_cmp_fn('__lt__', '<',  cmp_fields)
+        cls.__le__ = _create_cmp_fn('__le__', '<=', cmp_fields)
+        cls.__gt__ = _create_cmp_fn('__gt__', '>',  cmp_fields)
+        cls.__ge__ = _create_cmp_fn('__ge__', '>=', cmp_fields)
 
     if slots:
         # Need to create a new class, since we can't set __slots__

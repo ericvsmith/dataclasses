@@ -228,6 +228,17 @@ class TestCase(unittest.TestCase):
         c = C(10, 20)
         self.assertEqual(repr(c), 'C(y=20)')
 
+    def test_not_in_cmp(self):
+        @dataclass
+        class C:
+            x: int = 0
+            y: int = field(cmp=False, default=4)
+
+        self.assertEqual(C(), C(0, 20))
+        self.assertEqual(C(1, 10), C(1, 20))
+        self.assertNotEqual(C(3), C(4, 10))
+        self.assertNotEqual(C(3, 10), C(4, 10))
+
     def test_not_in_init(self):
         # If init=False, we must have a default value.
         # Otherwise, how would it get initialized?
