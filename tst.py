@@ -283,6 +283,42 @@ class TestCase(unittest.TestCase):
             self.assertTrue (cls.__dataclass_fields__[2].init)
             self.assertFalse(cls.__dataclass_fields__[2].repr)
 
+    def test_field_order(self):
+        @dataclass
+        class B:
+            a: str = 'B:a'
+            b: str = 'B:b'
+            c: str = 'B:c'
+
+        @dataclass
+        class C(B):
+            b: str = 'C:b'
+
+        self.assertEqual([(f.name, f.default) for f in C.__dataclass_fields__],
+                         [('a', 'B:a'),
+                          ('b', 'C:b'),
+                          ('c', 'B:c')])
+
+        @dataclass
+        class D(B):
+            c: str = 'D:c'
+
+        self.assertEqual([(f.name, f.default) for f in D.__dataclass_fields__],
+                         [('a', 'B:a'),
+                          ('b', 'B:b'),
+                          ('c', 'D:c')])
+
+        @dataclass
+        class E(D):
+            a: str = 'E:a'
+            d: str = 'E:d'
+
+        self.assertEqual([(f.name, f.default) for f in E.__dataclass_fields__],
+                         [('a', 'E:a'),
+                          ('b', 'B:b'),
+                          ('c', 'D:c'),
+                          ('d', 'E:d')])
+
     def test_class_attrs(self):
         # We only have a class attribute if a default value is
         #  specified, either directly or via a field with a default.

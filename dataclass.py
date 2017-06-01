@@ -210,14 +210,11 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     # Find our base classes in reverse MRO order, and exclude
     #  ourselves.  In reversed order so that more derived classes
     #  overrides earlier field definitions in base classes.
-    for b in [b for b in cls.__mro__ if not b is cls]:
-        # Only process classes marked with our decorator.
-        if hasattr(b, _MARKER):
-            # This is one of our base classes, where we've already
-            #  set _MARKER with a list of fields.  Add them to the
-            #  fields we're building up.
-            for f in getattr(b, _MARKER):
-                fields[f.name] = f
+    for b in cls.__mro__[-1:0:-1]:
+        # Only process classes that have been processed by our
+        #  decorator.  That is, they have a _MARKER attribute.
+        for f in getattr(b, _MARKER, []):
+            fields[f.name] = f
 
     # Now process our class.
     for name, type_, f in _find_fields(cls):
