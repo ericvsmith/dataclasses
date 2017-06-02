@@ -14,7 +14,14 @@
 
 import collections
 
-__all__ = ['dataclass', 'field', 'make_class']
+__all__ = ['dataclass', 'field', 'make_class', 'FrozenInstanceError']
+
+
+# Raised when an attempt is made to modify a frozen class.
+class FrozenInstanceError(AttributeError):
+    msg = "can't set attribute"
+    args = [msg]
+
 
 _MISSING = object()
 _MARKER = '__dataclass_fields__'
@@ -81,26 +88,35 @@ def _create_fn(name, args, body, locals=None):
     return locals[name]
 
 
-def _field_init(info):
+def _field_assign(frozen, name, value):
+    # If we're a frozen class, then assign to our fields in __init__
+    #  via object.__setattr__.  Otherwise, just use a simple
+    #  assignment.
+    if frozen:
+        return f'object.__setattr__({_SELF},{name!r},{value})'
+    return f'{_SELF}.{name}={value}'
+
+
+def _field_init(f, frozen):
     # Return the text of the line in __init__ that will initialize
     #  this field.
-    if info.default == _MISSING:
-        # There's no default, just use the value from our parameter list.
-        return f'{_SELF}.{info.name} = {info.name}'
 
-    if isinstance(info.default, (list, dict, set)):
+    if isinstance(f.default, (list, dict, set)):
         # We're a type we know how to copy.  If no default is given,
         #  copy the default.
-        return (f'{_SELF}.{info.name} = '
-                f'{_SELF}.__class__.{info.name}.copy() '
-                f'if {info.name} is {_SELF}.__class__.{info.name} '
-                f'else {info.name}')
+        return _field_assign(frozen,
+                             f.name,
+                             f'{_SELF}.__class__.{f.name}.copy() '
+                             f'if {f.name} is {_SELF}.__class__.{f.name} '
+                             f'else {f.name}')
 
     # XXX Is our default a factory function?
-    return f'{_SELF}.{info.name} = {info.name}'
+
+    # Use the value from our parameter list: self.x=x
+    return _field_assign(frozen, f.name, f.name)
 
 
-def _init_fn(fields):
+def _init_fn(fields, frozen):
     # Make sure we don't have fields without defaults following fields
     #  with defaults.  This actually would be caught when exec-ing the
     #  function source code, but catching it here gives a better error
@@ -114,7 +130,7 @@ def _init_fn(fields):
             raise ValueError(f'non-default argument {f.name} '
                              'follows default argument')
 
-    body_lines = [_field_init(f) for f in fields]
+    body_lines = [_field_init(f, frozen) for f in fields]
     if len(body_lines) == 0:
         body_lines = ['pass']
 
@@ -138,6 +154,14 @@ def _repr_fn(fields):
                                    for f in fields]) +
                          ')"'],
                       )
+
+
+def _frozen_setattr(self, name, value):
+    raise FrozenInstanceError()
+
+
+def _frozen_delattr(self, name):
+    raise FrozenInstanceError()
 
 
 # All __ne__ functions are the same, and don't depend on the fields.
@@ -282,10 +306,18 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     #  bases).  This marks this class as being a dataclass.
     setattr(cls, _MARKER, fields)
 
+    # We also need to check if a parent class is frozen: frozen has to
+    #  be inherited down.
+    is_frozen = frozen or cls.__setattr__ is _frozen_setattr
+
     if init:
-        cls.__init__ = _init_fn(list(filter(lambda f: f.init, fields)))
+        cls.__init__ = _init_fn(list(filter(lambda f: f.init, fields)),
+                                is_frozen)
     if repr:
         cls.__repr__ = _repr_fn(list(filter(lambda f: f.repr, fields)))
+    if is_frozen:
+        cls.__setattr__ = _frozen_setattr
+        cls.__delattr__ = _frozen_delattr
     if hash is None:
         # Not hashable.
         cls.__hash__ = None

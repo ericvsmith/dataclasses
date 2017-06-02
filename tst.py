@@ -1,6 +1,6 @@
 #!/usr/bin/env python3.6
 
-from dataclass import dataclass, field, make_class
+from dataclass import dataclass, field, make_class, FrozenInstanceError
 
 import unittest
 
@@ -498,6 +498,29 @@ class TestCase(unittest.TestCase):
         b = C()
         b.x = ''
         self.assertEqual(a, b)
+
+    def test_frozen(self):
+        @dataclass(frozen=True)
+        class C:
+            i: int
+
+        c = C(10)
+        self.assertEqual(c.i, 10)
+        with self.assertRaises(FrozenInstanceError) as ex:
+            c.i = 5
+        self.assertEqual(c.i, 10)
+
+        # Check that a derived class is still frozen, even if not
+        #  marked so.
+        @dataclass
+        class D(C):
+            pass
+
+        d = D(20)
+        self.assertEqual(d.i, 20)
+        with self.assertRaises(FrozenInstanceError) as ex:
+            d.i = 5
+        self.assertEqual(d.i, 20)
 
 def main():
     unittest.main()
