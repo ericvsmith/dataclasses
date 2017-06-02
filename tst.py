@@ -13,9 +13,6 @@ class TestCase(unittest.TestCase):
         o = C()
         self.assertEqual(repr(o), 'C()')
 
-    def XXX_test_no_fields_with_init(self):
-        pass
-
     def test_one_field_no_default(self):
         @dataclass
         class C:
@@ -49,14 +46,15 @@ class TestCase(unittest.TestCase):
                 y: int
         self.assertEqual(str(ex.exception), 'non-default argument y follows default argument')
 
-    def XXX_test_overwriting_init(self):
+    def test_overwriting_init(self):
         @dataclass
         class C:
             x: int
             def __init__(self, x):
                 self.x = 2 * x
 
-        # XXX: should raise an error to instantiate? or just ignored?
+        # XXX: should raise an error to instantiate? or just work by overwriting the given __init__?
+        self.assertEqual(C(10).x, 10)
 
     def test_field_named_self(self):
         @dataclass
@@ -359,7 +357,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(o1.l, [1, 2])
         self.assertEqual(o2.l, [])
 
-    def XXX_test_default_identity(self):
+    def test_default_identity(self):
         class MyClass:
             pass
         m = MyClass()
@@ -370,6 +368,8 @@ class TestCase(unittest.TestCase):
 
         c = C()
         self.assertIs(c.x, m)
+        c = C(None)
+        self.assertIsNone(c.x)
 
     def test_no_options(self):
         # call with dataclass()
