@@ -76,7 +76,7 @@ def _tuple_str(obj_name, fields):
     return f'({",".join([f"{obj_name}.{f.name}" for f in fields])},)'
 
 
-def _create_fn(name, args, body, locals=None):
+def _create_fn(name, args, body, globals=None, locals=None):
     # Note that we mutate locals when exec() is called. Caller beware!
     if locals is None:
         locals = {}
@@ -84,7 +84,7 @@ def _create_fn(name, args, body, locals=None):
     body = '\n'.join(f' {b}' for b in body)
     txt = f'def {name}({args}):\n{body}'
     #print(txt)
-    exec(txt, None, locals)
+    exec(txt, globals, locals)
     return locals[name]
 
 
@@ -101,19 +101,28 @@ def _field_init(f, frozen):
     # Return the text of the line in __init__ that will initialize
     #  this field.
 
-    if isinstance(f.default, (list, dict, set)):
-        # We're a type we know how to copy.  If no default is given,
-        #  copy the default.
-        return _field_assign(frozen,
-                             f.name,
-                             f'{_SELF}.__class__.{f.name}.copy() '
-                             f'if {f.name} is {_SELF}.__class__.{f.name} '
-                             f'else {f.name}')
+    # If this field has a default, and if we're using that default,
+    #  then copy it.  Otherwise, just assign the value.
 
-    # XXX Is our default a factory function?
+    # Do we know we don't have to copy the default value?
+    dont_need_copy = type(f.default) in {bool, int, float, complex, str,
+                                         tuple, frozenset}
+    # Do we know how to copy the default value?
+    can_copy = type(f.default) in {list, dict, set}
 
-    # Use the value from our parameter list: self.x=x
-    return _field_assign(frozen, f.name, f.name)
+    if f.default is _MISSING:
+        # There's no default, just do an assignment.
+        value = f.name
+    elif dont_need_copy:
+        value = (f'type({_SELF}).{f.name} '
+                 f'if {f.name} is _MISSING else {f.name}')
+    elif can_copy:
+        value = (f'type({_SELF}).{f.name}.copy() '
+                 f'if {f.name} is _MISSING else {f.name}')
+    else:
+        value = (f'_copy.copy(type({_SELF}).{f.name}) '
+                 f'if {f.name} is _MISSING else {f.name}')
+    return _field_assign(frozen, f.name, value)
 
 
 def _init_fn(fields, frozen):
@@ -134,16 +143,17 @@ def _init_fn(fields, frozen):
     if len(body_lines) == 0:
         body_lines = ['pass']
 
-    # locals needs to contain the defaults values: supply them.
-    locals = {f'_def_{f.name}': f.default for f in fields
-                                if f.default is not _MISSING}
+    import copy
+    globals = {'_MISSING': _MISSING,
+               '_copy': copy}
+
     return _create_fn('__init__',
                       [_SELF] +
                       [(f.name if f.default is _MISSING
-                        else f"{f.name}=_def_{f.name}")
+                        else f"{f.name}=_MISSING")
                         for f in fields],
                       body_lines,
-                      locals)
+                      globals=globals)
 
 
 def _repr_fn(fields):

@@ -344,32 +344,32 @@ class TestCase(unittest.TestCase):
         self.assertIs   (C.z, default)
         self.assertEqual(C.t, 100)
 
-    def XXX_test_mutable_defaults(self):
+    def test_mutable_defaults(self):
         @dataclass
         class C:
-            l: list = []
+            x: list = []
 
         o1 = C()
         o2 = C()
         self.assertEqual(o1, o2)
-        o1.l.extend([1, 2])
+        o1.x.extend([1, 2])
         self.assertNotEqual(o1, o2)
-        self.assertEqual(o1.l, [1, 2])
-        self.assertEqual(o2.l, [])
+        self.assertEqual(o1.x, [1, 2])
+        self.assertEqual(o2.x, [])
 
-    def test_default_identity(self):
-        class MyClass:
-            pass
-        m = MyClass()
-
+    def test_deliberately_mutable_defaults(self):
         @dataclass
         class C:
-            x: MyClass = m
+            x: list = []
 
-        c = C()
-        self.assertIs(c.x, m)
-        c = C(None)
-        self.assertIsNone(c.x)
+        # These 2 instances will share this value of x
+        lst = []
+        o1 = C(lst)
+        o2 = C(lst)
+        self.assertEqual(o1, o2)
+        o1.x.extend([1, 2])
+        self.assertEqual(o1, o2)
+        self.assertEqual(o1.x, [1, 2])
 
     def test_no_options(self):
         # call with dataclass()
