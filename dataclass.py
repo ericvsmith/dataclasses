@@ -12,8 +12,6 @@
 
 # is __annotations__ guaranteed to be an ordered mapping?
 
-# if needed for efficiency, compute self_tuple and other_tuple just once, and pass them around
-
 import collections
 
 __all__ = ['dataclass', 'field', 'make_class']
@@ -148,24 +146,36 @@ def _ne(self, other):
     return NotImplemented if result is NotImplemented else not result
 
 
-def _create_cmp_fn(name, op, fields):
-    # Create a comparison function.
+def _create_cmp_fn(name, op, self_tuple, other_tuple):
+    # Create a comparison function.  If the fields in the object are
+    #  named 'x' and 'y', then self_tuple is the string
+    #  '(_self.x,_self.y)' and other_tuple is the string
+    #  '(_other.x,_other.y'),
 
     if op == '!=':
         # __ne__ is slightly different from other comparison
         #  functions, since it only calls __eq__.  Return a regular
         #  function: no need to generate the source code, since it's
-        #  indepenedent of the fields
+        #  indepenedent of the fields involved.
         return _ne
 
-    self_tuple = _tuple_str(_SELF, fields)
-    other_tuple = _tuple_str(_OTHER, fields)
     return _create_fn(name,
                       [_SELF, _OTHER],
                       [f'if {_OTHER}.__class__ is {_SELF}.__class__:',
                        f'    return {self_tuple}{op}{other_tuple}',
                         'return NotImplemented'],
                       )
+
+def _create_cmp_fns(fields):
+    self_tuple = _tuple_str(_SELF, fields)
+    other_tuple = _tuple_str(_OTHER, fields)
+    return (_create_cmp_fn('__eq__', '==', self_tuple, other_tuple),
+            _create_cmp_fn('__ne__', '!=', self_tuple, other_tuple),
+            _create_cmp_fn('__lt__', '<',  self_tuple, other_tuple),
+            _create_cmp_fn('__le__', '<=', self_tuple, other_tuple),
+            _create_cmp_fn('__gt__', '>',  self_tuple, other_tuple),
+            _create_cmp_fn('__ge__', '>=', self_tuple, other_tuple),
+            )
 
 
 def _hash_fn(fields):
@@ -184,7 +194,7 @@ def _find_fields(cls):
     #  actual default value.
 
     # XXX: are __annotations__ known to ordered? I don't think so.
-    #  Maybe iterate over class members (which are in order) and only
+    #  Maybe iterate over class members (which are ordered) and only
     #  consider ones that are in __annotations__?
 
     annotations = getattr(cls, '__annotations__', {})
@@ -287,13 +297,12 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
 
     if cmp:
         # Create comparison functions.
-        cmp_fields = list(filter(lambda f: f.cmp, fields))
-        cls.__eq__ = _create_cmp_fn('__eq__', '==', cmp_fields)
-        cls.__ne__ = _create_cmp_fn('__ne__', '!=', cmp_fields)
-        cls.__lt__ = _create_cmp_fn('__lt__', '<',  cmp_fields)
-        cls.__le__ = _create_cmp_fn('__le__', '<=', cmp_fields)
-        cls.__gt__ = _create_cmp_fn('__gt__', '>',  cmp_fields)
-        cls.__ge__ = _create_cmp_fn('__ge__', '>=', cmp_fields)
+        (cls.__eq__,
+         cls.__ne__,
+         cls.__lt__,
+         cls.__le__,
+         cls.__gt__,
+         cls.__ge__) = _create_cmp_fns(list(filter(lambda f: f.cmp, fields)))
 
     if slots:
         # Need to create a new class, since we can't set __slots__
