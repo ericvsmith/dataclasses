@@ -142,19 +142,21 @@ def _repr_fn(fields):
                       )
 
 
+# All __ne__ functions are the same, and don't depend on the fields.
+def _ne(self, other):
+    result = self.__eq__(other)
+    return NotImplemented if result is NotImplemented else not result
+
+
 def _create_cmp_fn(name, op, fields):
     # Create a comparison function.
 
     if op == '!=':
-        # __ne__ is slightly different from other comparison functions, so
-        #  use a different pattern.
-        return _create_fn('__ne__',
-                          [_SELF, _OTHER],
-                          [f'result = {_SELF}.__eq__({_OTHER})',
-                            'return NotImplemented if result is NotImplemented '
-                                'else not result',
-                           ],
-                          )
+        # __ne__ is slightly different from other comparison
+        #  functions, since it only calls __eq__.  Return a regular
+        #  function: no need to generate the source code, since it's
+        #  indepenedent of the fields
+        return _ne
 
     self_tuple = _tuple_str(_SELF, fields)
     other_tuple = _tuple_str(_OTHER, fields)

@@ -492,7 +492,7 @@ class TestCase(unittest.TestCase):
         C().x = 3
 
         # Even though we can create a new member, it's not included in
-        #  the equality check.
+        #  the equality check, since it's not a field.
         a = C()
         a.x = 10
         b = C()
