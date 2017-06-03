@@ -522,6 +522,38 @@ class TestCase(unittest.TestCase):
             d.i = 5
         self.assertEqual(d.i, 20)
 
+    def test_not_tuple(self):
+        # Test that some of the problems with namedtuple don't happen
+        #  here.
+        @dataclass
+        class Point3D:
+            x: int
+            y: int
+            z: int
+
+        @dataclass
+        class Date:
+            year: int
+            month: int
+            day: int
+
+        self.assertNotEqual(Point3D(2017, 6, 3), Date(2017, 6, 3))
+        self.assertNotEqual(Point3D(1, 2, 3), (1, 2, 3))
+
+        # Make sure we can't unpack
+        with self.assertRaises(TypeError) as ex:
+            x, y, z = Point3D(4, 5, 6)
+        self.assertIn('is not iterable', str(ex.exception))
+
+        # Maka sure another class with the same field names isn't
+        #  equal.
+        @dataclass
+        class Point3Dv1:
+            x: int = 0
+            y: int = 0
+            z: int = 0
+        self.assertNotEqual(Point3D(0, 0, 0), Point3Dv1())
+
 def main():
     unittest.main()
 
