@@ -130,8 +130,8 @@ def _init_fn(fields, frozen):
         if f.default is not _MISSING:
             seen_default = True
         elif seen_default:
-            raise ValueError(f'non-default argument {f.name} '
-                             'follows default argument')
+            raise TypeError(f'non-default argument {f.name} '
+                            'follows default argument')
 
     body_lines = [_field_init(f, frozen) for f in fields]
     if len(body_lines) == 0:
@@ -259,7 +259,7 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
             # The name and type must not be filled in before hand: we
             #  grabbed them from the annotations.
             if f.name is not None or f.type is not None:
-                raise ValueError(f'cannot specify name or type for {name!r}')
+                raise TypeError(f'cannot specify name or type for {name!r}')
 
             # For fields defined in our class, set the name and type,
             #  which we don't know until now.
@@ -276,8 +276,8 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
         # If init=False, we must have a default value.  Otherwise,
         # how would it get initialized?
         if not f.init and f.default is _MISSING:
-            raise ValueError(f'field {name} has init=False, but '
-                             'has no default value')
+            raise TypeError(f'field {name} has init=False, but '
+                            'has no default value')
 
         # If the class attribute (which is the default value for
         #  this field) exists and is of type 'field', replace it
@@ -390,9 +390,9 @@ def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
             f = field(f, default_type)
 
         if f.name is None:
-            raise ValueError(f'name must be specified for field #{idx}')
+            raise TypeError(f'name must be specified for field #{idx}')
         if f.type is None:
-            raise ValueError(f'type must be specified for field {f.name!r}')
+            raise TypeError(f'type must be specified for field {f.name!r}')
 
         cls_dict[f.name] = f
         annotations[f.name] = type

@@ -38,8 +38,8 @@ class TestCase(unittest.TestCase):
         o = C(3)
         self.assertEqual((o.x, o.y), (3, 0))
 
-        # Non-defaults following defaults. XXX: Exception type?
-        with self.assertRaises(ValueError) as ex:
+        # Non-defaults following defaults.
+        with self.assertRaises(TypeError) as ex:
             @dataclass
             class C:
                 x: int=0
@@ -240,13 +240,13 @@ class TestCase(unittest.TestCase):
     def test_not_in_init(self):
         # If init=False, we must have a default value.
         # Otherwise, how would it get initialized?
-        with self.assertRaises(ValueError) as ex:
+        with self.assertRaises(TypeError) as ex:
             @dataclass
             class C:
                 x: int = field(init=False)
         self.assertEqual(str(ex.exception), 'field x has init=False, but has no default value')
 
-        with self.assertRaises(ValueError) as ex:
+        with self.assertRaises(TypeError) as ex:
             @dataclass
             class C:
                 x: int
@@ -395,14 +395,14 @@ class TestCase(unittest.TestCase):
         self.assertNotEqual(Point(1, 3), C(1, 3))
 
     def test_no_name_or_type(self):
-        with self.assertRaises(ValueError) as ex:
+        with self.assertRaises(TypeError) as ex:
             @dataclass
             class Point:
                 x: int = field('x')
         self.assertEqual(str(ex.exception), 'cannot specify name or type '
                                             "for 'x'")
 
-        with self.assertRaises(ValueError) as ex:
+        with self.assertRaises(TypeError) as ex:
             @dataclass
             class Point:
                 x: int = field(type=str)
@@ -447,14 +447,14 @@ class TestCase(unittest.TestCase):
         self.assertEqual(repr(C(1)), 'C(x=10,y=1,z=30)')
 
     def test_make_invalid_fields(self):
-        with self.assertRaises(ValueError) as ex:
+        with self.assertRaises(TypeError) as ex:
             C = make_class('C',
                            [field('x', int),
                             field(),
                             ])
         self.assertEqual(str(ex.exception), 'name must be specified for field #2')
 
-        with self.assertRaises(ValueError) as ex:
+        with self.assertRaises(TypeError) as ex:
             C = make_class('C',
                            [field('x'),
                             ])
