@@ -6,10 +6,6 @@
 #  what to do if a user specifies a function we're going to overwrite,
 #  like __init__? error? overwrite it?
 
-#  use typing.get_type_hints() instead of accessing __annotations__
-#  directly? recommended by PEP 526, but that's importing a lot just
-#  to get at __annotations__
-
 import collections
 
 __all__ = ['dataclass', 'field', 'make_class', 'FrozenInstanceError']
@@ -238,10 +234,6 @@ def _find_fields(cls):
             f = field(default=default)
         results.append((name, type, f))
     return results
-
-
-class Factory:
-    pass
 
 
 def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
