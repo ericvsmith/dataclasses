@@ -10,8 +10,6 @@
 #  directly? recommended by PEP 526, but that's importing a lot just
 #  to get at __annotations__
 
-# is __annotations__ guaranteed to be an ordered mapping?
-
 import collections
 
 __all__ = ['dataclass', 'field', 'make_class', 'FrozenInstanceError']
@@ -221,15 +219,11 @@ def _hash_fn(fields):
 
 def _find_fields(cls):
     # Return a list tuples of of (name, type, field()), in order, for
-    #  this class (and no subclasses).  Fields are found from
-    #  __annotations__.  Default values are from class attributes, if
-    #  a field has a default.  If the default value is a field(), then
-    #  it contains additional info beyond (and possibly including) the
-    #  actual default value.
-
-    # XXX: are __annotations__ known to ordered? I don't think so.
-    #  Maybe iterate over class members (which are ordered) and only
-    #  consider ones that are in __annotations__?
+    #  this class (and no super-classes).  Fields are found from
+    #  __annotations__ (which is guaranteed to be ordered).  Default
+    #  values are from class attributes, if a field has a default.  If
+    #  the default value is a field(), then it contains additional
+    #  info beyond (and possibly including) the actual default value.
 
     annotations = getattr(cls, '__annotations__', {})
 
@@ -396,7 +390,7 @@ def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
     # Normalize the fields.  The user can supply:
     #  - just a name
     #  - a field() with name and type specified
-    fields1 = collections.OrderedDict()
+    cls_dict = collections.OrderedDict()
     annotations = collections.OrderedDict()
     for idx, f in enumerate(fields, 1):
         if isinstance(f, str):
@@ -408,12 +402,12 @@ def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
         if f.type is None:
             raise ValueError(f'type must be specified for field {f.name!r}')
 
-        fields1[f.name] = f
+        cls_dict[f.name] = f
         annotations[f.name] = type
-    fields1['__annotations__'] = annotations
+    cls_dict['__annotations__'] = annotations
 
     # Create the class
-    cls = type(cls_name, bases, fields1)
+    cls = type(cls_name, bases, cls_dict)
 
     # And now process it normally, except pass in dynamic=True to skip
     #  some checks that don't hold when the fields are pre-created
