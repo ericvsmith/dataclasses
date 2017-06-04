@@ -194,16 +194,21 @@ def _create_cmp_fn(name, op, self_tuple, other_tuple):
                         'return NotImplemented'],
                       )
 
+
 def _create_cmp_fns(fields):
+    # Pre-compute self_tuple and other_tuple, then re-use them for
+    #  each function.
     self_tuple = _tuple_str(_SELF, fields)
     other_tuple = _tuple_str(_OTHER, fields)
-    return (_create_cmp_fn('__eq__', '==', self_tuple, other_tuple),
-            _create_cmp_fn('__ne__', '!=', self_tuple, other_tuple),
-            _create_cmp_fn('__lt__', '<',  self_tuple, other_tuple),
-            _create_cmp_fn('__le__', '<=', self_tuple, other_tuple),
-            _create_cmp_fn('__gt__', '>',  self_tuple, other_tuple),
-            _create_cmp_fn('__ge__', '>=', self_tuple, other_tuple),
-            )
+    return [_create_cmp_fn(name, op, self_tuple, other_tuple)
+            for name, op in [('__eq__', '=='),
+                             ('__ne__', '!='),
+                             ('__lt__', '<'),
+                             ('__le__', '<='),
+                             ('__gt__', '>'),
+                             ('__ge__', '>='),
+                             ]
+            ]
 
 
 def _hash_fn(fields):
