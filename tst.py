@@ -739,6 +739,19 @@ class TestCase(unittest.TestCase):
 
         validate_class(C, [(C.__hash__, int)])
 
+    def test_dont_include_other_annotations(self):
+        @dataclass
+        class C:
+            i: int
+            def foo(self) -> int:
+                return 4
+            @property
+            def bar(self) -> int:
+                return 5
+        self.assertEqual(list(C.__annotations__), ['i'])
+        self.assertEqual(C(10).foo(), 4)
+        self.assertEqual(C(10).bar, 5)
+
 def main():
     unittest.main()
 
