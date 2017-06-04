@@ -236,6 +236,15 @@ def _find_fields(cls):
     return results
 
 
+def _set_attribute(cls, name, value):
+    # Raise AttributeError if an attribute by this name already
+    #  exists.
+    if name in cls.__dict__:
+        raise AttributeError(f'Cannot overwrite attribute {name} '
+                             f'in {cls.__name__}')
+    setattr(cls, name, value)
+
+
 def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     # Use an OrderedDict because:
     #  - Order matters!
@@ -307,43 +316,54 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     is_frozen = frozen or cls.__setattr__ is _frozen_setattr
 
     if init:
-        cls.__init__ = _init_fn(list(filter(lambda f: f.init, fields)),
-                                is_frozen)
+        _set_attribute(cls, '__init__',
+                       _init_fn(list(filter(lambda f: f.init, fields)),
+                                is_frozen))
     if repr:
-        cls.__repr__ = _repr_fn(list(filter(lambda f: f.repr, fields)))
+        _set_attribute(cls, '__repr__',
+                       _repr_fn(list(filter(lambda f: f.repr, fields))))
     if is_frozen:
-        cls.__setattr__ = _frozen_setattr
-        cls.__delattr__ = _frozen_delattr
+        _set_attribute(cls, '__setattr__', _frozen_setattr)
+        _set_attribute(cls, '__delattr__', _frozen_delattr)
     if hash is None:
         # Not hashable.
-        cls.__hash__ = None
+        _set_attribute(cls, '__hash__', None)
     elif hash:
-        cls.__hash__ = _hash_fn(list(filter(lambda f: f.hash or f.hash is None,
-                                            fields)))
+        _set_attribute(cls, '__hash__',
+                       _hash_fn(list(filter(lambda f: f.hash or f.hash is None,
+                                            fields))))
     # Otherwise, use the base class definition of hash().  That is,
     #  don't set anything on this class.
 
     if cmp:
         # Create comparison functions.
-        (cls.__eq__,
-         cls.__ne__,
-         cls.__lt__,
-         cls.__le__,
-         cls.__gt__,
-         cls.__ge__) = _create_cmp_fns(list(filter(lambda f: f.cmp, fields)))
+        (eq, ne, lt,
+         le, gt, ge) = _create_cmp_fns(list(filter(lambda f: f.cmp, fields)))
+        _set_attribute(cls, '__eq__', eq)
+        _set_attribute(cls, '__ne__', ne)
+        _set_attribute(cls, '__lt__', lt)
+        _set_attribute(cls, '__le__', le)
+        _set_attribute(cls, '__gt__', gt)
+        _set_attribute(cls, '__ge__', ge)
 
     if slots:
         # Need to create a new class, since we can't set __slots__
         #  after a class has been created.
 
+        # Make sure __slots__ isn't already set.
+        if '__slots__' in cls.__dict__:
+            # XXX Code duplication from _set_attribute: fix.
+            raise AttributeError(f'Cannot overwrite attribute __slots__ '
+                                 f'in {cls.__name__}')
+
         # Create a new dict for our new class.
         cls_dict = dict(cls.__dict__)
-        cls_dict["__slots__"] = tuple(f.name for f in fields)
+        cls_dict['__slots__'] = tuple(f.name for f in fields)
         for f in fields:
             # Remove our attributes. They'll still be available in _MARKER.
             cls_dict.pop(f.name, None)
         # Remove __dict__ itself.
-        cls_dict.pop("__dict__", None)
+        cls_dict.pop('__dict__', None)
         # And finally create the class.
         cls = type(cls)(cls.__name__, cls.__bases__, cls_dict)
 

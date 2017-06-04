@@ -47,14 +47,129 @@ class TestCase(unittest.TestCase):
         self.assertEqual(str(ex.exception), 'non-default argument y follows default argument')
 
     def test_overwriting_init(self):
-        @dataclass
+        with self.assertRaises(AttributeError) as ex:
+            @dataclass
+            class C:
+                x: int
+                def __init__(self, x):
+                    self.x = 2 * x
+        self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __init__ in C')
+
+        @dataclass(init=False)
         class C:
             x: int
             def __init__(self, x):
                 self.x = 2 * x
+        self.assertEqual(C(5).x, 10)
 
-        # XXX: should raise an error to instantiate? or just work by overwriting the given __init__?
-        self.assertEqual(C(10).x, 10)
+    def test_overwriting_repr(self):
+        with self.assertRaises(AttributeError) as ex:
+            @dataclass
+            class C:
+                x: int
+                def __repr__(self):
+                    pass
+        self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __repr__ in C')
+
+        @dataclass(repr=False)
+        class C:
+            x: int
+            def __repr__(self):
+                return 'x'
+        self.assertEqual(repr(C(0)), 'x')
+
+        # Can't use this until we fix hash, cmp, frozen interactions
+    ## def test_overwriting_cmp(self):
+    ##     with self.assertRaises(AttributeError) as ex:
+    ##         @dataclass(hash=None, frozen=True)
+    ##         class C:
+    ##             x: int
+    ##             def __eq__(self):
+    ##                 pass
+    ##     self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __eq__ in C')
+
+    ##     @dataclass(repr=False)
+    ##     class C:
+    ##         x: int
+    ##         def __eq__(self, other):
+    ##             return True
+    ##     self.assertEqual(C(0), 'x')
+
+    def test_overwriting_hash(self):
+        with self.assertRaises(AttributeError) as ex:
+            @dataclass(frozen=True)
+            class C:
+                x: int
+                def __hash__(self):
+                    pass
+        self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __hash__ in C')
+
+        @dataclass(frozen=True,hash=False)
+        class C:
+            x: int
+            def __hash__(self):
+                return 600
+        self.assertEqual(hash(C(0)), 600)
+
+    def test_overwriting_hash(self):
+        with self.assertRaises(AttributeError) as ex:
+            @dataclass(frozen=True)
+            class C:
+                x: int
+                def __hash__(self):
+                    pass
+        self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __hash__ in C')
+
+        @dataclass(frozen=True,hash=False)
+        class C:
+            x: int
+            def __hash__(self):
+                return 600
+        self.assertEqual(hash(C(0)), 600)
+
+    def test_overwriting_frozen(self):
+        # frozen uses __setattr__ and __delattr__
+        with self.assertRaises(AttributeError) as ex:
+            @dataclass(frozen=True)
+            class C:
+                x: int
+                def __setattr__(self):
+                    pass
+        self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __setattr__ in C')
+
+        with self.assertRaises(AttributeError) as ex:
+            @dataclass(frozen=True)
+            class C:
+                x: int
+                def __delattr__(self):
+                    pass
+        self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __delattr__ in C')
+
+        @dataclass(frozen=False)
+        class C:
+            x: int
+            def __setattr__(self, name, value):
+                self.__dict__['x'] = value * 2
+        self.assertEqual(C(10).x, 20)
+
+    def test_overwrite_fields_in_derived_class(self):
+        # Note that x from C1 replaces x in Base, but the order remains
+        #  the same as defined in Base.
+        @dataclass
+        class Base:
+            x: str = 'base'
+            y: int = 0
+
+        @dataclass
+        class C1(Base):
+            z: int = 10
+            x: int = 15
+
+        o = C1()
+        self.assertEqual(repr(o), 'C1(x=15,y=0,z=10)')
+
+        o = C1(x=5)
+        self.assertEqual(repr(o), 'C1(x=5,y=0,z=10)')
 
     def test_field_named_self(self):
         @dataclass
@@ -79,25 +194,6 @@ class TestCase(unittest.TestCase):
         class D(C):
             x: int = 20
         self.assertEqual(repr(D()), 'D(x=20,y=10)')
-
-    def test_overwrite_fields_in_derived_class(self):
-        # Note that x from C1 replaces x in Base, but the order remains
-        #  the same as defined in Base.
-        @dataclass
-        class Base:
-            x: str = 'base'
-            y: int = 0
-
-        @dataclass
-        class C1(Base):
-            z: int = 10
-            x: int = 15
-
-        o = C1()
-        self.assertEqual(repr(o), 'C1(x=15,y=0,z=10)')
-
-        o = C1(x=5)
-        self.assertEqual(repr(o), 'C1(x=5,y=0,z=10)')
 
     def test_0_field_cmp(self):
         @dataclass
@@ -459,6 +555,19 @@ class TestCase(unittest.TestCase):
                            [field('x'),
                             ])
         self.assertEqual(str(ex.exception), "type must be specified for field 'x'")
+
+    def test_base_has_init(self):
+        class B:
+            def __init__(self):
+                pass
+
+        # Make sure that declaring this class doesn't raise an error.
+        #  The issue is that we can't override __init__ in our class,
+        #  but it should be okay to add __init__ to us if our base has
+        #  an __init__.
+        @dataclass
+        class C(B):
+            x: int = 0
 
     def test_slots(self):
         @dataclass(slots=True)
