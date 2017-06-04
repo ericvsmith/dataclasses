@@ -98,9 +98,11 @@ python-ideas discussion
 This discussion started on python-ideas [#]_ and was moved to a GitHub
 repo [#]_ for further discussion.
 
-New syntax rejected, PEP 526 give enough flexibility.
+- New syntax rejected, PEP 526 give enough flexibility.
 
-Mutable defaults
+- Mutable defaults
+
+- slots=True being the default
 
 
 Examples from Python's source code
