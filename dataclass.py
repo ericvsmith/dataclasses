@@ -174,7 +174,7 @@ def _ne(self, other):
     return NotImplemented if result is NotImplemented else not result
 
 
-def _create_cmp_fn(name, op, self_tuple, other_tuple):
+def _cmp_fn(name, op, self_tuple, other_tuple):
     # Create a comparison function.  If the fields in the object are
     #  named 'x' and 'y', then self_tuple is the string
     #  '(_self.x,_self.y)' and other_tuple is the string
@@ -195,20 +195,20 @@ def _create_cmp_fn(name, op, self_tuple, other_tuple):
                       )
 
 
-def _create_cmp_fns(fields):
+def _set_cmp_fns(cls, fields):
+    # Create and set all of the comparison functions on cls.
     # Pre-compute self_tuple and other_tuple, then re-use them for
     #  each function.
     self_tuple = _tuple_str(_SELF, fields)
     other_tuple = _tuple_str(_OTHER, fields)
-    return [_create_cmp_fn(name, op, self_tuple, other_tuple)
-            for name, op in [('__eq__', '=='),
-                             ('__ne__', '!='),
-                             ('__lt__', '<'),
-                             ('__le__', '<='),
-                             ('__gt__', '>'),
-                             ('__ge__', '>='),
-                             ]
-            ]
+    for name, op in [('__eq__', '=='),
+                     ('__ne__', '!='),
+                     ('__lt__', '<'),
+                     ('__le__', '<='),
+                     ('__gt__', '>'),
+                     ('__ge__', '>='),
+                     ]:
+        _set_attribute(cls, name, _cmp_fn(name, op, self_tuple, other_tuple))
 
 
 def _hash_fn(fields):
@@ -341,15 +341,8 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     #  don't set anything on this class.
 
     if cmp:
-        # Create comparison functions.
-        (eq, ne, lt,
-         le, gt, ge) = _create_cmp_fns(list(filter(lambda f: f.cmp, fields)))
-        _set_attribute(cls, '__eq__', eq)
-        _set_attribute(cls, '__ne__', ne)
-        _set_attribute(cls, '__lt__', lt)
-        _set_attribute(cls, '__le__', le)
-        _set_attribute(cls, '__gt__', gt)
-        _set_attribute(cls, '__ge__', ge)
+        # Create and set the comparison functions.
+        _set_cmp_fns(cls, list(filter(lambda f: f.cmp, fields)))
 
     if slots:
         # Need to create a new class, since we can't set __slots__
