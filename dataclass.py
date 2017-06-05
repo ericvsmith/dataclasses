@@ -3,10 +3,7 @@
 #  what exception to raise when non-default follows default? currently
 #  ValueError
 
-#  what to do if a user specifies a function we're going to overwrite,
-#  like __init__? error? overwrite it?
-
-# special names: _self, _other, _return (for _type__return). reserve them?
+# sepcial name in __init__: _self: reserve this name?
 
 import collections
 
@@ -70,16 +67,13 @@ def _tuple_str(obj_name, fields):
     return f'({",".join([f"{obj_name}.{f.name}" for f in fields])},)'
 
 
-def _create_fn(name, args, body, return_type=None, globals=None, locals=None):
+def _create_fn(name, args, body, globals=None, locals=None):
     # Note that we mutate locals when exec() is called. Caller beware!
     if locals is None:
         locals = {}
-    if return_type is not None:
-        locals['_type__return'] = return_type
     args = ','.join(args)
     body = '\n'.join(f' {b}' for b in body)
-    txt = (f'def {name}({args})'
-           f'{"" if return_type is None else ("->_type__return")}:\n{body}')
+    txt = f'def {name}({args}):\n{body}'
     #print(txt)
     exec(txt, globals, locals)
     return locals[name]
@@ -161,8 +155,7 @@ def _repr_fn(fields):
                       [f'return {_SELF}.__class__.__name__ + f"(' +
                          ','.join([f"{f.name}={{{_SELF}.{f.name}!r}}"
                                    for f in fields]) +
-                         ')"'],
-                      return_type=str)
+                         ')"'])
 
 
 def _frozen_setattr(self, name, value):
@@ -196,8 +189,7 @@ def _cmp_fn(name, op, self_tuple, other_tuple):
                       [_SELF, _OTHER],
                       [f'if {_OTHER}.__class__ is {_SELF}.__class__:',
                        f'    return {self_tuple}{op}{other_tuple}',
-                        'return NotImplemented'],
-                      return_type=bool)
+                        'return NotImplemented'])
 
 
 def _set_cmp_fns(cls, fields):
@@ -220,8 +212,7 @@ def _hash_fn(fields):
     self_tuple = _tuple_str(_SELF, fields)
     return _create_fn('__hash__',
                       [_SELF],
-                      [f'return hash({self_tuple})'],
-                      return_type=int)
+                      [f'return hash({self_tuple})'])
 
 
 def _find_fields(cls):

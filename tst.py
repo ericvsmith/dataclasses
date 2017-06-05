@@ -670,7 +670,7 @@ class TestCase(unittest.TestCase):
             pass
         f = F()
         
-        def validate_class(cls, extra=[]):
+        def validate_class(cls):
             # First, check __annotations__, even though they're not
             #  function annotations.
             self.assertEqual(cls.__annotations__['i'], int)
@@ -679,17 +679,6 @@ class TestCase(unittest.TestCase):
             self.assertEqual(cls.__annotations__['l'], float)
             self.assertEqual(cls.__annotations__['z'], complex)
 
-            # Now check function return types.
-            for fn, expected in [(cls.__repr__, str),
-                                 (cls.__eq__, bool),
-                                 (cls.__ne__, bool),
-                                 (cls.__lt__, bool),
-                                 (cls.__le__, bool),
-                                 (cls.__gt__, bool),
-                                 (cls.__ge__, bool),
-                                 ] + extra:
-                signature = inspect.signature(fn)
-                self.assertEqual(signature.return_annotation, expected)
             # Verify __init__.
             signature = inspect.signature(cls.__init__)
             params = iter(signature.parameters.values())
@@ -737,7 +726,7 @@ class TestCase(unittest.TestCase):
             l: float=field(default=None)
             z: complex=field(default=3+4j, init=False)
 
-        validate_class(C, [(C.__hash__, int)])
+        validate_class(C)
 
     def test_dont_include_other_annotations(self):
         @dataclass
