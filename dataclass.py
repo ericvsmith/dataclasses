@@ -67,13 +67,17 @@ def _tuple_str(obj_name, fields):
     return f'({",".join([f"{obj_name}.{f.name}" for f in fields])},)'
 
 
-def _create_fn(name, args, body, globals=None, locals=None):
+def _create_fn(name, args, body, globals=None, locals=None, return_type=_MISSING):
     # Note that we mutate locals when exec() is called. Caller beware!
     if locals is None:
         locals = {}
+    return_annotation = ''
+    if return_type is not _MISSING:
+        locals['_return_type'] = return_type
+        return_annotation = '->_return_type'
     args = ','.join(args)
     body = '\n'.join(f' {b}' for b in body)
-    txt = f'def {name}({args}):\n{body}'
+    txt = f'def {name}({args}){return_annotation}:\n{body}'
     #print(txt)
     exec(txt, globals, locals)
     return locals[name]
@@ -146,7 +150,8 @@ def _init_fn(fields, frozen):
                         for f in fields],
                       body_lines,
                       locals=locals,
-                      globals=globals)
+                      globals=globals,
+                      return_type=None)
 
 
 def _repr_fn(fields):

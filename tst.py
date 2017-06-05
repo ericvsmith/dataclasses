@@ -669,7 +669,7 @@ class TestCase(unittest.TestCase):
         class F:
             pass
         f = F()
-        
+
         def validate_class(cls):
             # First, check __annotations__, even though they're not
             #  function annotations.
@@ -680,7 +680,12 @@ class TestCase(unittest.TestCase):
             self.assertEqual(cls.__annotations__['z'], complex)
 
             # Verify __init__.
+
             signature = inspect.signature(cls.__init__)
+            # Check the return type, should be None
+            self.assertIs(signature.return_annotation, None)
+
+            # Check each parameter.
             params = iter(signature.parameters.values())
             param = next(params)
             self.assertEqual(param.name, '_self')
