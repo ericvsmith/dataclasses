@@ -506,10 +506,6 @@ class TestCase(unittest.TestCase):
         self.assertEqual(str(ex.exception), 'cannot specify name or type '
                                             "for 'x'")
 
-    def test_make_simple(self):
-        C = make_class('C', 'a b')
-        self.assertEqual(repr(C(1, 2)), 'C(a=1,b=2)')
-
     def test_make_derived(self):
         @dataclass
         class Base:

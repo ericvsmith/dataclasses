@@ -389,27 +389,16 @@ def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
 
 
 def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
-               hash=None, init=True, slots=False, frozen=False,
-               default_type=str):
+               hash=None, init=True, slots=False, frozen=False):
     # fields is a list of (name, type, field)
     if bases is None:
         bases = (object,)
 
-    if isinstance(fields, str):
-        # This is for the case of using 'x y' as a shortcut for
-        #  ['x', 'y'].
-        fields = fields.replace(',', ' ').split()
-
-    # Normalize the fields.  The user can supply:
-    #  - just a name
-    #  - a field() with name and type specified
+    # Look through each field and build up an ordered class dictionary
+    #  and an ordered dictionary for __annotations__.
     cls_dict = collections.OrderedDict()
     annotations = collections.OrderedDict()
     for idx, f in enumerate(fields, 1):
-        if isinstance(f, str):
-            # Only a name specified, assume it's of type default_type.
-            f = field(f, default_type)
-
         if f.name is None:
             raise TypeError(f'name must be specified for field #{idx}')
         if f.type is None:
