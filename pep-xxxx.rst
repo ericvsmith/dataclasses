@@ -78,6 +78,11 @@ Mutable defaults
 __dataclass_fields__ attribute
 ------------------------------
 
+Only variable declarations are inspected, not methods or properties
+-------------------------------------------------------------------
+
+Even if they are annotated with return types.
+
 Reserved field names
 --------------------
 
