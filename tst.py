@@ -539,6 +539,14 @@ class TestCase(unittest.TestCase):
                        bases=(Base,))
         self.assertEqual(repr(C(1)), 'C(x=10,y=1,z=30)')
 
+    def test_make_empty(self):
+        C = make_class('C', [])
+        self.assertEqual(repr(C()), 'C()')
+        self.assertEqual(C.__dataclass_fields__, [])
+
+        # XXX: is this right, or should there be no annotations?
+        self.assertEqual(len(C.__annotations__), 0)
+
     def test_make_invalid_fields(self):
         with self.assertRaises(TypeError) as ex:
             C = make_class('C',
