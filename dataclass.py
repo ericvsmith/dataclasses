@@ -333,15 +333,27 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     if is_frozen:
         _set_attribute(cls, '__setattr__', _frozen_setattr)
         _set_attribute(cls, '__delattr__', _frozen_delattr)
+
+    generate_hash = False
     if hash is None:
-        # Not hashable.
-        _set_attribute(cls, '__hash__', None)
-    elif hash:
+        if cmp and frozen:
+            # Generate a hash function.
+            generate_hash = True
+        elif cmp and not frozen:
+            # Not hashable.
+            _set_attribute(cls, '__hash__', None)
+        elif not cmp:
+            # Otherwise, use the base class definition of hash().  That is,
+            #  don't set anything on this class.
+            pass
+        else:
+            assert "can't get here"
+    else:
+        generate_hash = hash
+    if generate_hash:
         _set_attribute(cls, '__hash__',
                        _hash_fn(list(filter(lambda f: f.hash or f.hash is None,
                                             fields))))
-    # Otherwise, use the base class definition of hash().  That is,
-    #  don't set anything on this class.
 
     if cmp:
         # Create and set the comparison functions.

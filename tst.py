@@ -79,22 +79,22 @@ class TestCase(unittest.TestCase):
                 return 'x'
         self.assertEqual(repr(C(0)), 'x')
 
-        # Can't use this until we fix hash, cmp, frozen interactions
-    ## def test_overwriting_cmp(self):
-    ##     with self.assertRaises(AttributeError) as ex:
-    ##         @dataclass(hash=None, frozen=True)
-    ##         class C:
-    ##             x: int
-    ##             def __eq__(self):
-    ##                 pass
-    ##     self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __eq__ in C')
+    def test_overwriting_cmp(self):
+        with self.assertRaises(AttributeError) as ex:
+            # This will generate the cmp functions, make sure we can't overwrite them.
+            @dataclass(hash=False, frozen=False)
+            class C:
+                x: int
+                def __eq__(self):
+                    pass
+        self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __eq__ in C')
 
-    ##     @dataclass(repr=False)
-    ##     class C:
-    ##         x: int
-    ##         def __eq__(self, other):
-    ##             return True
-    ##     self.assertEqual(C(0), 'x')
+        @dataclass(cmp=False)
+        class C:
+            x: int
+            def __eq__(self, other):
+                return True
+        self.assertEqual(C(0), 'x')
 
     def test_overwriting_hash(self):
         with self.assertRaises(AttributeError) as ex:
@@ -277,6 +277,45 @@ class TestCase(unittest.TestCase):
         with self.assertRaises(TypeError) as ex:
             hash(C(1))
         self.assertEqual(str(ex.exception), "unhashable type: 'C'")
+
+    def test_hash_rules(self):
+        # Test all 12 cases of:
+        #  hash=True/False/None
+        #  cmp=True/False
+        #  frozen=True/False
+        for hash, cmp, frozen, result in [
+            (True,  False, False,  'fn'),
+            (True,  False, True,   'fn'),
+            (True,  True,  False,  'fn'),
+            (True,  True,  True,   'fn'),
+            (False, False, False,  'absent'),
+            (False, False, True,   'absent'),
+            (False, True,  False,  'absent'),
+            (False, True,  True,   'absent'),
+            (None,  False, False,  'absent'),
+            (None,  False, True,   'absent'),
+            (None,  True,  False,  'none'),
+            (None,  True,  True,   'fn'),
+            ]:
+            with self.subTest(hash=hash, cmp=cmp, frozen=frozen):
+                @dataclass(hash=hash, cmp=cmp, frozen=frozen)
+                class C:
+                    pass
+
+                # See if the result matches what's expected.
+                if result == 'fn':
+                    # Contains the function we generated.
+                    self.assertIn('__hash__', C.__dict__)
+                    self.assertIsNot(C.__dict__['__hash__'], None)
+                elif result == 'absent':
+                    # Not present in our class.
+                    self.assertNotIn('__hash__', C.__dict__)
+                elif result == 'none':
+                    # Is set to None.
+                    self.assertIn('__hash__', C.__dict__)
+                    self.assertIs(C.__dict__['__hash__'], None)
+                else:
+                    assert False, f'unknown result {result!r}'
 
     def test_field_no_default(self):
         @dataclass
