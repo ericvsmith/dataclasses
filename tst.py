@@ -5,6 +5,9 @@ from dataclass import dataclass, field, make_class, FrozenInstanceError
 import inspect
 import unittest
 
+# Just any custom exception we can catch.
+class CustomError(Exception): pass
+
 class TestCase(unittest.TestCase):
     def test_no_fields(self):
         @dataclass
@@ -788,6 +791,84 @@ class TestCase(unittest.TestCase):
         self.assertEqual(list(C.__annotations__), ['i'])
         self.assertEqual(C(10).foo(), 4)
         self.assertEqual(C(10).bar, 5)
+
+    def test_post_init(self):
+        # Just make sure it gets called
+        @dataclass
+        class C:
+            def __dataclass_post_init__(self):
+                raise CustomError()
+        with self.assertRaises(CustomError):
+            C()
+
+        @dataclass
+        class C:
+            i: int = 10
+            def __dataclass_post_init__(self):
+                if self.i == 10:
+                    raise CustomError()
+        with self.assertRaises(CustomError):
+            C()
+        # post-init gets called, but doesn't raise. This is just
+        #  checking that self is used correctly.
+        C(5)
+
+        # If there's not an __init__, then post-init won't get called.
+        @dataclass(init=False)
+        class C:
+            def __dataclass_post_init__(self):
+                raise CustomError()
+        # Creating the class won't raise
+        C()
+
+        @dataclass
+        class C:
+            x: int = 0
+            def __dataclass_post_init__(self):
+                self.x *= 2
+        self.assertEqual(C().x, 0)
+        self.assertEqual(C(2).x, 4)
+
+        # Make sure that if we'r frozen, post-init can't set
+        #  attributes.
+        @dataclass(frozen=True)
+        class C:
+            x: int = 0
+            def __dataclass_post_init__(self):
+                self.x *= 2
+        with self.assertRaises(FrozenInstanceError):
+            C()
+
+    def test_post_init_super(self):
+        # Make sure super() post-init isn't called by default.
+        class B:
+            def __dataclass_post_init__(self):
+                raise CustomError()
+
+        @dataclass
+        class C(B):
+            def __dataclass_post_init__(self):
+                self.x = 5
+
+        self.assertEqual(C().x, 5)
+
+        # Now call super(), and it will raise
+        @dataclass
+        class C(B):
+            def __dataclass_post_init__(self):
+                super().__dataclass_post_init__()
+
+        with self.assertRaises(CustomError):
+            C()
+
+        # Make sure post-init is called, even if not defined in our
+        #  class.
+        @dataclass
+        class C(B):
+            pass
+
+        with self.assertRaises(CustomError):
+            C()
 
 def main():
     unittest.main()

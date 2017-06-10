@@ -18,6 +18,7 @@ class FrozenInstanceError(AttributeError):
 
 _MISSING = object()
 _MARKER = '__dataclass_fields__'
+_POST_INIT_NAME = '__dataclass_post_init__'
 
 # Use '_self' instead of 'self' so that fields can be named 'self'.
 _SELF = '_self'
@@ -120,7 +121,7 @@ def _field_init(f, frozen):
     return _field_assign(frozen, f.name, value)
 
 
-def _init_fn(fields, frozen):
+def _init_fn(fields, frozen, has_post_init):
     # Make sure we don't have fields without defaults following fields
     #  with defaults.  This actually would be caught when exec-ing the
     #  function source code, but catching it here gives a better error
@@ -135,8 +136,15 @@ def _init_fn(fields, frozen):
                             'follows default argument')
 
     body_lines = [_field_init(f, frozen) for f in fields]
+
+    # Does this class have an post-init function?
+    if has_post_init:
+        body_lines += [f'{_SELF}.{_POST_INIT_NAME}()']
+
+    # If no body lines, add 'pass'
     if len(body_lines) == 0:
         body_lines = ['pass']
+
 
     import copy
     globals = {'_MISSING': _MISSING,
@@ -324,9 +332,12 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     is_frozen = frozen or cls.__setattr__ is _frozen_setattr
 
     if init:
+        # Does this class have a post-init function?
+        has_post_init = hasattr(cls, _POST_INIT_NAME)
         _set_attribute(cls, '__init__',
                        _init_fn(list(filter(lambda f: f.init, fields)),
-                                is_frozen))
+                                is_frozen,
+                                has_post_init))
     if repr:
         _set_attribute(cls, '__repr__',
                        _repr_fn(list(filter(lambda f: f.repr, fields))))
