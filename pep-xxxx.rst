@@ -1,5 +1,5 @@
 PEP: xxx
-Title: Data container classes
+Title: Data classes
 Author: Eric V. Smith <eric@trueblade.com>
 Status: Draft
 Type: Standards Track
@@ -11,7 +11,20 @@ Post-History: 02-Jun-2017
 Abstract
 ========
 
-There have been numerous attempts to define classes exist primarily as containers for ...
+There have been numerous attempts to define classes which exist
+primarily to store a set of attributes.  Some examples include:
+
+ - collection.namedtuple in the standard library.
+
+ - typing.NamedTuple in the standard library.
+
+ - The popular attrs [#]_ project.
+
+ - Many user recipes and packages such as [#_] and [#]_.
+
+This PEP describes an addition to the standard library called Data
+Classes.  These data classes are specified using PEP 526, Syntax for
+Variable Annotations.
 
 Describe fields. This PEP proposes a module for defining data classes.
 
@@ -89,7 +102,13 @@ Reserved field names
 make_class()
 ------------
 
-- Valid field names
+post-init function
+------------------
+
+Take a parameter?
+
+Valid field names
+-----------------
 
 Module helper functions
 -----------------------
@@ -109,6 +128,8 @@ repo [#]_ for further discussion.
 
 - slots=True being the default
 
+- Should post-init take params?
+
 
 Examples from Python's source code
 ==================================
@@ -116,6 +137,15 @@ Examples from Python's source code
 
 References
 ==========
+
+.. [#] attrs project on github
+       (https://github.com/python-attrs/attrs)
+
+.. [#] DictDotLookup recipe
+       (http://code.activestate.com/recipes/576586-dot-style-nested-lookups-over-dictionary-based-dat/)
+
+.. [#] attrdict package
+       (https://pypi.python.org/pypi/attrdict)
 
 .. [#] Start of python-ideas discussion
        (https://mail.python.org/pipermail/python-ideas/2017-May/045618.html)
