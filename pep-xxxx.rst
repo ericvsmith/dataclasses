@@ -20,7 +20,7 @@ primarily to store a set of attributes.  Some examples include:
 
  - The popular attrs [#]_ project.
 
- - Many user recipes and packages such as [#_] and [#]_.
+ - Many user recipes and packages such as [#]_ and [#]_.
 
 This PEP describes an addition to the standard library called Data
 Classes.  These data classes are specified using PEP 526, Syntax for
