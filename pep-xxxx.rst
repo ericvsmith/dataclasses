@@ -14,22 +14,41 @@ Abstract
 There have been numerous attempts to define classes which exist
 primarily to store a set of attributes.  Some examples include:
 
- - collection.namedtuple in the standard library.
+- collection.namedtuple in the standard library.
 
- - typing.NamedTuple in the standard library.
+- typing.NamedTuple in the standard library.
 
- - The popular attrs [#]_ project.
+- The popular attrs [#]_ project.
 
- - Many user recipes and packages such as [#]_ and [#]_.
+- Many user recipes and packages such as [#]_ and [#]_.
 
 This PEP describes an addition to the standard library called Data
-Classes.  These data classes are specified using PEP 526, Syntax for
-Variable Annotations.
+Classes.  A Data Class is a normal Python class, specified using a
+class decorator, that defines a series of fields.  Fields are
+specified as class members using PEP 526, Syntax for Variable
+Annotations.  The class decorator arranges for much of the class
+boilerplate code to be automatically added to the Data Class.  Member
+functions may be added to the Data Class.
 
-Describe fields. This PEP proposes a module for defining data classes.
+As an example::
+
+  @dataclass
+  class Point:
+      x: float
+      y: float
+      z: float = 0
+
+      def distance(self, other):
+          return ((self.x-other.x)**2 +
+                  (self.y-other.y)**2 +
+                  (self.z-other.z)**2) ** 0.5
 
 Rationale
 =========
+
+With the addition of PEP 526, Python has a concise way to specify the
+type of class members.  This PEP leverages that syntax to provide a
+simple way to describe Data Classes.
 
 why not namedtuple
 ------------------
