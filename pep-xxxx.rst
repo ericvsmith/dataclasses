@@ -20,7 +20,9 @@ primarily to store a set of attributes.  Some examples include:
 
 - The popular attrs [#]_ project.
 
-- Many user recipes and packages such as [#]_ and [#]_.
+- Many user recipes and packages such as [#]_ and [#]_.  David Bealey
+  used a form of data classes as the motivating example in a PyCon
+  2013 metaclass talk [#]_.
 
 This PEP describes an addition to the standard library called Data
 Classes.  A Data Class is a normal Python class, specified using a
@@ -165,6 +167,9 @@ References
 
 .. [#] attrdict package
        (https://pypi.python.org/pypi/attrdict)
+
+.. [#] David Beazley metaclass talk
+       (https://www.youtube.com/watch?v=sPiWg5jSoZI)
 
 .. [#] Start of python-ideas discussion
        (https://mail.python.org/pipermail/python-ideas/2017-May/045618.html)
