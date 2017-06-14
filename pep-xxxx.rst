@@ -1,5 +1,5 @@
 PEP: xxx
-Title: Data classes
+Title: Data Classes
 Author: Eric V. Smith <eric@trueblade.com>
 Status: Draft
 Type: Standards Track
@@ -20,14 +20,14 @@ primarily to store a set of attributes.  Some examples include:
 
 - The popular attrs [#]_ project.
 
-- Many user recipes and packages such as [#]_ and [#]_.  David Bealey
-  used a form of data classes as the motivating example in a PyCon
-  2013 metaclass talk [#]_.
+- Many example online recipes [#]_, packages [#]_, and questions [#]_.
+  David Bealey used a form of data classes as the motivating example
+  in a PyCon 2013 metaclass talk [#]_.
 
 This PEP describes an addition to the standard library called Data
 Classes.  A Data Class is a normal Python class, specified using a
 class decorator, that defines a series of fields.  Fields are
-specified as class members using PEP 526, Syntax for Variable
+specified as class members using PEP 526: Syntax for Variable
 Annotations.  The class decorator arranges for much of the class
 boilerplate code to be automatically added to the Data Class.  Member
 functions may be added to the Data Class.
@@ -58,6 +58,7 @@ why not namedtuple
 Point3D(2017, 6, 2) == Date(2017, 6, 2)
 Point2D(1, 10) == (1, 10)
 Accidental iteration
+No option for mutable instances
 
 why not attrs
 -------------
@@ -168,7 +169,10 @@ References
 .. [#] attrdict package
        (https://pypi.python.org/pypi/attrdict)
 
-.. [#] David Beazley metaclass talk
+.. [#] StackOverflow question about data classes
+       (https://stackoverflow.com/questions/3357581/using-python-class-as-a-data-container)
+
+.. [#] David Beazley metaclass talk featuring data classes
        (https://www.youtube.com/watch?v=sPiWg5jSoZI)
 
 .. [#] Start of python-ideas discussion
