@@ -5,6 +5,7 @@
 
 # sepcial name in __init__: _self: reserve this name?
 
+import typing
 import collections
 
 __all__ = ['dataclass', 'field', 'make_class', 'FrozenInstanceError']
@@ -235,19 +236,49 @@ def _find_fields(cls):
     #  values are from class attributes, if a field has a default.  If
     #  the default value is a field(), then it contains additional
     #  info beyond (and possibly including) the actual default value.
+    #  Fields derived from ClassVar are ignored.
 
     annotations = getattr(cls, '__annotations__', {})
 
     results = []
-    for name, type in annotations.items():
+    for v_name, v_type in annotations.items():
+        # This test tightly couples this module with typing, but it's
+        # the only way to test if this is a ClassVar.  There's a
+        # similar test in typing._type_check.
+        if (isinstance(v_type, typing._TypingBase)
+            and type(v_type).__name__ == '_ClassVar'):
+            # Skip this field if it's a ClassVar
+            continue
+
         # If the default value isn't derived from field, then it's
         # only a normal default value.  Convert it to a field().
-        default = getattr(cls, name, _MISSING)
+        default = getattr(cls, v_name, _MISSING)
         if isinstance(default, field):
             f = default
         else:
             f = field(default=default)
-        results.append((name, type, f))
+        results.append((v_name, v_type, f))
+    return results
+
+
+def _find_classvars(cls):
+    # Return a list tuples of of (name, type, default), in order, for
+    #  this class (and no super-classes), for 'fields' that are ClassVar.
+
+    annotations = getattr(cls, '__annotations__', {})
+
+    results = []
+    for v_name, v_type in annotations.items():
+        # This test tightly couples this module with typing, but it's
+        # the only way to test if this is a ClassVar.  There's a
+        # similar test in typing._type_check.
+        if not (isinstance(v_type, typing._TypingBase)
+                and type(v_type).__name__ == '_ClassVar'):
+            # Skip non-ClassVars
+            continue
+
+        default = getattr(cls, v_name, _MISSING)
+        results.append((v_name, v_type, default))
     return results
 
 
@@ -317,7 +348,7 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
             else:
                 setattr(cls, name, f.default)
 
-
+    setattr(cls, '__dataclass_classvars__', _find_classvars(cls))
 
     # We've de-duped and have the fields in order, so we no longer
     #  need a dict of them.  Convert to a list of just the values.

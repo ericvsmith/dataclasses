@@ -4,6 +4,7 @@ from dataclass import dataclass, field, make_class, FrozenInstanceError
 
 import inspect
 import unittest
+from typing import ClassVar
 
 # Just any custom exception we can catch.
 class CustomError(Exception): pass
@@ -869,6 +870,21 @@ class TestCase(unittest.TestCase):
 
         with self.assertRaises(CustomError):
             C()
+
+    def test_class_var(self):
+        # Make sure ClassVars are ignored in __init__, __repr__, etc.
+        @dataclass
+        class C:
+            x: int
+            y: int = 10
+            z: ClassVar[int] = 1000
+
+        self.assertEqual(repr(C(5)), 'C(x=5,y=10)')
+        self.assertEqual(len(C.__dataclass_fields__), 2)    # We have 2 fields
+        self.assertEqual(len(C.__dataclass_classvars__), 1) # And 1 ClassVar
+        self.assertEqual(C.__dataclass_classvars__[0],
+                         ('z', ClassVar[int], 1000))
+
 
 def main():
     unittest.main()
