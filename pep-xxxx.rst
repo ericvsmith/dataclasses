@@ -89,34 +89,16 @@ Mutable defaults
 Specification
 =============
 
-PEP 526 Variable Annotations
-----------------------------
-
-Generated functions contain variable annotations
-------------------------------------------------
-
-Generate __init__
------------------
-
-Generate __repr__
------------------
-
-Frozen classes
---------------
-
-Generate __hash__ and __cmp__
------------------------------
-
-Mutable defaults
-----------------
-
-__dataclass_fields__ attribute
-------------------------------
-
-Only variable declarations are inspected, not methods or properties
--------------------------------------------------------------------
-
-Even if they are annotated with return types.
+- PEP 526 Variable Annotations
+- Generated functions contain variable annotations
+- Generate __init__
+- Generate __repr__
+- Frozen classes
+- Generate __hash__ and __cmp__
+- Mutable defaults
+- __dataclass_fields__ attribute
+- Only variable declarations are inspected, not methods or properties, even if they are annotated with return types.
+- Members that are ClassVar are ignored
 
 Reserved field names
 --------------------
