@@ -884,13 +884,7 @@ class TestCase(unittest.TestCase):
         c = C(5)
         self.assertEqual(repr(c), 'C(x=5,y=10)')
         self.assertEqual(len(C.__dataclass_fields__), 2)    # We have 2 fields
-        self.assertEqual(len(C.__dataclass_classvars__), 3) # And 3 ClassVars
-        self.assertEqual(C.__dataclass_classvars__[0],
-                         ('z', ClassVar[int], 1000))
-        self.assertEqual(C.__dataclass_classvars__[1],
-                         ('w', ClassVar[int], 2000))
-        self.assertEqual(C.__dataclass_classvars__[2],
-                         ('t', ClassVar[int], 3000))
+        self.assertEqual(len(C.__annotations__), 5)         # And 3 ClassVars
         self.assertEqual(c.z, 1000)
         self.assertEqual(c.w, 2000)
         self.assertEqual(c.t, 3000)
@@ -914,13 +908,7 @@ class TestCase(unittest.TestCase):
         c = C(5)
         self.assertEqual(repr(C(5)), 'C(x=5,y=10)')
         self.assertEqual(len(C.__dataclass_fields__), 2)    # We have 2 fields
-        self.assertEqual(len(C.__dataclass_classvars__), 3) # And 3 ClassVars
-        self.assertEqual(C.__dataclass_classvars__[0],
-                         ('z', ClassVar[int], 1000))
-        self.assertEqual(C.__dataclass_classvars__[1],
-                         ('w', ClassVar[int], 2000))
-        self.assertEqual(C.__dataclass_classvars__[2],
-                         ('t', ClassVar[int], 3000))
+        self.assertEqual(len(C.__annotations__), 5)         # And 3 ClassVars
         self.assertEqual(c.z, 1000)
         self.assertEqual(c.w, 2000)
         self.assertEqual(c.t, 3000)
