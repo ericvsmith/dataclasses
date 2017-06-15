@@ -100,30 +100,14 @@ def _field_init(f, frozen, globals):
     # Return the text of the line in __init__ that will initialize
     #  this field.
 
-    # If this field has a default, and if we're using that default,
-    #  then copy it.  Otherwise, just assign the value.
-
-    # Do we know we don't have to copy the default value?
-    dont_need_copy = type(f.default) in {bool, int, float, complex, str,
-                                         tuple, frozenset}
-    # Do we know how to copy the default value?
-    can_copy = type(f.default) in {list, dict, set}
-
     if f.default is _MISSING:
         # There's no default, just do an assignment.
         value = f.name
     else:
         default_name = f'_dflt_{f.name}'
         globals[default_name] = f.default
-        if dont_need_copy:
-            value = (f'{default_name} '
-                     f'if {f.name} is _MISSING else {f.name}')
-        elif can_copy:
-            value = (f'{default_name}.copy() '
-                     f'if {f.name} is _MISSING else {f.name}')
-        else:
-            value = (f'_copy.copy({default_name}) '
-                     f'if {f.name} is _MISSING else {f.name}')
+        value = (f'{default_name} '
+                 f'if {f.name} is _MISSING else {f.name}')
     return _field_assign(frozen, f.name, value)
 
 
@@ -141,9 +125,7 @@ def _init_fn(fields, frozen, has_post_init):
             raise TypeError(f'non-default argument {f.name} '
                             'follows default argument')
 
-    import copy
-    globals = {'_MISSING': _MISSING,
-               '_copy': copy}
+    globals = {'_MISSING': _MISSING}
     body_lines = [_field_init(f, frozen, globals) for f in fields]
 
     # Does this class have an post-init function?

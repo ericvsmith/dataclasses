@@ -492,10 +492,11 @@ class TestCase(unittest.TestCase):
         o1 = C()
         o2 = C()
         self.assertEqual(o1, o2)
+        self.assertIs(o1.x, o2.x)
         o1.x.extend([1, 2])
-        self.assertNotEqual(o1, o2)
+        self.assertEqual(o1, o2)
+        self.assertIs(o1.x, o2.x)
         self.assertEqual(o1.x, [1, 2])
-        self.assertEqual(o2.x, [])
 
     def test_deliberately_mutable_defaults(self):
         @dataclass
