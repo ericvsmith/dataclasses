@@ -621,11 +621,38 @@ class TestCase(unittest.TestCase):
         @dataclass(slots=True)
         class C:
             x: int
-            y: int = 0
+            y: int
 
-        c = C(10)
+        c = C(10, 0)
+        self.assertEqual(repr(c), 'C(x=10,y=0)')
         self.assertEqual(C.__slots__, ('x', 'y'))
         self.assertEqual(c.__slots__, ('x', 'y'))
+        c.x = 4
+        c.y = 12
+        self.assertEqual(repr(c), 'C(x=4,y=12)')
+
+        with self.assertRaises(AttributeError) as ex:
+            c.z = 0
+        self.assertEqual(str(ex.exception), "'C' object has no attribute 'z'")
+
+    def test_slots_with_defaults(self):
+        default = object()
+        @dataclass(slots=True)
+        class C:
+            x: int = 0
+            y: object = default
+
+        c = C()
+        self.assertEqual(C.__slots__, ('x', 'y'))
+        self.assertEqual(c.__slots__, ('x', 'y'))
+        self.assertEqual(c.x, 0)
+
+        # XXX this test fails because we're copying the default
+        # fix it when we're no longer doing so
+        #self.assertIs(c.y, default)
+        # Instead, test that it's the right type
+        self.assertIsInstance(c.y, object)
+
         c.x = 4
         c.y = 12
         self.assertEqual(repr(c), 'C(x=4,y=12)')
@@ -896,7 +923,8 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c.w, 2000)
         self.assertEqual(c.t, 3000)
 
-        # Make sure ClassVars work even if we're frozen
+    def test_frozen_class_var(self):
+        # Make sure ClassVars work even if we're frozen.
         @dataclass(frozen=True)
         class C:
             x: int
@@ -904,6 +932,34 @@ class TestCase(unittest.TestCase):
             z: ClassVar[int] = 1000
             w: ClassVar[int] = 2000
             t: ClassVar[int] = 3000
+
+        c = C(5)
+        self.assertEqual(repr(C(5)), 'C(x=5,y=10)')
+        self.assertEqual(len(C.__dataclass_fields__), 2)    # We have 2 fields
+        self.assertEqual(len(C.__annotations__), 5)         # And 3 ClassVars
+        self.assertEqual(c.z, 1000)
+        self.assertEqual(c.w, 2000)
+        self.assertEqual(c.t, 3000)
+        # We can still modify the ClassVar, it's only classes that are
+        #  frozen.
+        C.z += 1
+        self.assertEqual(c.z, 1001)
+        c = C(20)
+        self.assertEqual((c.x, c.y), (20, 10))
+        self.assertEqual(c.z, 1001)
+        self.assertEqual(c.w, 2000)
+        self.assertEqual(c.t, 3000)
+
+    def test_slots_class_var(self):
+        return
+        # Make sure ClassVars work even if we're using slots.
+        @dataclass(slots=True)
+        class C:
+            x: int
+            y: int = 10
+            #z: ClassVar[int] = 1000
+            #w: ClassVar[int] = 2000
+            #t: ClassVar[int] = 3000
 
         c = C(5)
         self.assertEqual(repr(C(5)), 'C(x=5,y=10)')

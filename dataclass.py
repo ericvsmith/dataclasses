@@ -81,6 +81,8 @@ def _create_fn(name, args, body, globals=None, locals=None, return_type=_MISSING
     body = '\n'.join(f' {b}' for b in body)
     txt = f'def {name}({args}){return_annotation}:\n{body}'
     #print(txt)
+    #print(locals)
+    #print(globals)
     exec(txt, globals, locals)
     return locals[name]
 
@@ -94,7 +96,7 @@ def _field_assign(frozen, name, value):
     return f'{_SELF}.{name}={value}'
 
 
-def _field_init(f, frozen):
+def _field_init(f, frozen, globals):
     # Return the text of the line in __init__ that will initialize
     #  this field.
 
@@ -110,15 +112,18 @@ def _field_init(f, frozen):
     if f.default is _MISSING:
         # There's no default, just do an assignment.
         value = f.name
-    elif dont_need_copy:
-        value = (f'type({_SELF}).{f.name} '
-                 f'if {f.name} is _MISSING else {f.name}')
-    elif can_copy:
-        value = (f'type({_SELF}).{f.name}.copy() '
-                 f'if {f.name} is _MISSING else {f.name}')
     else:
-        value = (f'_copy.copy(type({_SELF}).{f.name}) '
-                 f'if {f.name} is _MISSING else {f.name}')
+        default_name = f'_dflt_{f.name}'
+        globals[default_name] = f.default
+        if dont_need_copy:
+            value = (f'{default_name} '
+                     f'if {f.name} is _MISSING else {f.name}')
+        elif can_copy:
+            value = (f'{default_name}.copy() '
+                     f'if {f.name} is _MISSING else {f.name}')
+        else:
+            value = (f'_copy.copy({default_name}) '
+                     f'if {f.name} is _MISSING else {f.name}')
     return _field_assign(frozen, f.name, value)
 
 
@@ -136,7 +141,10 @@ def _init_fn(fields, frozen, has_post_init):
             raise TypeError(f'non-default argument {f.name} '
                             'follows default argument')
 
-    body_lines = [_field_init(f, frozen) for f in fields]
+    import copy
+    globals = {'_MISSING': _MISSING,
+               '_copy': copy}
+    body_lines = [_field_init(f, frozen, globals) for f in fields]
 
     # Does this class have an post-init function?
     if has_post_init:
@@ -145,11 +153,6 @@ def _init_fn(fields, frozen, has_post_init):
     # If no body lines, add 'pass'
     if len(body_lines) == 0:
         body_lines = ['pass']
-
-
-    import copy
-    globals = {'_MISSING': _MISSING,
-               '_copy': copy}
 
     locals = {f'_type_{f.name}': f.type for f in fields}
     return _create_fn('__init__',
@@ -395,7 +398,10 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
         # Remove __dict__ itself.
         cls_dict.pop('__dict__', None)
         # And finally create the class.
+        qualname = getattr(cls, '__qualname__', None)
         cls = type(cls)(cls.__name__, cls.__bases__, cls_dict)
+        if qualname is not None:
+            cls.__qualname__ = qualname
 
     return cls
 
