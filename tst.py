@@ -878,12 +878,61 @@ class TestCase(unittest.TestCase):
             x: int
             y: int = 10
             z: ClassVar[int] = 1000
+            w: ClassVar[int] = 2000
+            t: ClassVar[int] = 3000
 
-        self.assertEqual(repr(C(5)), 'C(x=5,y=10)')
+        c = C(5)
+        self.assertEqual(repr(c), 'C(x=5,y=10)')
         self.assertEqual(len(C.__dataclass_fields__), 2)    # We have 2 fields
-        self.assertEqual(len(C.__dataclass_classvars__), 1) # And 1 ClassVar
+        self.assertEqual(len(C.__dataclass_classvars__), 3) # And 3 ClassVars
         self.assertEqual(C.__dataclass_classvars__[0],
                          ('z', ClassVar[int], 1000))
+        self.assertEqual(C.__dataclass_classvars__[1],
+                         ('w', ClassVar[int], 2000))
+        self.assertEqual(C.__dataclass_classvars__[2],
+                         ('t', ClassVar[int], 3000))
+        self.assertEqual(c.z, 1000)
+        self.assertEqual(c.w, 2000)
+        self.assertEqual(c.t, 3000)
+        C.z += 1
+        self.assertEqual(c.z, 1001)
+        c = C(20)
+        self.assertEqual((c.x, c.y), (20, 10))
+        self.assertEqual(c.z, 1001)
+        self.assertEqual(c.w, 2000)
+        self.assertEqual(c.t, 3000)
+
+        # Make sure ClassVars work even if we're frozen
+        @dataclass(frozen=True)
+        class C:
+            x: int
+            y: int = 10
+            z: ClassVar[int] = 1000
+            w: ClassVar[int] = 2000
+            t: ClassVar[int] = 3000
+
+        c = C(5)
+        self.assertEqual(repr(C(5)), 'C(x=5,y=10)')
+        self.assertEqual(len(C.__dataclass_fields__), 2)    # We have 2 fields
+        self.assertEqual(len(C.__dataclass_classvars__), 3) # And 3 ClassVars
+        self.assertEqual(C.__dataclass_classvars__[0],
+                         ('z', ClassVar[int], 1000))
+        self.assertEqual(C.__dataclass_classvars__[1],
+                         ('w', ClassVar[int], 2000))
+        self.assertEqual(C.__dataclass_classvars__[2],
+                         ('t', ClassVar[int], 3000))
+        self.assertEqual(c.z, 1000)
+        self.assertEqual(c.w, 2000)
+        self.assertEqual(c.t, 3000)
+        # We can still modify the ClassVar, it's only classes that are
+        #  frozen.
+        C.z += 1
+        self.assertEqual(c.z, 1001)
+        c = C(20)
+        self.assertEqual((c.x, c.y), (20, 10))
+        self.assertEqual(c.z, 1001)
+        self.assertEqual(c.w, 2000)
+        self.assertEqual(c.t, 3000)
 
 
 def main():
