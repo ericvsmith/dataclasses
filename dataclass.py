@@ -236,28 +236,26 @@ def _find_fields(cls):
     #  values are from class attributes, if a field has a default.  If
     #  the default value is a field(), then it contains additional
     #  info beyond (and possibly including) the actual default value.
-    #  Fields derived from ClassVar are ignored.
+    #  Fields which are ClassVars are ignored.
 
     annotations = getattr(cls, '__annotations__', {})
 
     results = []
-    for v_name, v_type in annotations.items():
-        # This test tightly couples this module with typing, but it's
-        # the only way to test if this is a ClassVar.  There's a
-        # similar test in typing._type_check.
-        if (isinstance(v_type, typing._TypingBase)
-            and type(v_type).__name__ == '_ClassVar'):
+    for a_name, a_type in annotations.items():
+        # This test uses a typing internal class, but it's the best
+        #  way to test if this is a ClassVar.
+        if type(a_type) is typing._ClassVar:
             # Skip this field if it's a ClassVar
             continue
 
         # If the default value isn't derived from field, then it's
         # only a normal default value.  Convert it to a field().
-        default = getattr(cls, v_name, _MISSING)
+        default = getattr(cls, a_name, _MISSING)
         if isinstance(default, field):
             f = default
         else:
             f = field(default=default)
-        results.append((v_name, v_type, f))
+        results.append((a_name, a_type, f))
     return results
 
 
