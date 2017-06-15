@@ -55,10 +55,11 @@ simple way to describe Data Classes.
 why not namedtuple
 ------------------
 
-Point3D(2017, 6, 2) == Date(2017, 6, 2)
-Point2D(1, 10) == (1, 10)
-Accidental iteration
-No option for mutable instances
+- Point3D(2017, 6, 2) == Date(2017, 6, 2)
+- Point2D(1, 10) == (1, 10)
+- Accidental iteration
+- No option for mutable instances
+- Cannot specify default values
 
 why not attrs
 -------------
@@ -99,23 +100,11 @@ Specification
 - __dataclass_fields__ attribute
 - Only variable declarations are inspected, not methods or properties, even if they are annotated with return types.
 - Members that are ClassVar are ignored
-
-Reserved field names
---------------------
-
-make_class()
-------------
-
-post-init function
-------------------
-
-Take a parameter?
-
-Valid field names
------------------
-
-Module helper functions
------------------------
+- Reserved field names
+- make_class()
+- post-init function: Take a parameter?
+- Valid field names
+- Module helper functions
 
 Discussion
 ==========
