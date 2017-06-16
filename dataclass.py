@@ -23,7 +23,6 @@ _POST_INIT_NAME = '__dataclass_post_init__'
 
 # Use '_self' instead of 'self' so that fields can be named 'self'.
 _SELF = '_self'
-_OTHER = '_other'
 
 
 # This is used for both static field specs (in a class statement), and
@@ -150,11 +149,11 @@ def _init_fn(fields, frozen, has_post_init):
 
 def _repr_fn(fields):
     return _create_fn('__repr__',
-                      [_SELF],
-                      [f'return {_SELF}.__class__.__name__ + f"(' +
-                         ','.join([f"{f.name}={{{_SELF}.{f.name}!r}}"
-                                   for f in fields]) +
-                         ')"'])
+                      ['self'],
+                      ['return self.__class__.__name__ + f"(' +
+                       ','.join([f"{f.name}={{self.{f.name}!r}}"
+                                 for f in fields]) +
+                       ')"'])
 
 
 def _frozen_setattr(self, name, value):
@@ -174,8 +173,8 @@ def _ne(self, other) -> bool:
 def _cmp_fn(name, op, self_tuple, other_tuple):
     # Create a comparison function.  If the fields in the object are
     #  named 'x' and 'y', then self_tuple is the string
-    #  '(_self.x,_self.y)' and other_tuple is the string
-    #  '(_other.x,_other.y'),
+    #  '(self.x,self.y)' and other_tuple is the string
+    #  '(other.x,other.y'),
 
     if op == '!=':
         # __ne__ is slightly different from other comparison
@@ -185,8 +184,8 @@ def _cmp_fn(name, op, self_tuple, other_tuple):
         return _ne
 
     return _create_fn(name,
-                      [_SELF, _OTHER],
-                      [f'if {_OTHER}.__class__ is {_SELF}.__class__:',
+                      ['self', 'other'],
+                      [ 'if other.__class__ is self.__class__:',
                        f'    return {self_tuple}{op}{other_tuple}',
                         'return NotImplemented'])
 
@@ -195,8 +194,8 @@ def _set_cmp_fns(cls, fields):
     # Create and set all of the comparison functions on cls.
     # Pre-compute self_tuple and other_tuple, then re-use them for
     #  each function.
-    self_tuple = _tuple_str(_SELF, fields)
-    other_tuple = _tuple_str(_OTHER, fields)
+    self_tuple = _tuple_str('self', fields)
+    other_tuple = _tuple_str('other', fields)
     for name, op in [('__eq__', '=='),
                      ('__ne__', '!='),
                      ('__lt__', '<'),
@@ -208,9 +207,9 @@ def _set_cmp_fns(cls, fields):
 
 
 def _hash_fn(fields):
-    self_tuple = _tuple_str(_SELF, fields)
+    self_tuple = _tuple_str('self', fields)
     return _create_fn('__hash__',
-                      [_SELF],
+                      ['self'],
                       [f'return hash({self_tuple})'])
 
 

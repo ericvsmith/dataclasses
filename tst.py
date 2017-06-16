@@ -647,12 +647,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(C.__slots__, ('x', 'y'))
         self.assertEqual(c.__slots__, ('x', 'y'))
         self.assertEqual(c.x, 0)
-
-        # XXX this test fails because we're copying the default
-        # fix it when we're no longer doing so
-        #self.assertIs(c.y, default)
-        # Instead, test that it's the right type
-        self.assertIsInstance(c.y, object)
+        self.assertIs(c.y, default)
 
         c.x = 4
         c.y = 12
