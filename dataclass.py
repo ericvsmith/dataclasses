@@ -21,10 +21,6 @@ _MISSING = object()
 _MARKER = '__dataclass_fields__'
 _POST_INIT_NAME = '__dataclass_post_init__'
 
-# Use '_self' instead of 'self' so that fields can be named 'self'.
-_SELF = '_self'
-
-
 # This is used for both static field specs (in a class statement), and
 #  in dynamic class creation (using make_class).  In the static case,
 #  name and type must not be specified (they're inferred from
@@ -86,16 +82,18 @@ def _create_fn(name, args, body, globals=None, locals=None, return_type=_MISSING
     return locals[name]
 
 
-def _field_assign(frozen, name, value):
+def _field_assign(frozen, name, value, self_name):
     # If we're a frozen class, then assign to our fields in __init__
     #  via object.__setattr__.  Otherwise, just use a simple
     #  assignment.
+    # self_name is what "self" is called in this function: don't
+    #  hard-code "self", since that might be a field name.
     if frozen:
-        return f'object.__setattr__({_SELF},{name!r},{value})'
-    return f'{_SELF}.{name}={value}'
+        return f'object.__setattr__({self_name},{name!r},{value})'
+    return f'{self_name}.{name}={value}'
 
 
-def _field_init(f, frozen, globals):
+def _field_init(f, frozen, globals, self_name):
     # Return the text of the line in __init__ that will initialize
     #  this field.
 
@@ -107,7 +105,7 @@ def _field_init(f, frozen, globals):
         globals[default_name] = f.default
         value = (f'{default_name} '
                  f'if {f.name} is _MISSING else {f.name}')
-    return _field_assign(frozen, f.name, value)
+    return _field_assign(frozen, f.name, value, self_name)
 
 
 def _init_fn(fields, frozen, has_post_init):
@@ -124,12 +122,13 @@ def _init_fn(fields, frozen, has_post_init):
             raise TypeError(f'non-default argument {f.name} '
                             'follows default argument')
 
+    self_name = '_self'
     globals = {'_MISSING': _MISSING}
-    body_lines = [_field_init(f, frozen, globals) for f in fields]
+    body_lines = [_field_init(f, frozen, globals, self_name) for f in fields]
 
     # Does this class have an post-init function?
     if has_post_init:
-        body_lines += [f'{_SELF}.{_POST_INIT_NAME}()']
+        body_lines += [f'{self_name}.{_POST_INIT_NAME}()']
 
     # If no body lines, add 'pass'
     if len(body_lines) == 0:
@@ -137,7 +136,7 @@ def _init_fn(fields, frozen, has_post_init):
 
     locals = {f'_type_{f.name}': f.type for f in fields}
     return _create_fn('__init__',
-                      [_SELF] +
+                      [self_name] +
                       [(f'{f.name}:_type_{f.name}' if f.default is _MISSING
                         else f'{f.name}:_type_{f.name}=_MISSING')
                         for f in fields],
