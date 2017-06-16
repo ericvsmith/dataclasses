@@ -758,7 +758,8 @@ class TestCase(unittest.TestCase):
             # Check each parameter.
             params = iter(signature.parameters.values())
             param = next(params)
-            self.assertEqual(param.name, '_self')
+            # This is testing an internal name, and probably shouldn't be tested.
+            self.assertEqual(param.name, '__dataclass_self__')
             param = next(params)
             self.assertEqual(param.name, 'i')
             self.assertIs   (param.annotation, int)

@@ -122,7 +122,7 @@ def _init_fn(fields, frozen, has_post_init):
             raise TypeError(f'non-default argument {f.name} '
                             'follows default argument')
 
-    self_name = '_self'
+    self_name = '__dataclass_self__'
     globals = {'_MISSING': _MISSING}
     body_lines = [_field_init(f, frozen, globals, self_name) for f in fields]
 
@@ -130,7 +130,7 @@ def _init_fn(fields, frozen, has_post_init):
     if has_post_init:
         body_lines += [f'{self_name}.{_POST_INIT_NAME}()']
 
-    # If no body lines, add 'pass'
+    # If no body lines, add 'pass'.
     if len(body_lines) == 0:
         body_lines = ['pass']
 
