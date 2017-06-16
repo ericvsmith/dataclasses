@@ -38,7 +38,7 @@ As an example::
   class Point:
       x: float
       y: float
-      z: float = 0
+      z: float = 0.0
 
       def distance(self, other):
           return ((self.x-other.x)**2 +
@@ -51,23 +51,6 @@ Rationale
 With the addition of PEP 526, Python has a concise way to specify the
 type of class members.  This PEP leverages that syntax to provide a
 simple way to describe Data Classes.
-
-why not namedtuple
-------------------
-
-- Point3D(2017, 6, 2) == Date(2017, 6, 2)
-- Point2D(1, 10) == (1, 10)
-- Accidental iteration
-- No option for mutable instances
-- Cannot specify default values
-
-why not attrs
--------------
-
-Needs to support python 2 and python 3
-Syntax is simpler if using variable annotations
-
-why not typing.NamedTuple
 
 Use normal Python syntax
 ------------------------
@@ -124,8 +107,29 @@ repo [#]_ for further discussion.
 - Should post-init take params?
 
 
+why not namedtuple
+------------------
+
+- Point3D(2017, 6, 2) == Date(2017, 6, 2)
+- Point2D(1, 10) == (1, 10)
+- Accidental iteration
+- No option for mutable instances
+- Cannot specify default values
+- Cannot control which fields are used for hash, repr, etc.
+
+why not attrs
+-------------
+
+- Needs to support python 2 and python 3
+- Syntax is simpler if using variable annotations
+
+why not typing.NamedTuple
+-------------------------
+
 Examples from Python's source code
 ==================================
+
+(or, from other projects)
 
 
 References
