@@ -1,5 +1,3 @@
-#!/usr/bin/env python3.6
-
 from dataclass import dataclass, field, make_class, FrozenInstanceError
 
 import inspect
@@ -894,6 +892,37 @@ class TestCase(unittest.TestCase):
 
         with self.assertRaises(CustomError):
             C()
+
+    def test_post_init_staticmethod(self):
+        flag = False
+        @dataclass
+        class C:
+            x: int
+            y: int
+            @staticmethod
+            def __dataclass_post_init__():
+                nonlocal flag
+                flag = True
+
+        self.assertFalse(flag)
+        c = C(3, 4)
+        self.assertEqual((c.x, c.y), (3, 4))
+        self.assertTrue(flag)
+
+    def test_post_init_classmethod(self):
+        @dataclass
+        class C:
+            flag = False
+            x: int
+            y: int
+            @classmethod
+            def __dataclass_post_init__(cls):
+                cls.flag = True
+
+        self.assertFalse(C.flag)
+        c = C(3, 4)
+        self.assertEqual((c.x, c.y), (3, 4))
+        self.assertTrue(C.flag)
 
     def test_class_var(self):
         # Make sure ClassVars are ignored in __init__, __repr__, etc.
