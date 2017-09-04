@@ -482,33 +482,72 @@ class TestCase(unittest.TestCase):
         self.assertIs   (C.z, default)
         self.assertEqual(C.t, 100)
 
-    def test_mutable_defaults(self):
-        @dataclass
-        class C:
-            x: list = []
+    def test_disallowed_mutable_defaults(self):
+        # For the known types, don't allow mutable default values.
+        for typ, empty, non_empty in [(list, [], [1]),
+                                      (dict, {}, {0:1}),
+                                      (set, set(), set([1])),
+                                      ]:
+            with self.subTest(typ=typ):
+                # Can't use a zero-length value.
+                with self.assertRaisesRegex(ValueError,
+                                            f'mutable default {typ} for field '
+                                            'x is not allowed') as ex:
+                    @dataclass
+                    class Point:
+                        x: typ = empty
 
-        o1 = C()
-        o2 = C()
-        self.assertEqual(o1, o2)
-        self.assertIs(o1.x, o2.x)
-        o1.x.extend([1, 2])
-        self.assertEqual(o1, o2)
-        self.assertIs(o1.x, o2.x)
-        self.assertEqual(o1.x, [1, 2])
+
+                # Nor a non-zero-length value
+                with self.assertRaisesRegex(ValueError,
+                                            f'mutable default {typ} for field '
+                                            'y is not allowed') as ex:
+                    @dataclass
+                    class Point:
+                        y: typ = non_empty
+
+                # Check subtypes also fail.
+                class Subclass(typ): pass
+
+                with self.assertRaisesRegex(ValueError,
+                                            f"mutable default .*Subclass'>"
+                                            ' for field z is not allowed'
+                                            ) as ex:
+                    @dataclass
+                    class Point:
+                        z: typ = Subclass()
+
+                # Because this is a ClassVar, it can be mutable.
+                @dataclass
+                class C:
+                    z: ClassVar[typ] = typ()
+
+                # Because this is a ClassVar, it can be mutable.
+                @dataclass
+                class C:
+                    x: ClassVar[typ] = Subclass()
+
 
     def test_deliberately_mutable_defaults(self):
+        # If a mutable default isn't in the known list of
+        #  (list, dict, set), then it's okay.
+        class Mutable:
+            def __init__(self):
+                self.l = []
+
         @dataclass
         class C:
-            x: list = []
+            x: Mutable
 
-        # These 2 instances will share this value of x
-        lst = []
+        # These 2 instances will share this value of x.
+        lst = Mutable()
         o1 = C(lst)
         o2 = C(lst)
         self.assertEqual(o1, o2)
-        o1.x.extend([1, 2])
+        o1.x.l.extend([1, 2])
         self.assertEqual(o1, o2)
-        self.assertEqual(o1.x, [1, 2])
+        self.assertEqual(o1.x.l, [1, 2])
+        self.assertIs(o1.x, o2.x)
 
     def test_no_options(self):
         # call with dataclass()

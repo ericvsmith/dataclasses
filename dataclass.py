@@ -268,6 +268,8 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
 
     # Now process our class.
     for name, type_, f in _find_fields(cls):
+        fields[name] = f
+
         # The checks for dynamic=True happen in make_class(), since it
         #  can generate better error message for missing f.name.
         if not dynamic:
@@ -280,8 +282,6 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
             #  which we don't know until now.
             f.name = name
             f.type = type_
-
-        fields[name] = f
 
         # Validations for fields directly on our class.  This is
         #  delayed until now, instead of in the field() constructor,
@@ -307,6 +307,12 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
                 delattr(cls, name)
             else:
                 setattr(cls, name, f.default)
+
+        # Disallow mutable defaults for known types.
+        if isinstance(f.default, (list, dict, set)):
+            # XXX: include a statement about using a factory in the error message
+            raise ValueError(f'mutable default {type(f.default)} for field '
+                             f'{name} is not allowed')
 
     # We've de-duped and have the fields in order, so we no longer
     #  need a dict of them.  Convert to a list of just the values.
