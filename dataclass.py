@@ -150,10 +150,11 @@ def _init_fn(fields, default_factory_fields, frozen, has_post_init):
     globals = {'_MISSING': _MISSING}
     body_lines = [_field_init(f, frozen, globals, self_name) for f in fields]
 
-    # Call any factory functions for non-init fields.
+    # Call any factory functions for fields that aren't params to __init__.
     for f in default_factory_fields:
-        globals[f'_dflt_{f.name}'] = f.default_factory
-        body_lines.append(f'{self_name}.{f.name} = _dflt_{f.name}()')
+        default_name = f'_dflt_{f.name}'
+        globals[default_name] = f.default_factory
+        body_lines.append(f'{self_name}.{f.name} = {default_name}()')
 
     # Does this class have an post-init function?
     if has_post_init:

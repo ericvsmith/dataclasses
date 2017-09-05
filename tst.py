@@ -342,13 +342,14 @@ class TestCase(unittest.TestCase):
 
         self.assertIs(C.x, default)
         c = C(10)
-        self.assertEqual(repr(c), 'C(x=10)')
         self.assertEqual(c.x, 10)
 
         # If we delete the instance attribute, we should then see the
         #  class attribute.
         del c.x
         self.assertIs(c.x, default)
+
+        self.assertIs(C().x, default)
 
     def test_not_in_repr(self):
         @dataclass
@@ -1143,10 +1144,9 @@ class TestCase(unittest.TestCase):
         class C:
             x: list=field_with_default_factory(factory.incr, init=False)
 
-        c0 = C()
-        self.assertEqual(c0.x, 1)
-        c1 = C()
-        self.assertEqual(c1.x, 2)
+        # Make sure the default factory is called for each new instance.
+        self.assertEqual(C().x, 1)
+        self.assertEqual(C().x, 2)
 
     def test_default_factory_not_called_if_value_given(self):
         # We need a factory that we can test if it's been called.
@@ -1162,9 +1162,19 @@ class TestCase(unittest.TestCase):
         class C:
             x: int=field_with_default_factory(factory.incr)
 
+        # Make sure that if a field has a default factory function,
+        #  it's not called if a value is specified.
         self.assertEqual(C().x, 1)
         self.assertEqual(C(10).x, 10)
         self.assertEqual(C().x, 2)
+
+    def x_test_classvar_default_factory(self):
+        # XXX: it's an error for a ClassVar to have a factory function
+        @dataclass
+        class C:
+            x: ClassVar[int] = field_with_default_factory(int)
+
+        self.assertIs(C().x, int)
 
 
 def main():
