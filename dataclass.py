@@ -8,7 +8,13 @@
 import typing
 import collections
 
-__all__ = ['dataclass', 'field', 'make_class', 'FrozenInstanceError']
+__all__ = ['dataclass',
+           'Field',
+           'field',
+           'field_with_default_factory',
+           'make_class',
+           'FrozenInstanceError',
+           ]
 
 
 # Raised when an attempt is made to modify a frozen class.
@@ -21,6 +27,34 @@ _MISSING = object()
 _MARKER = '__dataclass_fields__'
 _POST_INIT_NAME = '__dataclass_post_init__'
 
+# This is only ever created from within this module, although instances are
+#  exposed externally as (conceptually) read-only objects.
+class Field:
+    __slots__ = ('name',
+                 'type',
+                 'default',
+                 'default_factory',
+                 'repr',
+                 'hash',
+                 'init',
+                 'cmp',
+                 )
+    def __init__(self, name, type, default, default_factory, repr, hash,
+                 init, cmp):
+        self.name = name
+        self.type = type
+        self.default = default
+        self.default_factory = default_factory
+        self.repr = repr
+        self.hash = hash
+        self.init = init
+        self.cmp = cmp
+        if default is not _MISSING:
+            assert default_factory is None
+        if default_factory is not None:
+            assert default is None
+
+
 # This is used for both static field specs (in a class statement), and
 #  in dynamic class creation (using make_class).  In the static case,
 #  name and type must not be specified (they're inferred from
@@ -28,28 +62,11 @@ _POST_INIT_NAME = '__dataclass_post_init__'
 #  case, they must be specified.
 # In either case, when cls._MARKER is filled in with a list of
 #  fields(), the name and type fields will have been populated.
-class field:
-    __slots__ = ('name',
-                 'type',
-                 'default',
-                 'repr',
-                 'hash',
-                 'init',
-                 'cmp',
-                 )
-    def __init__(self, name=None, type=None, *, default=_MISSING, repr=True,
-                 hash=None, init=True, cmp=True):
-        self.name = name
-        self.type = type
-        self.default = default
-        self.repr = repr
-        self.hash = hash
-        self.init = init
-        self.cmp = cmp
+def field(name=None, type=None, *, default=_MISSING,
+          default_factory=None, repr=True, hash=None, init=True,
+          cmp=True):
+    return Field(name, type, default, None, repr, hash, init, cmp)
 
-    # XXX: currently for testing. either complete this, or delete it
-    def __repr__(self):
-        return f'field(name={self.name!r},default={"_MISSING" if self.default is _MISSING else self.default!r},cmp={self.cmp})'
 
 
 def _tuple_str(obj_name, fields):
@@ -213,11 +230,11 @@ def _hash_fn(fields):
 
 
 def _find_fields(cls):
-    # Return a list tuples of of (name, type, field()), in order, for
+    # Return a list tuples of of (name, type, Field()), in order, for
     #  this class (and no super-classes).  Fields are found from
     #  __annotations__ (which is guaranteed to be ordered).  Default
     #  values are from class attributes, if a field has a default.  If
-    #  the default value is a field(), then it contains additional
+    #  the default value is a Field(), then it contains additional
     #  info beyond (and possibly including) the actual default value.
     #  Fields which are ClassVars are ignored.
 
@@ -232,9 +249,9 @@ def _find_fields(cls):
             continue
 
         # If the default value isn't derived from field, then it's
-        # only a normal default value.  Convert it to a field().
+        # only a normal default value.  Convert it to a Field().
         default = getattr(cls, a_name, _MISSING)
-        if isinstance(default, field):
+        if isinstance(default, Field):
             f = default
         else:
             f = field(default=default)
@@ -284,7 +301,7 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
             f.type = type_
 
         # Validations for fields directly on our class.  This is
-        #  delayed until now, instead of in the field() constructor,
+        #  delayed until now, instead of in the Field() constructor,
         #  since only here do we know the field name, which allows
         #  better error reporting.
 
@@ -295,10 +312,10 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
                             'has no default value')
 
         # If the class attribute (which is the default value for
-        #  this field) exists and is of type 'field', replace it
+        #  this field) exists and is of type 'Field', replace it
         #  with the real default.  This is so that normal class
         #  introspection sees a real default value.
-        if isinstance(getattr(cls, name, None), field):
+        if isinstance(getattr(cls, name, None), Field):
             if f.default is _MISSING:
                 # If there's no default, delete the class attribute.
                 #  This happens if we specify field(repr=False), for
@@ -411,7 +428,7 @@ def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
 
 def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
                hash=None, init=True, slots=False, frozen=False):
-    # fields is a list of (name, type, field)
+    # fields is a list of (name, type, Field)
     if bases is None:
         bases = (object,)
 
