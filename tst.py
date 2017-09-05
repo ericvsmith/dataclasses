@@ -1,4 +1,5 @@
-from dataclass import dataclass, field, make_class, FrozenInstanceError
+from dataclass import dataclass, field, field_with_default_factory, \
+     make_class, FrozenInstanceError
 
 import inspect
 import unittest
@@ -1043,6 +1044,127 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c.z, 1001)
         self.assertEqual(c.w, 2000)
         self.assertEqual(c.t, 3000)
+
+    def test_default_factory(self):
+        # Test a factory that returns a new list.
+        @dataclass
+        class C:
+            x: int
+            y: list=field_with_default_factory(list)
+
+        c0 = C(3)
+        c1 = C(3)
+        self.assertEqual(c0.x, 3)
+        self.assertEqual(c0.y, [])
+        self.assertEqual(c0, c1)
+        self.assertIsNot(c0.y, c1.y)
+        self.assertEqual(repr(C(5, [1])), 'C(x=5,y=[1])')
+
+        # Test a factory that returns a shared list.
+        l = []
+        @dataclass
+        class C:
+            x: int
+            y: list=field_with_default_factory(lambda: l)
+
+        c0 = C(3)
+        c1 = C(3)
+        self.assertEqual(c0.x, 3)
+        self.assertEqual(c0.y, [])
+        self.assertEqual(c0, c1)
+        self.assertIs(c0.y, c1.y)
+        self.assertEqual(repr(C(5, [1])), 'C(x=5,y=[1])')
+
+        # Test various other field flags.
+        # repr
+        @dataclass
+        class C:
+            x: list=field_with_default_factory(list, repr=False)
+        self.assertEqual(repr(C()), 'C()')
+        self.assertEqual(C().x, [])
+
+        # hash
+        @dataclass(hash=True)
+        class C:
+            x: list=field_with_default_factory(list, hash=False)
+        self.assertEqual(repr(C()), 'C(x=[])')
+        self.assertEqual(hash(C()), hash(()))
+
+        # init (see also test_default_factory_with_no_init)
+        @dataclass
+        class C:
+            x: list=field_with_default_factory(list, init=False)
+        self.assertEqual(repr(C()), 'C(x=[])')
+
+        # cmp
+        @dataclass
+        class C:
+            x: list=field_with_default_factory(list, cmp=False)
+        self.assertEqual(C(), C([1]))
+
+    def test_dynamic_default_factory(self):
+        # Test a factory that returns a new list.
+        C = make_class('C',
+                       [field('x', int),
+                        field_with_default_factory(list, 'y', list),
+                        ])
+        c0 = C(3)
+        c1 = C(3)
+        self.assertEqual(c0.x, 3)
+        self.assertEqual(c0.y, [])
+        self.assertEqual(c0, c1)
+        self.assertIsNot(c0.y, c1.y)
+
+        # Test a factory that returns a shared list.
+        l = []
+        C = make_class('C',
+                       [field('x', int),
+                        field_with_default_factory(lambda: l, 'y', list),
+                        ])
+        c0 = C(3)
+        c1 = C(3)
+        self.assertEqual(c0.x, 3)
+        self.assertEqual(c0.y, [])
+        self.assertEqual(c0, c1)
+        self.assertIs(c0.y, c1.y)
+
+    def test_default_factory_with_no_init(self):
+        # We need a factory with a side effect.
+        class Factory:
+            def __init__(self):
+                self.count = 0
+            def incr(self):
+                self.count += 1
+                return self.count
+
+        factory = Factory()
+
+        @dataclass()
+        class C:
+            x: list=field_with_default_factory(factory.incr, init=False)
+
+        c0 = C()
+        self.assertEqual(c0.x, 1)
+        c1 = C()
+        self.assertEqual(c1.x, 2)
+
+    def test_default_factory_not_called_if_value_given(self):
+        # We need a factory that we can test if it's been called.
+        class Factory:
+            def __init__(self):
+                self.count = 0
+            def incr(self):
+                self.count += 1
+                return self.count
+        factory = Factory()
+
+        @dataclass
+        class C:
+            x: int=field_with_default_factory(factory.incr)
+
+        self.assertEqual(C().x, 1)
+        self.assertEqual(C(10).x, 10)
+        self.assertEqual(C().x, 2)
 
 
 def main():

@@ -49,8 +49,6 @@ class Field:
         self.hash = hash
         self.init = init
         self.cmp = cmp
-        if default is not _MISSING:
-            assert default_factory is None
         if default_factory is not None:
             assert default is None
 
@@ -68,6 +66,10 @@ def field(name=None, type=None, *, default=_MISSING,
     return Field(name, type, default, None, repr, hash, init, cmp)
 
 
+def field_with_default_factory(default_factory, name=None, type=None, *,
+                               repr=True, hash=None, init=True, cmp=True):
+    return Field(name, type, None, default_factory, repr, hash, init, cmp)
+
 
 def _tuple_str(obj_name, fields):
     # Return a string representing each field of obj_name as a tuple
@@ -81,7 +83,8 @@ def _tuple_str(obj_name, fields):
     return f'({",".join([f"{obj_name}.{f.name}" for f in fields])},)'
 
 
-def _create_fn(name, args, body, globals=None, locals=None, return_type=_MISSING):
+def _create_fn(name, args, body, globals=None, locals=None,
+               return_type=_MISSING):
     # Note that we mutate locals when exec() is called. Caller beware!
     if locals is None:
         locals = {}
@@ -119,13 +122,17 @@ def _field_init(f, frozen, globals, self_name):
         value = f.name
     else:
         default_name = f'_dflt_{f.name}'
-        globals[default_name] = f.default
-        value = (f'{default_name} '
-                 f'if {f.name} is _MISSING else {f.name}')
+        if f.default_factory is None:
+            globals[default_name] = f.default
+            value = f'{default_name}'
+        else:
+            globals[default_name] = f.default_factory
+            value = f'{default_name}()'
+        value += f' if {f.name} is _MISSING else {f.name}'
     return _field_assign(frozen, f.name, value, self_name)
 
 
-def _init_fn(fields, frozen, has_post_init):
+def _init_fn(fields, default_factory_fields, frozen, has_post_init):
     # Make sure we don't have fields without defaults following fields
     #  with defaults.  This actually would be caught when exec-ing the
     #  function source code, but catching it here gives a better error
@@ -142,6 +149,11 @@ def _init_fn(fields, frozen, has_post_init):
     self_name = '__dataclass_self__'
     globals = {'_MISSING': _MISSING}
     body_lines = [_field_init(f, frozen, globals, self_name) for f in fields]
+
+    # Call any factory functions for non-init fields.
+    for f in default_factory_fields:
+        globals[f'_dflt_{f.name}'] = f.default_factory
+        body_lines.append(f'{self_name}.{f.name} = _dflt_{f.name}()')
 
     # Does this class have an post-init function?
     if has_post_init:
@@ -249,7 +261,7 @@ def _find_fields(cls):
             continue
 
         # If the default value isn't derived from field, then it's
-        # only a normal default value.  Convert it to a Field().
+        #  only a normal default value.  Convert it to a Field().
         default = getattr(cls, a_name, _MISSING)
         if isinstance(default, Field):
             f = default
@@ -348,6 +360,12 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
         has_post_init = hasattr(cls, _POST_INIT_NAME)
         _set_attribute(cls, '__init__',
                        _init_fn(list(filter(lambda f: f.init, fields)),
+
+                                # Fields that have a default factory,
+                                #  but aren't included in __init__.  We must
+                                #  call them manually in the body of __init__.
+                                list(filter(lambda f: f.default_factory is
+                                            not None and not f.init, fields)),
                                 is_frozen,
                                 has_post_init))
     if repr:
