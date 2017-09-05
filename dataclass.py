@@ -119,7 +119,7 @@ def _init_fn(fields, frozen, has_post_init):
         if f.default is not _MISSING:
             seen_default = True
         elif seen_default:
-            raise TypeError(f'non-default argument {f.name} '
+            raise TypeError(f'non-default argument {f.name!r} '
                             'follows default argument')
 
     self_name = '__dataclass_self__'

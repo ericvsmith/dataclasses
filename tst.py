@@ -47,7 +47,8 @@ class TestCase(unittest.TestCase):
             class C:
                 x: int=0
                 y: int
-        self.assertEqual(str(ex.exception), 'non-default argument y follows default argument')
+        self.assertEqual(str(ex.exception),
+                         "non-default argument 'y' follows default argument")
 
     def test_overwriting_init(self):
         with self.assertRaises(AttributeError) as ex:
