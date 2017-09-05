@@ -88,6 +88,7 @@ Specification
 - post-init function: Take a parameter?
 - Valid field names
 - Module helper functions
+- Default factory functions: called every time, even if init=False
 
 Discussion
 ==========
