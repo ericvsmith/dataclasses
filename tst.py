@@ -1186,6 +1186,16 @@ class TestCase(unittest.TestCase):
 
         self.assertIs(C().x, int)
 
+    def test_helper_fields_works_class_instance(self):
+        # Check that we can call fields() on either a class or instance,
+        #  and get back the same thing.
+        @dataclass
+        class C:
+            x: int
+            y: float
+
+        self.assertIs(fields(C), fields(C(0, 0.0)))
+
 
 def main():
     unittest.main()
