@@ -15,6 +15,8 @@ __all__ = ['dataclass',
 
            # Helper functions.
            'fields',
+           'asdict',
+           'astuple',
            ]
 
 
@@ -500,3 +502,37 @@ def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
 
 def fields(cls):
     return getattr(cls, _MARKER)
+
+
+def asdict(obj):
+    """Get the fields of a dataclass instance as a new dictionary mapping
+    field names to field values. Example usage::
+
+      @dataclass
+      class C:
+          x: int
+          y: int
+
+      c = C(1, 2)
+      assert asdict(c) == {'x': 1, 'y': 2}
+    """
+    if isinstance(obj, type):
+        raise ValueError("asdcit() should be called on dataclass instances, not classes")
+    return {name: getattr(obj, name) for name in fields(obj)}
+
+
+def astuple(obj):
+    """Get the fields of a dataclass instance as a new tuple of field values.
+    Example usage::
+
+      @dataclass
+      class C:
+          x: int
+          y: int
+
+    c = C(1, 2)
+    assert asdtuple(c) == (1, 2)
+    """
+    if isinstance(obj, type):
+        raise ValueError("astuple() should be called on dataclass instances, not classes")
+    return tuple(getattr(obj, name) for name in fields(obj))
