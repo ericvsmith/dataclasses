@@ -1,4 +1,4 @@
-from dataclass import dataclass, field, make_class, FrozenInstanceError
+from dataclass import dataclass, field, make_class, FrozenInstanceError, fields
 
 import inspect
 import unittest
@@ -420,29 +420,30 @@ class TestCase(unittest.TestCase):
 
         for cls in C, D:
             with self.subTest(cls=cls):
-                # __dataclass_fields__ is an OrderedDict of 3 items, each value
+                field_dict = fields(cls)
+                # field_dict is an OrderedDict of 3 items, each value
                 #  is in __annotations__.
-                self.assertIsInstance(cls.__dataclass_fields__, OrderedDict)
-                for f in cls.__dataclass_fields__.values():
+                self.assertIsInstance(field_dict, OrderedDict)
+                for f in field_dict.values():
                     self.assertIn(f.name, cls.__annotations__)
 
-                self.assertEqual(len(cls.__dataclass_fields__), 3)
-                fields = list(cls.__dataclass_fields__.values())
-                self.assertEqual(fields[0].name, 'x')
-                self.assertEqual(fields[0].type, int)
+                self.assertEqual(len(field_dict), 3)
+                field_list = list(field_dict.values())
+                self.assertEqual(field_list[0].name, 'x')
+                self.assertEqual(field_list[0].type, int)
                 self.assertFalse(hasattr(cls, 'x'))
-                self.assertTrue (fields[0].init)
-                self.assertTrue (fields[0].repr)
-                self.assertEqual(fields[1].name, 'y')
-                self.assertEqual(fields[1].type, str)
+                self.assertTrue (field_list[0].init)
+                self.assertTrue (field_list[0].repr)
+                self.assertEqual(field_list[1].name, 'y')
+                self.assertEqual(field_list[1].type, str)
                 self.assertIsNone(getattr(cls, 'y'))
-                self.assertFalse(fields[1].init)
-                self.assertTrue (fields[1].repr)
-                self.assertEqual(fields[2].name, 'z')
-                self.assertEqual(fields[2].type, str)
+                self.assertFalse(field_list[1].init)
+                self.assertTrue (field_list[1].repr)
+                self.assertEqual(field_list[2].name, 'z')
+                self.assertEqual(field_list[2].type, str)
                 self.assertFalse(hasattr(cls, 'z'))
-                self.assertTrue (fields[2].init)
-                self.assertFalse(fields[2].repr)
+                self.assertTrue (field_list[2].init)
+                self.assertFalse(field_list[2].repr)
 
     def test_field_order(self):
         @dataclass
@@ -455,7 +456,7 @@ class TestCase(unittest.TestCase):
         class C(B):
             b: str = 'C:b'
 
-        self.assertEqual([(f.name, f.default) for f in C.__dataclass_fields__.values()],
+        self.assertEqual([(f.name, f.default) for f in fields(C).values()],
                          [('a', 'B:a'),
                           ('b', 'C:b'),
                           ('c', 'B:c')])
@@ -464,7 +465,7 @@ class TestCase(unittest.TestCase):
         class D(B):
             c: str = 'D:c'
 
-        self.assertEqual([(f.name, f.default) for f in D.__dataclass_fields__.values()],
+        self.assertEqual([(f.name, f.default) for f in fields(D).values()],
                          [('a', 'B:a'),
                           ('b', 'B:b'),
                           ('c', 'D:c')])
@@ -474,7 +475,7 @@ class TestCase(unittest.TestCase):
             a: str = 'E:a'
             d: str = 'E:d'
 
-        self.assertEqual([(f.name, f.default) for f in E.__dataclass_fields__.values()],
+        self.assertEqual([(f.name, f.default) for f in fields(E).values()],
                          [('a', 'E:a'),
                           ('b', 'B:b'),
                           ('c', 'D:c'),
@@ -637,7 +638,7 @@ class TestCase(unittest.TestCase):
     def test_make_empty(self):
         C = make_class('C', [])
         self.assertEqual(repr(C()), 'C()')
-        self.assertEqual(len(C.__dataclass_fields__), 0)
+        self.assertEqual(len(fields(C)), 0)
 
         # XXX: is this right, or should there be no annotations?
         self.assertEqual(len(C.__annotations__), 0)
@@ -988,7 +989,7 @@ class TestCase(unittest.TestCase):
 
         c = C(5)
         self.assertEqual(repr(c), 'C(x=5,y=10)')
-        self.assertEqual(len(C.__dataclass_fields__), 2)    # We have 2 fields
+        self.assertEqual(len(fields(C)), 2)                 # We have 2 fields
         self.assertEqual(len(C.__annotations__), 5)         # And 3 ClassVars
         self.assertEqual(c.z, 1000)
         self.assertEqual(c.w, 2000)
@@ -1013,7 +1014,7 @@ class TestCase(unittest.TestCase):
 
         c = C(5)
         self.assertEqual(repr(C(5)), 'C(x=5,y=10)')
-        self.assertEqual(len(C.__dataclass_fields__), 2)    # We have 2 fields
+        self.assertEqual(len(fields(C)), 2)                 # We have 2 fields
         self.assertEqual(len(C.__annotations__), 5)         # And 3 ClassVars
         self.assertEqual(c.z, 1000)
         self.assertEqual(c.w, 2000)
@@ -1040,7 +1041,7 @@ class TestCase(unittest.TestCase):
 
         c = C(5)
         self.assertEqual(repr(C(5)), 'C(x=5,y=10)')
-        self.assertEqual(len(C.__dataclass_fields__), 2)    # We have 2 fields
+        self.assertEqual(len(fields(C)), 2)                 # We have 2 fields
         self.assertEqual(len(C.__annotations__), 5)         # And 3 ClassVars
         self.assertEqual(c.z, 1000)
         self.assertEqual(c.w, 2000)

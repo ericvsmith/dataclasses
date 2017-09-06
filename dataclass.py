@@ -12,6 +12,9 @@ __all__ = ['dataclass',
            'field',
            'make_class',
            'FrozenInstanceError',
+
+           # Helper functions.
+           'fields',
            ]
 
 
@@ -494,3 +497,6 @@ def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
     #  with a valid name and type.
     return _process_class(cls, repr, cmp, hash, init, slots, frozen,
                           dynamic=True)
+
+def fields(cls):
+    return getattr(cls, _MARKER)
