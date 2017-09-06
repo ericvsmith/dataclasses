@@ -1,4 +1,6 @@
-from dataclass import dataclass, field, make_class, FrozenInstanceError, fields
+from dataclass import (
+    dataclass, field, make_class, FrozenInstanceError, fields, asdict, astuple
+)
 
 import inspect
 import unittest
@@ -1195,6 +1197,58 @@ class TestCase(unittest.TestCase):
             y: float
 
         self.assertIs(fields(C), fields(C(0, 0.0)))
+
+    def test_helper_asdict(self):
+        # Basic tests for asdict(), it should return a new dictionary
+        @dataclass
+        class C:
+            x: int
+            y: int
+        c = C(1, 2)
+
+        self.assertEqual(asdict(c), {'x': 1, 'y': 2})
+        self.assertEqual(asdict(c), asdict(c))
+        self.assertIsNot(asdict(c), asdict(c))
+        c.x = 42
+        self.assertEqual(asdict(c), {'x': 42, 'y': 2})
+        self.assertIs(type(asdict(c)), dict)
+
+    def test_helper_asdict_raises_on_classes(self):
+        # asdict() should raise on a class object
+        @dataclass
+        class C:
+            x: int
+            y: int
+        with self.assertRaisesRegex(ValueError, 'dataclass instance'):
+            asdict(C)
+        with self.assertRaisesRegex(ValueError, 'dataclass instance'):
+            asdict(int)
+
+    def test_helper_astuple(self):
+        # Basic tests for astuple(), it should return a new tuple
+        @dataclass
+        class C:
+            x: int
+            y: int = 0
+        c = C(1)
+
+        self.assertEqual(astuple(c), (1, 0))
+        self.assertEqual(astuple(c), astuple(c))
+        self.assertIsNot(astuple(c), astuple(c))
+        c.y = 42
+        self.assertEqual(astuple(c), (1, 42))
+        self.assertIs(type(astuple(c)), tuple)
+
+    def test_helper_astuple_raises_on_classes(self):
+        # astuple() should raise on a class object
+        @dataclass
+        class C:
+            x: int
+            y: int
+        with self.assertRaisesRegex(ValueError, 'dataclass instance'):
+            astuple(C)
+        with self.assertRaisesRegex(ValueError, 'dataclass instance'):
+            astuple(int)
 
 
 def main():
