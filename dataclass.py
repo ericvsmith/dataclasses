@@ -9,9 +9,7 @@ import typing
 import collections
 
 __all__ = ['dataclass',
-           'Field',
            'field',
-           'field_with_default_factory',
            'make_class',
            'FrozenInstanceError',
            ]
@@ -49,8 +47,10 @@ class Field:
         self.hash = hash
         self.init = init
         self.cmp = cmp
-        if default_factory is not None:
-            assert default is None
+
+    # XXX for debugging, remove
+    def __repr__(self):
+        return f'Field(name={self.name!r},default={"_MISSING" if self.default is _MISSING else self.default},default_factory={"_MISSING" if self.default_factory is _MISSING else self.default_factory})'
 
 
 # This is used for both static field specs (in a class statement), and
@@ -60,15 +60,15 @@ class Field:
 #  case, they must be specified.
 # In either case, when cls._MARKER is filled in with a list of
 #  fields(), the name and type fields will have been populated.
+# This function is used instead of exposing Field directly, so that
+#  a type checker can be told (via overloads) that this is a function
+#  whose type depends on its parameters.
 def field(name=None, type=None, *, default=_MISSING,
-          default_factory=None, repr=True, hash=None, init=True,
+          default_factory=_MISSING, repr=True, hash=None, init=True,
           cmp=True):
-    return Field(name, type, default, None, repr, hash, init, cmp)
-
-
-def field_with_default_factory(default_factory, name=None, type=None, *,
-                               repr=True, hash=None, init=True, cmp=True):
-    return Field(name, type, None, default_factory, repr, hash, init, cmp)
+    if default is not _MISSING and default_factory is not _MISSING:
+        raise ValueError('cannot specify both default and default_factory')
+    return Field(name, type, default, default_factory, repr, hash, init, cmp)
 
 
 def _tuple_str(obj_name, fields):
@@ -94,6 +94,7 @@ def _create_fn(name, args, body, globals=None, locals=None,
         return_annotation = '->_return_type'
     args = ','.join(args)
     body = '\n'.join(f' {b}' for b in body)
+
     txt = f'def {name}({args}){return_annotation}:\n{body}'
     #print(txt)
     #print(locals)
@@ -114,25 +115,41 @@ def _field_assign(frozen, name, value, self_name):
 
 
 def _field_init(f, frozen, globals, self_name):
-    # Return the text of the line in __init__ that will initialize
+    # Return the text of the line in the body of __init__ that will initialize
     #  this field.
 
-    if f.default is _MISSING:
+    default_name = f'_dflt_{f.name}'
+    if f.default is _MISSING and f.default_factory is _MISSING:
         # There's no default, just do an assignment.
         value = f.name
-    else:
-        default_name = f'_dflt_{f.name}'
-        if f.default_factory is None:
-            globals[default_name] = f.default
-            value = f'{default_name}'
-        else:
-            globals[default_name] = f.default_factory
-            value = f'{default_name}()'
-        value += f' if {f.name} is _MISSING else {f.name}'
+    elif f.default is not _MISSING:
+        globals[default_name] = f.default
+        value = f'{default_name} if {f.name} is _MISSING else {f.name}'
+    elif f.default_factory is not _MISSING:
+        globals[default_name] = f.default_factory
+        value = f'{default_name}() if {f.name} is _MISSING else {f.name}'
     return _field_assign(frozen, f.name, value, self_name)
 
 
-def _init_fn(fields, default_factory_fields, frozen, has_post_init):
+def _init_param(f):
+    # Return the __init__ parameter string for this field.
+    #  For example, the equivalent of 'x:int=3' (except instead of 'int',
+    #  reference a variable set to int, and instead of '3', reference a
+    #  variable set to 3).
+    if f.default is _MISSING and f.default_factory is _MISSING:
+        # There's no default, and no default_factory, just
+        #  output the variable name and type.
+        default = ''
+    elif f.default is not _MISSING:
+        # There's a default.
+        default = f'=_dflt_{f.name}'
+    elif f.default_factory is not _MISSING:
+        # There's a factory function. Set a marker.
+        default = '=_MISSING'
+    return f'{f.name}:_type_{f.name}{default}'
+
+
+def _init_fn(fields, frozen, has_post_init):
     # Make sure we don't have fields without defaults following fields
     #  with defaults.  This actually would be caught when exec-ing the
     #  function source code, but catching it here gives a better error
@@ -140,21 +157,25 @@ def _init_fn(fields, default_factory_fields, frozen, has_post_init):
     #  ast.
     seen_default = False
     for f in fields:
-        if f.default is not _MISSING:
-            seen_default = True
-        elif seen_default:
-            raise TypeError(f'non-default argument {f.name!r} '
-                            'follows default argument')
+        # Only consider fields in the __init__ call.
+        if f.init:
+            if not (f.default is _MISSING and f.default_factory is _MISSING):
+                seen_default = True
+            elif seen_default:
+                raise TypeError(f'non-default argument {f.name!r} '
+                                'follows default argument')
 
     self_name = '__dataclass_self__'
     globals = {'_MISSING': _MISSING}
-    body_lines = [_field_init(f, frozen, globals, self_name) for f in fields]
+    body_lines = [_field_init(f, frozen, globals, self_name)
+                  for f in fields if f.init]
 
     # Call any factory functions for fields that aren't params to __init__.
-    for f in default_factory_fields:
-        default_name = f'_dflt_{f.name}'
-        globals[default_name] = f.default_factory
-        body_lines.append(f'{self_name}.{f.name} = {default_name}()')
+    for f in fields:
+        if not f.init and f.default_factory is not _MISSING:
+            default_name = f'_dflt_{f.name}'
+            globals[default_name] = f.default_factory
+            body_lines.append(f'{self_name}.{f.name} = {default_name}()')
 
     # Does this class have an post-init function?
     if has_post_init:
@@ -166,10 +187,7 @@ def _init_fn(fields, default_factory_fields, frozen, has_post_init):
 
     locals = {f'_type_{f.name}': f.type for f in fields}
     return _create_fn('__init__',
-                      [self_name] +
-                      [(f'{f.name}:_type_{f.name}' if f.default is _MISSING
-                        else f'{f.name}:_type_{f.name}=_MISSING')
-                        for f in fields],
+                      [self_name] +[_init_param(f) for f in fields if f.init],
                       body_lines,
                       locals=locals,
                       globals=globals,
@@ -320,9 +338,10 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
 
         # If init=False, we must have a default value.  Otherwise,
         # how would it get initialized?
-        if not f.init and f.default is _MISSING:
+        if (not f.init and f.default is _MISSING and
+                           f.default_factory is _MISSING):
             raise TypeError(f'field {name} has init=False, but '
-                            'has no default value')
+                            'has no default value or factory function')
 
         # If the class attribute (which is the default value for
         #  this field) exists and is of type 'Field', replace it
@@ -360,13 +379,7 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
         # Does this class have a post-init function?
         has_post_init = hasattr(cls, _POST_INIT_NAME)
         _set_attribute(cls, '__init__',
-                       _init_fn(list(filter(lambda f: f.init, fields)),
-
-                                # Fields that have a default factory,
-                                #  but aren't included in __init__.  We must
-                                #  call them manually in the body of __init__.
-                                list(filter(lambda f: f.default_factory is
-                                            not None and not f.init, fields)),
+                       _init_fn(fields,
                                 is_frozen,
                                 has_post_init))
     if repr:

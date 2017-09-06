@@ -1,5 +1,4 @@
-from dataclass import dataclass, field, field_with_default_factory, \
-     make_class, FrozenInstanceError
+from dataclass import dataclass, field, make_class, FrozenInstanceError
 
 import inspect
 import unittest
@@ -43,22 +42,23 @@ class TestCase(unittest.TestCase):
         self.assertEqual((o.x, o.y), (3, 0))
 
         # Non-defaults following defaults.
-        with self.assertRaises(TypeError) as ex:
+        with self.assertRaisesRegex(TypeError,
+                                    "non-default argument 'y' follows "
+                                    "default argument"):
             @dataclass
             class C:
                 x: int=0
                 y: int
-        self.assertEqual(str(ex.exception),
-                         "non-default argument 'y' follows default argument")
 
     def test_overwriting_init(self):
-        with self.assertRaises(AttributeError) as ex:
+        with self.assertRaisesRegex(AttributeError,
+                                    'Cannot overwrite attribute __init__ '
+                                    'in C'):
             @dataclass
             class C:
                 x: int
                 def __init__(self, x):
                     self.x = 2 * x
-        self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __init__ in C')
 
         @dataclass(init=False)
         class C:
@@ -68,13 +68,14 @@ class TestCase(unittest.TestCase):
         self.assertEqual(C(5).x, 10)
 
     def test_overwriting_repr(self):
-        with self.assertRaises(AttributeError) as ex:
+        with self.assertRaisesRegex(AttributeError,
+                                    'Cannot overwrite attribute __repr__ '
+                                    'in C'):
             @dataclass
             class C:
                 x: int
                 def __repr__(self):
                     pass
-        self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __repr__ in C')
 
         @dataclass(repr=False)
         class C:
@@ -84,14 +85,16 @@ class TestCase(unittest.TestCase):
         self.assertEqual(repr(C(0)), 'x')
 
     def test_overwriting_cmp(self):
-        with self.assertRaises(AttributeError) as ex:
-            # This will generate the cmp functions, make sure we can't overwrite them.
+        with self.assertRaisesRegex(AttributeError,
+                                    'Cannot overwrite attribute __eq__ '
+                                    'in C'):
+            # This will generate the cmp functions, make sure we can't
+            #  overwrite them.
             @dataclass(hash=False, frozen=False)
             class C:
                 x: int
                 def __eq__(self):
                     pass
-        self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __eq__ in C')
 
         @dataclass(cmp=False)
         class C:
@@ -101,13 +104,14 @@ class TestCase(unittest.TestCase):
         self.assertEqual(C(0), 'x')
 
     def test_overwriting_hash(self):
-        with self.assertRaises(AttributeError) as ex:
+        with self.assertRaisesRegex(AttributeError,
+                                    'Cannot overwrite attribute __hash__ '
+                                    'in C'):
             @dataclass(frozen=True)
             class C:
                 x: int
                 def __hash__(self):
                     pass
-        self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __hash__ in C')
 
         @dataclass(frozen=True,hash=False)
         class C:
@@ -116,16 +120,16 @@ class TestCase(unittest.TestCase):
                 return 600
         self.assertEqual(hash(C(0)), 600)
 
-    def test_overwriting_hash(self):
-        with self.assertRaises(AttributeError) as ex:
+        with self.assertRaisesRegex(AttributeError,
+                                    'Cannot overwrite attribute __hash__ '
+                                    'in C'):
             @dataclass(frozen=True)
             class C:
                 x: int
                 def __hash__(self):
                     pass
-        self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __hash__ in C')
 
-        @dataclass(frozen=True,hash=False)
+        @dataclass(frozen=True, hash=False)
         class C:
             x: int
             def __hash__(self):
@@ -134,21 +138,23 @@ class TestCase(unittest.TestCase):
 
     def test_overwriting_frozen(self):
         # frozen uses __setattr__ and __delattr__
-        with self.assertRaises(AttributeError) as ex:
+        with self.assertRaisesRegex(AttributeError,
+                                    'Cannot overwrite attribute __setattr__ '
+                                    'in C'):
             @dataclass(frozen=True)
             class C:
                 x: int
                 def __setattr__(self):
                     pass
-        self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __setattr__ in C')
 
-        with self.assertRaises(AttributeError) as ex:
+        with self.assertRaisesRegex(AttributeError,
+                                    'Cannot overwrite attribute __delattr__ '
+                                    'in C'):
             @dataclass(frozen=True)
             class C:
                 x: int
                 def __delattr__(self):
                     pass
-        self.assertEqual(str(ex.exception), 'Cannot overwrite attribute __delattr__ in C')
 
         @dataclass(frozen=False)
         class C:
@@ -278,9 +284,9 @@ class TestCase(unittest.TestCase):
         @dataclass(hash=None)
         class C:
             x: int
-        with self.assertRaises(TypeError) as ex:
+        with self.assertRaisesRegex(TypeError,
+                                    "unhashable type: 'C'"):
             hash(C(1))
-        self.assertEqual(str(ex.exception), "unhashable type: 'C'")
 
     def test_hash_rules(self):
         # Test all 12 cases of:
@@ -328,11 +334,10 @@ class TestCase(unittest.TestCase):
 
         self.assertEqual(repr(C(5)), 'C(x=5)')
 
-        with self.assertRaises(TypeError) as ex:
+        with self.assertRaisesRegex(TypeError,
+                                    r"__init__\(\) missing 1 required "
+                                    "positional argument: 'x'"):
             C()
-        self.assertEqual(str(ex.exception),
-                         "__init__() missing 1 required positional argument: "
-                         "'x'")
 
     def test_field_default(self):
         default = object()
@@ -381,20 +386,22 @@ class TestCase(unittest.TestCase):
     def test_not_in_init(self):
         # If init=False, we must have a default value.
         # Otherwise, how would it get initialized?
-        with self.assertRaises(TypeError) as ex:
+        with self.assertRaisesRegex(TypeError,
+                                    'field x has init=False, but has no '
+                                    'default value or factory function'):
             @dataclass
             class C:
                 x: int = field(init=False)
-        self.assertEqual(str(ex.exception), 'field x has init=False, but has no default value')
 
-        with self.assertRaises(TypeError) as ex:
+        with self.assertRaisesRegex(TypeError,
+                                    'field z has init=False, but has no '
+                                    'default value or factory function'):
             @dataclass
             class C:
                 x: int
                 y: int = 0
                 z: int = field(init=False)
                 t: int
-        self.assertEqual(str(ex.exception), 'field z has init=False, but has no default value')
 
     def test_class_marker(self):
         @dataclass
@@ -411,27 +418,29 @@ class TestCase(unittest.TestCase):
                         ])
 
         for cls in C, D:
-            # __dataclass_fields__ is a list of 3 elements, all of which are in __annotations__
-            self.assertIsInstance(cls.__dataclass_fields__, list)
-            for f in cls.__dataclass_fields__:
-                self.assertIn(f.name, cls.__annotations__)
+            with self.subTest(cls=cls):
+                # __dataclass_fields__ is a list of 3 elements, all of which
+                #  are in __annotations__
+                self.assertIsInstance(cls.__dataclass_fields__, list)
+                for f in cls.__dataclass_fields__:
+                    self.assertIn(f.name, cls.__annotations__)
 
-            self.assertEqual(len(cls.__dataclass_fields__), 3)
-            self.assertEqual(cls.__dataclass_fields__[0].name, 'x')
-            self.assertEqual(cls.__dataclass_fields__[0].type, int)
-            self.assertFalse(hasattr(cls, 'x'))
-            self.assertTrue (cls.__dataclass_fields__[0].init)
-            self.assertTrue (cls.__dataclass_fields__[0].repr)
-            self.assertEqual(cls.__dataclass_fields__[1].name, 'y')
-            self.assertEqual(cls.__dataclass_fields__[1].type, str)
-            self.assertIsNone(getattr(cls, 'y'))
-            self.assertFalse(cls.__dataclass_fields__[1].init)
-            self.assertTrue (cls.__dataclass_fields__[1].repr)
-            self.assertEqual(cls.__dataclass_fields__[2].name, 'z')
-            self.assertEqual(cls.__dataclass_fields__[2].type, str)
-            self.assertFalse(hasattr(cls, 'z'))
-            self.assertTrue (cls.__dataclass_fields__[2].init)
-            self.assertFalse(cls.__dataclass_fields__[2].repr)
+                self.assertEqual(len(cls.__dataclass_fields__), 3)
+                self.assertEqual(cls.__dataclass_fields__[0].name, 'x')
+                self.assertEqual(cls.__dataclass_fields__[0].type, int)
+                self.assertFalse(hasattr(cls, 'x'))
+                self.assertTrue (cls.__dataclass_fields__[0].init)
+                self.assertTrue (cls.__dataclass_fields__[0].repr)
+                self.assertEqual(cls.__dataclass_fields__[1].name, 'y')
+                self.assertEqual(cls.__dataclass_fields__[1].type, str)
+                self.assertIsNone(getattr(cls, 'y'))
+                self.assertFalse(cls.__dataclass_fields__[1].init)
+                self.assertTrue (cls.__dataclass_fields__[1].repr)
+                self.assertEqual(cls.__dataclass_fields__[2].name, 'z')
+                self.assertEqual(cls.__dataclass_fields__[2].type, str)
+                self.assertFalse(hasattr(cls, 'z'))
+                self.assertTrue (cls.__dataclass_fields__[2].init)
+                self.assertFalse(cls.__dataclass_fields__[2].repr)
 
     def test_field_order(self):
         @dataclass
@@ -495,7 +504,7 @@ class TestCase(unittest.TestCase):
                 # Can't use a zero-length value.
                 with self.assertRaisesRegex(ValueError,
                                             f'mutable default {typ} for field '
-                                            'x is not allowed') as ex:
+                                            'x is not allowed'):
                     @dataclass
                     class Point:
                         x: typ = empty
@@ -504,7 +513,7 @@ class TestCase(unittest.TestCase):
                 # Nor a non-zero-length value
                 with self.assertRaisesRegex(ValueError,
                                             f'mutable default {typ} for field '
-                                            'y is not allowed') as ex:
+                                            'y is not allowed'):
                     @dataclass
                     class Point:
                         y: typ = non_empty
@@ -515,7 +524,7 @@ class TestCase(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,
                                             f"mutable default .*Subclass'>"
                                             ' for field z is not allowed'
-                                            ) as ex:
+                                            ):
                     @dataclass
                     class Point:
                         z: typ = Subclass()
@@ -576,19 +585,19 @@ class TestCase(unittest.TestCase):
         self.assertNotEqual(Point(1, 3), C(1, 3))
 
     def test_no_name_or_type(self):
-        with self.assertRaises(TypeError) as ex:
+        with self.assertRaisesRegex(TypeError,
+                                    'cannot specify name or type '
+                                    "for 'x'"):
             @dataclass
             class Point:
                 x: int = field('x')
-        self.assertEqual(str(ex.exception), 'cannot specify name or type '
-                                            "for 'x'")
 
-        with self.assertRaises(TypeError) as ex:
+        with self.assertRaisesRegex(TypeError,
+                                    'cannot specify name or type '
+                                    "for 'x'"):
             @dataclass
             class Point:
                 x: int = field(type=str)
-        self.assertEqual(str(ex.exception), 'cannot specify name or type '
-                                            "for 'x'")
 
     def test_make_derived(self):
         @dataclass
@@ -632,18 +641,18 @@ class TestCase(unittest.TestCase):
         self.assertEqual(len(C.__annotations__), 0)
 
     def test_make_invalid_fields(self):
-        with self.assertRaises(TypeError) as ex:
+        with self.assertRaisesRegex(TypeError,
+                                    'name must be specified for field #2'):
             C = make_class('C',
                            [field('x', int),
                             field(),
                             ])
-        self.assertEqual(str(ex.exception), 'name must be specified for field #2')
 
-        with self.assertRaises(TypeError) as ex:
+        with self.assertRaisesRegex(TypeError,
+                                    "type must be specified for field 'x'"):
             C = make_class('C',
                            [field('x'),
                             ])
-        self.assertEqual(str(ex.exception), "type must be specified for field 'x'")
 
     def test_base_has_init(self):
         class B:
@@ -672,9 +681,9 @@ class TestCase(unittest.TestCase):
         c.y = 12
         self.assertEqual(repr(c), 'C(x=4,y=12)')
 
-        with self.assertRaises(AttributeError) as ex:
+        with self.assertRaisesRegex(AttributeError,
+                                    "'C' object has no attribute 'z'"):
             c.z = 0
-        self.assertEqual(str(ex.exception), "'C' object has no attribute 'z'")
 
     def test_slots_with_defaults(self):
         default = object()
@@ -693,9 +702,9 @@ class TestCase(unittest.TestCase):
         c.y = 12
         self.assertEqual(repr(c), 'C(x=4,y=12)')
 
-        with self.assertRaises(AttributeError) as ex:
+        with self.assertRaisesRegex(AttributeError,
+                                    "'C' object has no attribute 'z'"):
             c.z = 0
-        self.assertEqual(str(ex.exception), "'C' object has no attribute 'z'")
 
     def test_no_slots(self):
         @dataclass
@@ -726,7 +735,7 @@ class TestCase(unittest.TestCase):
 
         c = C(10)
         self.assertEqual(c.i, 10)
-        with self.assertRaises(FrozenInstanceError) as ex:
+        with self.assertRaises(FrozenInstanceError):
             c.i = 5
         self.assertEqual(c.i, 10)
 
@@ -738,7 +747,7 @@ class TestCase(unittest.TestCase):
 
         d = D(20)
         self.assertEqual(d.i, 20)
-        with self.assertRaises(FrozenInstanceError) as ex:
+        with self.assertRaises(FrozenInstanceError):
             d.i = 5
         self.assertEqual(d.i, 20)
 
@@ -761,9 +770,8 @@ class TestCase(unittest.TestCase):
         self.assertNotEqual(Point3D(1, 2, 3), (1, 2, 3))
 
         # Make sure we can't unpack
-        with self.assertRaises(TypeError) as ex:
+        with self.assertRaisesRegex(TypeError, 'is not iterable'):
             x, y, z = Point3D(4, 5, 6)
-        self.assertIn('is not iterable', str(ex.exception))
 
         # Maka sure another class with the same field names isn't
         #  equal.
@@ -1051,7 +1059,7 @@ class TestCase(unittest.TestCase):
         @dataclass
         class C:
             x: int
-            y: list=field_with_default_factory(list)
+            y: list=field(default_factory=list)
 
         c0 = C(3)
         c1 = C(3)
@@ -1066,7 +1074,7 @@ class TestCase(unittest.TestCase):
         @dataclass
         class C:
             x: int
-            y: list=field_with_default_factory(lambda: l)
+            y: list=field(default_factory=lambda: l)
 
         c0 = C(3)
         c1 = C(3)
@@ -1080,34 +1088,34 @@ class TestCase(unittest.TestCase):
         # repr
         @dataclass
         class C:
-            x: list=field_with_default_factory(list, repr=False)
+            x: list=field(default_factory=list, repr=False)
         self.assertEqual(repr(C()), 'C()')
         self.assertEqual(C().x, [])
 
         # hash
         @dataclass(hash=True)
         class C:
-            x: list=field_with_default_factory(list, hash=False)
+            x: list=field(default_factory=list, hash=False)
         self.assertEqual(repr(C()), 'C(x=[])')
         self.assertEqual(hash(C()), hash(()))
 
         # init (see also test_default_factory_with_no_init)
         @dataclass
         class C:
-            x: list=field_with_default_factory(list, init=False)
+            x: list=field(default_factory=list, init=False)
         self.assertEqual(repr(C()), 'C(x=[])')
 
         # cmp
         @dataclass
         class C:
-            x: list=field_with_default_factory(list, cmp=False)
+            x: list=field(default_factory=list, cmp=False)
         self.assertEqual(C(), C([1]))
 
     def test_dynamic_default_factory(self):
         # Test a factory that returns a new list.
         C = make_class('C',
                        [field('x', int),
-                        field_with_default_factory(list, 'y', list),
+                        field('y', list, default_factory=list),
                         ])
         c0 = C(3)
         c1 = C(3)
@@ -1120,7 +1128,7 @@ class TestCase(unittest.TestCase):
         l = []
         C = make_class('C',
                        [field('x', int),
-                        field_with_default_factory(lambda: l, 'y', list),
+                        field('y', list, default_factory=lambda: l),
                         ])
         c0 = C(3)
         c1 = C(3)
@@ -1142,7 +1150,7 @@ class TestCase(unittest.TestCase):
 
         @dataclass()
         class C:
-            x: list=field_with_default_factory(factory.incr, init=False)
+            x: list=field(default_factory=factory.incr, init=False)
 
         # Make sure the default factory is called for each new instance.
         self.assertEqual(C().x, 1)
@@ -1160,7 +1168,7 @@ class TestCase(unittest.TestCase):
 
         @dataclass
         class C:
-            x: int=field_with_default_factory(factory.incr)
+            x: int=field(default_factory=factory.incr)
 
         # Make sure that if a field has a default factory function,
         #  it's not called if a value is specified.
@@ -1172,7 +1180,7 @@ class TestCase(unittest.TestCase):
         # XXX: it's an error for a ClassVar to have a factory function
         @dataclass
         class C:
-            x: ClassVar[int] = field_with_default_factory(int)
+            x: ClassVar[int] = field(default_factory=int)
 
         self.assertIs(C().x, int)
 
