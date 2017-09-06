@@ -1027,15 +1027,14 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c.t, 3000)
 
     def test_slots_class_var(self):
-        return
         # Make sure ClassVars work even if we're using slots.
         @dataclass(slots=True)
         class C:
             x: int
             y: int = 10
-            #z: ClassVar[int] = 1000
-            #w: ClassVar[int] = 2000
-            #t: ClassVar[int] = 3000
+            z: ClassVar[int] = 1000
+            w: ClassVar[int] = 2000
+            t: ClassVar[int] = 3000
 
         c = C(5)
         self.assertEqual(repr(C(5)), 'C(x=5,y=10)')
