@@ -318,8 +318,10 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     for b in cls.__mro__[-1:0:-1]:
         # Only process classes that have been processed by our
         #  decorator.  That is, they have a _MARKER attribute.
-        for f in getattr(b, _MARKER, []):
-            fields[f.name] = f
+        b_fields = getattr(b, _MARKER, None)
+        if b_fields:
+            for f in b_fields.values():
+                fields[f.name] = f
 
     # Now process our class.
     for name, type_, f in _find_fields(cls):
@@ -370,9 +372,8 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
             raise ValueError(f'mutable default {type(f.default)} for field '
                              f'{name} is not allowed')
 
-    # We've de-duped and have the fields in order, so we no longer
-    #  need a dict of them.  Convert to a tuple of just the values.
-    fields = tuple(fields.values())
+    # Just to save some typing in the code below, get the fields as a list.
+    field_list = list(fields.values())
 
     # Remember the total set of fields on our class (including
     #  bases).  This marks this class as being a dataclass.
@@ -386,12 +387,12 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
         # Does this class have a post-init function?
         has_post_init = hasattr(cls, _POST_INIT_NAME)
         _set_attribute(cls, '__init__',
-                       _init_fn(fields,
+                       _init_fn(field_list,
                                 is_frozen,
                                 has_post_init))
     if repr:
         _set_attribute(cls, '__repr__',
-                       _repr_fn(list(filter(lambda f: f.repr, fields))))
+                       _repr_fn(list(filter(lambda f: f.repr, field_list))))
     if is_frozen:
         _set_attribute(cls, '__setattr__', _frozen_setattr)
         _set_attribute(cls, '__delattr__', _frozen_delattr)
@@ -415,11 +416,11 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     if generate_hash:
         _set_attribute(cls, '__hash__',
                        _hash_fn(list(filter(lambda f: f.hash or f.hash is None,
-                                            fields))))
+                                            field_list))))
 
     if cmp:
         # Create and set the comparison functions.
-        _set_cmp_fns(cls, list(filter(lambda f: f.cmp, fields)))
+        _set_cmp_fns(cls, list(filter(lambda f: f.cmp, field_list)))
 
     if slots:
         # Need to create a new class, since we can't set __slots__
@@ -433,8 +434,8 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
 
         # Create a new dict for our new class.
         cls_dict = dict(cls.__dict__)
-        cls_dict['__slots__'] = tuple(f.name for f in fields)
-        for f in fields:
+        cls_dict['__slots__'] = tuple(f.name for f in field_list)
+        for f in field_list:
             # Remove our attributes. They'll still be available in _MARKER.
             cls_dict.pop(f.name, None)
         # Remove __dict__ itself.
