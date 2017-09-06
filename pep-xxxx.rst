@@ -27,7 +27,7 @@ primarily to store a set of attributes.  Some examples include:
 This PEP describes an addition to the standard library called Data
 Classes.  A Data Class is a normal Python class, specified using a
 class decorator, that defines a series of fields.  Fields are
-specified as class members using PEP 526: Syntax for Variable
+specified as class members using PEP 526 Syntax for Variable
 Annotations.  The class decorator arranges for much of the class
 boilerplate code to be automatically added to the Data Class.  Member
 functions may be added to the Data Class.
@@ -60,6 +60,9 @@ Expressiveness
 
 Efficiency
 ----------
+
+Class variables
+---------------
 
 Dynamic creation
 ----------------
