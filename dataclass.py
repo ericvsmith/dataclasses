@@ -3,7 +3,7 @@
 #  what exception to raise when non-default follows default? currently
 #  ValueError
 
-# sepcial name in __init__: _self: reserve this name?
+# special name in __init__: _self: reserve this name?
 
 import typing
 import collections
@@ -380,8 +380,8 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     # Just to save some typing in the code below, get the fields as a list.
     field_list = list(fields.values())
 
-    # Remember the total set of fields on our class (including
-    #  bases).  This marks this class as being a dataclass.
+    # Remember all of the fields on our class (including bases).  This
+    #  marks this class as being a dataclass.
     setattr(cls, _MARKER, fields)
 
     # We also need to check if a parent class is frozen: frozen has to
@@ -455,7 +455,8 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
 
 
 # _cls should never be specified by keyword, so start it with an
-#  underscore.
+#  underscore. The presense of _cls is used to detect if this
+#  decorator is being called with parameters or not.
 def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
                slots=False, frozen=False):
     def wrap(cls):
@@ -473,7 +474,9 @@ def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
 
 def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
                hash=None, init=True, slots=False, frozen=False):
-    # fields is a list of (name, type, Field)
+    # fields is a list of field objects, or more properly, a list of
+    #  Field objects, each of which would be returned by a call to
+    #  field().
     if bases is None:
         bases = (object,)
 
