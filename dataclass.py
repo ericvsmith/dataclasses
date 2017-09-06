@@ -371,8 +371,8 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
                              f'{name} is not allowed')
 
     # We've de-duped and have the fields in order, so we no longer
-    #  need a dict of them.  Convert to a list of just the values.
-    fields = list(fields.values())
+    #  need a dict of them.  Convert to a tuple of just the values.
+    fields = tuple(fields.values())
 
     # Remember the total set of fields on our class (including
     #  bases).  This marks this class as being a dataclass.

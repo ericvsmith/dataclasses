@@ -421,7 +421,7 @@ class TestCase(unittest.TestCase):
             with self.subTest(cls=cls):
                 # __dataclass_fields__ is a list of 3 elements, all of which
                 #  are in __annotations__
-                self.assertIsInstance(cls.__dataclass_fields__, list)
+                self.assertIsInstance(cls.__dataclass_fields__, tuple)
                 for f in cls.__dataclass_fields__:
                     self.assertIn(f.name, cls.__annotations__)
 
@@ -635,7 +635,7 @@ class TestCase(unittest.TestCase):
     def test_make_empty(self):
         C = make_class('C', [])
         self.assertEqual(repr(C()), 'C()')
-        self.assertEqual(C.__dataclass_fields__, [])
+        self.assertEqual(C.__dataclass_fields__, ())
 
         # XXX: is this right, or should there be no annotations?
         self.assertEqual(len(C.__annotations__), 0)
@@ -1016,7 +1016,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c.z, 1000)
         self.assertEqual(c.w, 2000)
         self.assertEqual(c.t, 3000)
-        # We can still modify the ClassVar, it's only classes that are
+        # We can still modify the ClassVar, it's only instances that are
         #  frozen.
         C.z += 1
         self.assertEqual(c.z, 1001)
@@ -1044,7 +1044,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c.z, 1000)
         self.assertEqual(c.w, 2000)
         self.assertEqual(c.t, 3000)
-        # We can still modify the ClassVar, it's only classes that are
+        # We can still modify the ClassVar, it's only instances that are
         #  frozen.
         C.z += 1
         self.assertEqual(c.z, 1001)
