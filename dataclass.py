@@ -37,6 +37,7 @@ class Field:
                  'init',
                  'cmp',
                  )
+
     def __init__(self, name, type, default, default_factory, repr, hash,
                  init, cmp):
         self.name = name
@@ -48,9 +49,15 @@ class Field:
         self.init = init
         self.cmp = cmp
 
-    # XXX for debugging, remove
     def __repr__(self):
-        return f'Field(name={self.name!r},default={"_MISSING" if self.default is _MISSING else self.default},default_factory={"_MISSING" if self.default_factory is _MISSING else self.default_factory})'
+        return (f'Field(name={self.name!r},'
+                f'type={self.type},'
+                f'default={"_MISSING" if self.default is _MISSING else self.default},'
+                f'default_factory={"_MISSING" if self.default_factory is _MISSING else self.default_factory},'
+                f'repr={self.repr},'
+                f'hash={self.hash},'
+                f'init={self.init},'
+                f'cmp={self.cmp})')
 
 
 # This is used for both static field specs (in a class statement), and
