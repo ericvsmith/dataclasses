@@ -1250,6 +1250,32 @@ class TestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'dataclass instance'):
             astuple(int)
 
+    def test_dynamic_class_creation(self):
+        cls_dict = {'__annotations__': OrderedDict(x=int, y=int),
+                    }
+
+        # Create the class.
+        cls = type('C', (), cls_dict)
+
+        # Make it a dataclass.
+        cls1 = dataclass(cls)
+
+        self.assertEqual(cls1, cls)
+        self.assertEqual(asdict(cls(1, 2)), {'x': 1, 'y': 2})
+
+    def test_dynamic_class_creation_using_field(self):
+        cls_dict = {'__annotations__': OrderedDict(x=int, y=int),
+                    'y': field(default=5),
+                    }
+
+        # Create the class.
+        cls = type('C', (), cls_dict)
+
+        # Make it a dataclass.
+        cls1 = dataclass(cls)
+
+        self.assertEqual(cls1, cls)
+        self.assertEqual(asdict(cls1(1)), {'x': 1, 'y': 5})
 
 def main():
     unittest.main()
