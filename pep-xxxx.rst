@@ -8,6 +8,15 @@ Created: 02-Jun-2017
 Python-Version: 3.7
 Post-History: 02-Jun-2017
 
+Notice for Reviewers
+====================
+
+This PEP was drafted in a separate repo:
+https://github.com/ericvsmith/dataclasses
+
+Before commenting in a public forum please at least read the
+`discussion`_ listed at the end of this PEP.
+
 Abstract
 ========
 
@@ -116,6 +125,10 @@ other than ``object``, they are passed as the ``bases`` parameter.  The remainin
 Module level helper functions
 -----------------------------
 
+- fields
+- asdict
+- astuple
+
 Mutable defaults
 ----------------
 
@@ -141,6 +154,8 @@ Specification
 - Module helper functions
 - Default factory functions: called every time, even if init=False
 
+.. _discussion:
+
 Discussion
 ==========
 
@@ -154,7 +169,19 @@ repo [#]_ for further discussion.
 
 - Mutable defaults
 
-- slots=True being the default
+- Support ``__slots__``?  For now, no.  ``__slots__`` need to be added
+  at class creation time.  The decorator is called after the class is
+  created, so in order to add ``__slots__`` the decorator would have
+  to create a new class and return it.  Because this behavior is
+  somewhat surprising, the initial version of Data Classes will not
+  support automatically setting ``__slots__``.  There are a number of
+  workarounds:
+
+  - Manually add ``__slots__`` in the class definition.
+
+  - Write a function (which could be used as a decorator) that
+    inspects the class, finds the fields, and creates a new class with
+    ``__slots__`` set.
 
 - Should post-init take params?
 
