@@ -32,7 +32,7 @@ _POST_INIT_NAME = '__dataclass_post_init__'
 # This is only ever created from within this module, although instances are
 #  exposed externally as (conceptually) read-only objects.
 # name and type are filled in after the fact, not in __init__. They're not
-#  known at __init__ time.
+#  known at the time this class is instantiated.
 class Field:
     __slots__ = ('name',
                  'type',
@@ -44,8 +44,7 @@ class Field:
                  'cmp',
                  )
 
-    def __init__(self, default, default_factory, repr, hash,
-                 init, cmp):
+    def __init__(self, default, default_factory, repr, hash, init, cmp):
         self.name = None
         self.type = None
         self.default = default
@@ -56,20 +55,22 @@ class Field:
         self.cmp = cmp
 
     def __repr__(self):
-        return (f'Field(name={self.name!r},'
+        return ('Field('
+                f'name={self.name!r},'
                 f'type={self.type},'
                 f'default={"_MISSING" if self.default is _MISSING else self.default},'
                 f'default_factory={"_MISSING" if self.default_factory is _MISSING else self.default_factory},'
                 f'repr={self.repr},'
                 f'hash={self.hash},'
                 f'init={self.init},'
-                f'cmp={self.cmp})')
+                f'cmp={self.cmp}'
+                ')')
 
 
-# When cls._MARKER is filled in with a list of fields(), the name and
-#  type fields will have been populated.
-# This function is used instead of exposing Field directly, so that
-#  a type checker can be told (via overloads) that this is a function
+# When cls._MARKER is filled in with a list of Field objects, the name
+#  and type fields will have been populated.
+# This function is used instead of exposing Field directly, so that a
+#  type checker can be told (via overloads) that this is a function
 #  whose type depends on its parameters.
 def field(*, default=_MISSING, default_factory=_MISSING, repr=True, hash=None,
           init=True, cmp=True):
