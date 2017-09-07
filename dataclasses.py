@@ -72,13 +72,8 @@ class Field:
 # This function is used instead of exposing Field directly, so that a
 #  type checker can be told (via overloads) that this is a function
 #  whose type depends on its parameters.
-def field(*, default=_MISSING, default_factory=None, init=True, repr=True,
+def field(*, default=_MISSING, default_factory=_MISSING, init=True, repr=True,
           hash=None, cmp=True):
-    # None is the default for default_factory (so I don't have to document
-    #  it as something else), but it's easier internally if it's also set
-    #  to _MISSING, such as for default.
-    if default_factory is None:
-        default_factory = _MISSING
     if default is not _MISSING and default_factory is not _MISSING:
         raise ValueError('cannot specify both default and default_factory')
     return Field(default, default_factory, init, repr, hash, cmp)
