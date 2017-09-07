@@ -44,14 +44,14 @@ class Field:
                  'cmp',
                  )
 
-    def __init__(self, default, default_factory, repr, hash, init, cmp):
+    def __init__(self, default, default_factory, init, repr, hash, cmp):
         self.name = None
         self.type = None
         self.default = default
         self.default_factory = default_factory
+        self.init = init
         self.repr = repr
         self.hash = hash
-        self.init = init
         self.cmp = cmp
 
     def __repr__(self):
@@ -60,9 +60,9 @@ class Field:
                 f'type={self.type},'
                 f'default={"_MISSING" if self.default is _MISSING else self.default},'
                 f'default_factory={"_MISSING" if self.default_factory is _MISSING else self.default_factory},'
+                f'init={self.init},'
                 f'repr={self.repr},'
                 f'hash={self.hash},'
-                f'init={self.init},'
                 f'cmp={self.cmp}'
                 ')')
 
@@ -72,11 +72,16 @@ class Field:
 # This function is used instead of exposing Field directly, so that a
 #  type checker can be told (via overloads) that this is a function
 #  whose type depends on its parameters.
-def field(*, default=_MISSING, default_factory=_MISSING, repr=True, hash=None,
-          init=True, cmp=True):
+def field(*, default=_MISSING, default_factory=None, init=True, repr=True,
+          hash=None, cmp=True):
+    # None is the default for default_factory (so I don't have to document
+    #  it as something else), but it's easier internally if it's also set
+    #  to _MISSING, such as for default.
+    if default_factory is None:
+        default_factory = _MISSING
     if default is not _MISSING and default_factory is not _MISSING:
         raise ValueError('cannot specify both default and default_factory')
-    return Field(default, default_factory, repr, hash, init, cmp)
+    return Field(default, default_factory, init, repr, hash, cmp)
 
 
 def _tuple_str(obj_name, fields):
