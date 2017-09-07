@@ -187,7 +187,8 @@ the provided ``field()`` function.  The signature of ``field()`` is::
             hash=None, init=True, cmp=True)
 
 The ``<MISSING>`` value is an unspecified sentinel object used to
-detect if the ``default`` parameter is provided.
+detect if the ``default`` and ``default_factory`` parameters are
+provided.
 
 The various parameters are:
 
@@ -322,8 +323,8 @@ mechanism to optionally pass a parameter to the
 ``__dataclass_post_init__`` function.
 
 
-Why not namedtuple
-------------------
+Why not just use namedtuple
+---------------------------
 
 - Any namedtuple can be compared to any other with the same number of
   fields. For example: ``Point3D(2017, 6, 2) == Date(2017, 6, 2)``.
@@ -353,16 +354,16 @@ Why not namedtuple
 - Cannot control which fields are used for ``__init__``, ``__repr__``,
   etc.
 
-Why not typing.NamedTuple
--------------------------
+Why not just use typing.NamedTuple
+----------------------------------
 
 For classes with statically defined fields, it does support similar
 syntax to Data Classes, using type annotations.  This produces a
 namedtuple, so it shares ``namedtuple``'s benefits and some of its
 downsides.
 
-Why not attrs
--------------
+Why not just use attrs
+----------------------
 
 - attrs is constrained in using new language features, Data Classes
   can use features that are only in the newest version of Python.
