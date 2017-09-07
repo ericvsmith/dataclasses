@@ -1,4 +1,4 @@
-from dataclass import (
+from dataclasses import (
     dataclass, field, FrozenInstanceError, fields, asdict, astuple
 )
 
