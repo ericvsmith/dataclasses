@@ -11,10 +11,10 @@ Post-History: 02-Jun-2017
 Notice for Reviewers
 ====================
 
-This PEP was drafted in a separate repo:
-https://github.com/ericvsmith/dataclasses.  Before commenting in a
-public forum please at least read the `discussion`_ listed at the end
-of this PEP.
+This PEP and the initial implementation were drafted in a separate
+repo: https://github.com/ericvsmith/dataclasses.  Before commenting in
+a public forum please at least read the `discussion`_ listed at the
+end of this PEP.
 
 Abstract
 ========
@@ -125,59 +125,122 @@ Specification
 All of the functions described in this PEP will live in a module named
 ``dataclasses``.
 
-The ``@dataclass`` decorator just makes the following changes to the
-class.  It does not modify the class in any other way:
+A function ``dataclass`` which is typically used as a class decorator
+is provided to post-process classes and add generated member
+functions, described below.
 
-- Add a ``__init__`` method, based on the fields and their default values.
-- Add a ``__repr__`` method.
-- Add comparison functions:
+The ``dataclass`` decorator examines the class to find ``field``'s.  A
+``field`` is defined as any variable identified in
+``__annotations__``.  That is, a variable that is decorated with a
+type annotation.  With a single exception described below, none of the
+Data Class machinery examines the type specified in the annotation.
 
-  - ``__eq__``
-  - ``__ne__``
-  - ``__lt__``
-  - ``__le__``
-  - ``__gt__``
-  - ``__ge__``
+The ``dataclass`` decorator is typicalled applied with no parameters.
+However, it also supports the following logical signature::
 
-- Add a ``__hash__`` mehod.
-- Adjust ``__annotations__`` to include base class fields.
+  def dataclass(*, init=True, repr=True, hash=None, cmp=True, frozen=False)
 
-Because a Data Class is just the defined class with some additional
-added methods, it does not interfere with other Python features, such
-as inheritance, metaclasses, etc.
+If ``dataclass`` is used just as a simple decorator with no
+parameters, it acts as if it has the default values documented in this
+signature.  For example::
 
-Defining fields
+  @dataclass
+  class C:
+      ...
+
+is equivalent to::
+
+  @dataclass()
+  class C:
+      ...
+
+and::
+
+  @dataclass(init=True, repr=True, hash=None, cmp=True, frozen=False)
+  class C:
+      ...
+
+The various parameters to ``dataclass`` are:
+
+- ``init``: If false, no ``__init__`` method will be generated.
+
+- ``repr``: If false, no ``__repr__`` function will be generated.
+
+- ``hash``, ``cmp``: For a discussion of ``hash`` and ``cmp`` and how
+  they interact, see below.
+
+- ``frozen``: If true, assigning to fields will generate an exception.
+  This emulates read-only frozen instances.  See the discussion below.
+
+``field``'s may optionally specify a default value, using normal
+Python syntax::
+
+  @dataclass
+  class C:
+      int a       # 'a' has no default value
+      int b = 0   # assign a default value for 'b'
+
+For common and simple use cases, no other functionality is required.
+There are, however, some Data Class features that require additional
+per-field information.  To satisfy this need for additional
+information, you can replace the default field value with a call to
+the provided ``field()`` function.  The signature of ``field()`` is::
+
+  def field(*, default=<MISSING>, default_factory=None, repr=True,
+            hash=None, init=True, cmp=True)
+
+The ``<MISSING>`` value is an unspecified sentinel object used to
+detect if the ``default`` parameter is provided.
+
+The various parameters are:
+
+- ``default``: If provided, this will be the default value for this
+  field.  This is needed because the ``field`` call itself replaces
+  the normal position of the default value.
+
+- ``default_factory``: If provided, a zero-argument callable that will
+  be called when a default value is needed for this field.  Among
+  other purposes, this can be used to specify fields with mutable
+  default values, discussed below.  It is an error to specify both
+  ``default`` and ``default_factory``.
+
+- ``init``: If true, this field is included as a parameter to the
+  generated ``__init__`` function.
+
+- ``repr``: If true, this field is included in the string returned by
+  the generated ``__repr__`` function.
+
+- ``hash``, ``cmp``: See the discussion of how these fields interact,
+  below.
+
+post-init processing
+--------------------
+
+Also allows for initial field values that depend on one or more other
+fields.
+
+class variables
 ---------------
 
-Use normal Python syntax
-------------------------
+hash and cmp
+------------
 
-Expressiveness
---------------
-
-Efficiency
-----------
-
-Class variables
----------------
-
-
-
-
-Mutable defaults
+frozen instances
 ----------------
 
-@dataclass decorator
---------------------
+mutable default values
+----------------------
 
 Module level helper functions
 -----------------------------
 
-- fields
-- asdict
-- astuple
+- ``fields(class_or_instance)``
 
-Notes
+- ``asdict(instance)``
+
+- ``astuple(instance)``
+
+Notes to self
 -----
 - docstr for __init__, etc.
 - Should there be a __dir__ that includes the module-level helpers?
@@ -293,11 +356,11 @@ Examples from Python's source code
 
 Acknowledgements
 ================
-Ivan
-Raymod
-Hynek
-Guido
-attrs
+Ivan Levkivskyi,
+Hynek Schlawack,
+Guido van Rossum,
+Raymond Hettinger,
+attrs project
 
 References
 ==========
