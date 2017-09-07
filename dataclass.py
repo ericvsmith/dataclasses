@@ -3,14 +3,13 @@
 #  what exception to raise when non-default follows default? currently
 #  ValueError
 
-# special name in __init__: _self: reserve this name?
+# special name in __init__: __dataclass_self__: reserve this name?
 
 import typing
 import collections
 
 __all__ = ['dataclass',
            'field',
-           'make_class',
            'FrozenInstanceError',
 
            # Helper functions.
@@ -32,6 +31,8 @@ _POST_INIT_NAME = '__dataclass_post_init__'
 
 # This is only ever created from within this module, although instances are
 #  exposed externally as (conceptually) read-only objects.
+# name and type are filled in after the fact, not in __init__. They're not
+#  known at __init__ time.
 class Field:
     __slots__ = ('name',
                  'type',
@@ -43,10 +44,10 @@ class Field:
                  'cmp',
                  )
 
-    def __init__(self, name, type, default, default_factory, repr, hash,
+    def __init__(self, default, default_factory, repr, hash,
                  init, cmp):
-        self.name = name
-        self.type = type
+        self.name = None
+        self.type = None
         self.default = default
         self.default_factory = default_factory
         self.repr = repr
@@ -65,22 +66,16 @@ class Field:
                 f'cmp={self.cmp})')
 
 
-# This is used for both static field specs (in a class statement), and
-#  in dynamic class creation (using make_class).  In the static case,
-#  name and type must not be specified (they're inferred from
-#  cls.__dict__ and __annocations__, respectively).  In the dynamic
-#  case, they must be specified.
-# In either case, when cls._MARKER is filled in with a list of
-#  fields(), the name and type fields will have been populated.
+# When cls._MARKER is filled in with a list of fields(), the name and
+#  type fields will have been populated.
 # This function is used instead of exposing Field directly, so that
 #  a type checker can be told (via overloads) that this is a function
 #  whose type depends on its parameters.
-def field(name=None, type=None, *, default=_MISSING,
-          default_factory=_MISSING, repr=True, hash=None, init=True,
-          cmp=True):
+def field(*, default=_MISSING, default_factory=_MISSING, repr=True, hash=None,
+          init=True, cmp=True):
     if default is not _MISSING and default_factory is not _MISSING:
         raise ValueError('cannot specify both default and default_factory')
-    return Field(name, type, default, default_factory, repr, hash, init, cmp)
+    return Field(default, default_factory, repr, hash, init, cmp)
 
 
 def _tuple_str(obj_name, fields):
@@ -311,7 +306,7 @@ def _set_attribute(cls, name, value):
     setattr(cls, name, value)
 
 
-def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
+def _process_class(cls, repr, cmp, hash, init, slots, frozen):
     # Use an OrderedDict because:
     #  - Order matters!
     #  - Derived class fields overwrite base class fields.
@@ -332,18 +327,13 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
     for name, type_, f in _find_fields(cls):
         fields[name] = f
 
-        # The checks for dynamic=True happen in make_class(), since it
-        #  can generate better error message for missing f.name.
-        if not dynamic:
-            # The name and type must not be filled in before hand: we
-            #  grabbed them from the annotations.
-            if f.name is not None or f.type is not None:
-                raise TypeError(f'cannot specify name or type for {name!r}')
+        # The name and type must not be filled in before hand: we
+        #  grabbed them from the annotations.
+        assert f.name is None and f.type is None
 
-            # For fields defined in our class, set the name and type,
-            #  which we don't know until now.
-            f.name = name
-            f.type = type_
+        # Set the name and type, which we don't know until now.
+        f.name = name
+        f.type = type_
 
         # Validations for fields directly on our class.  This is
         #  delayed until now, instead of in the Field() constructor,
@@ -460,8 +450,7 @@ def _process_class(cls, repr, cmp, hash, init, slots, frozen, dynamic):
 def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
                slots=False, frozen=False):
     def wrap(cls):
-        return _process_class(cls, repr, cmp, hash, init, slots, frozen,
-                              dynamic=False)
+        return _process_class(cls, repr, cmp, hash, init, slots, frozen)
 
     # See if we're being called as @dataclass or @dataclass().
     if _cls is None:
@@ -471,37 +460,6 @@ def dataclass(_cls=None, *, repr=True, cmp=True, hash=None, init=True,
     # We're called as @dataclass, with a class.
     return wrap(_cls)
 
-
-def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
-               hash=None, init=True, slots=False, frozen=False):
-    # fields is a list of field objects, or more properly, a list of
-    #  Field objects, each of which would be returned by a call to
-    #  field().
-    if bases is None:
-        bases = (object,)
-
-    # Look through each field and build up an ordered class dictionary
-    #  and an ordered dictionary for __annotations__.
-    cls_dict = collections.OrderedDict()
-    annotations = collections.OrderedDict()
-    for idx, f in enumerate(fields, 1):
-        if f.name is None:
-            raise TypeError(f'name must be specified for field #{idx}')
-        if f.type is None:
-            raise TypeError(f'type must be specified for field {f.name!r}')
-
-        cls_dict[f.name] = f
-        annotations[f.name] = type
-    cls_dict['__annotations__'] = annotations
-
-    # Create the class.
-    cls = type(cls_name, bases, cls_dict)
-
-    # And now process it normally, except pass in dynamic=True to skip
-    #  some checks that don't hold when the fields are pre-created
-    #  with a valid name and type.
-    return _process_class(cls, repr, cmp, hash, init, slots, frozen,
-                          dynamic=True)
 
 def fields(cls):
     return getattr(cls, _MARKER)
