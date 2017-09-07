@@ -171,7 +171,7 @@ class TestCase(unittest.TestCase):
         #  the same as defined in Base.
         @dataclass
         class Base:
-            x: str = 'base'
+            x: float = 15.0
             y: int = 0
 
         @dataclass
