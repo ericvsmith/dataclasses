@@ -593,67 +593,6 @@ class TestCase(unittest.TestCase):
         class C(B):
             x: int = 0
 
-    def test_slots(self):
-        @dataclass(slots=True)
-        class C:
-            x: int
-            y: int
-
-        c = C(10, 0)
-        self.assertEqual(repr(c), 'C(x=10,y=0)')
-        self.assertEqual(C.__slots__, ('x', 'y'))
-        self.assertEqual(c.__slots__, ('x', 'y'))
-        c.x = 4
-        c.y = 12
-        self.assertEqual(repr(c), 'C(x=4,y=12)')
-
-        with self.assertRaisesRegex(AttributeError,
-                                    "'C' object has no attribute 'z'"):
-            c.z = 0
-
-    def test_slots_with_defaults(self):
-        default = object()
-        @dataclass(slots=True)
-        class C:
-            x: int = 0
-            y: object = default
-
-        c = C()
-        self.assertEqual(C.__slots__, ('x', 'y'))
-        self.assertEqual(c.__slots__, ('x', 'y'))
-        self.assertEqual(c.x, 0)
-        self.assertIs(c.y, default)
-
-        c.x = 4
-        c.y = 12
-        self.assertEqual(repr(c), 'C(x=4,y=12)')
-
-        with self.assertRaisesRegex(AttributeError,
-                                    "'C' object has no attribute 'z'"):
-            c.z = 0
-
-    def test_no_slots(self):
-        @dataclass
-        class C:
-            pass
-        # We can create new member variables
-        C().x = 3
-
-        # Same behavior with slots=False
-        @dataclass(slots=False)
-        class C:
-            pass
-        # We can create new member variables
-        C().x = 3
-
-        # Even though we can create a new member, it's not included in
-        #  the equality check, since it's not a field.
-        a = C()
-        a.x = 10
-        b = C()
-        b.x = ''
-        self.assertEqual(a, b)
-
     def test_frozen(self):
         @dataclass(frozen=True)
         class C:
@@ -952,33 +891,6 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c.w, 2000)
         self.assertEqual(c.t, 3000)
 
-    def test_slots_class_var(self):
-        # Make sure ClassVars work even if we're using slots.
-        @dataclass(slots=True)
-        class C:
-            x: int
-            y: int = 10
-            z: ClassVar[int] = 1000
-            w: ClassVar[int] = 2000
-            t: ClassVar[int] = 3000
-
-        c = C(5)
-        self.assertEqual(repr(C(5)), 'C(x=5,y=10)')
-        self.assertEqual(len(fields(C)), 2)                 # We have 2 fields
-        self.assertEqual(len(C.__annotations__), 5)         # And 3 ClassVars
-        self.assertEqual(c.z, 1000)
-        self.assertEqual(c.w, 2000)
-        self.assertEqual(c.t, 3000)
-        # We can still modify the ClassVar, it's only instances that are
-        #  frozen.
-        C.z += 1
-        self.assertEqual(c.z, 1001)
-        c = C(20)
-        self.assertEqual((c.x, c.y), (20, 10))
-        self.assertEqual(c.z, 1001)
-        self.assertEqual(c.w, 2000)
-        self.assertEqual(c.t, 3000)
-
     def test_default_factory(self):
         # Test a factory that returns a new list.
         @dataclass
@@ -1171,6 +1083,7 @@ class TestCase(unittest.TestCase):
 
         self.assertEqual(cls1, cls)
         self.assertEqual(asdict(cls1(1)), {'x': 1, 'y': 5})
+
 
 def main():
     unittest.main()
