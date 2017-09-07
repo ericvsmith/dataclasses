@@ -494,7 +494,7 @@ def make_class(cls_name, fields, *, bases=None, repr=True, cmp=True,
         annotations[f.name] = type
     cls_dict['__annotations__'] = annotations
 
-    # Create the class
+    # Create the class.
     cls = type(cls_name, bases, cls_dict)
 
     # And now process it normally, except pass in dynamic=True to skip
