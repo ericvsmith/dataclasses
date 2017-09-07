@@ -6,7 +6,7 @@ Type: Standards Track
 Content-Type: text/x-rst
 Created: 02-Jun-2017
 Python-Version: 3.7
-Post-History: 02-Jun-2017
+Post-History: 08-Sep-2017
 
 Notice for Reviewers
 ====================
@@ -40,8 +40,8 @@ As an example::
       def total_cost(self) -> float:
           return self.unit_price * self.quantity_on_hand
 
-The InventoryItem class will have the equivalent of these methods
-added::
+The ``@dataclass`` decorator will add the equivalent of these methods
+to the InventoryItem class::
 
   def __init__(self, name: str, unit_price: float, quantity_on_hand: int = 0) -> None:
       self.name = name
@@ -108,7 +108,7 @@ existing libraries like those listed above to consolidate on Data
 Classes.  Many of the libraries listed will have different feature
 sets, and will of course continue to exist and prosper.
 
-Where is it not appopriate to use Data Classes?
+Where is it not appropriate to use Data Classes?
 
 - Compatibility with tuples is required.
 
@@ -135,26 +135,23 @@ The ``dataclass`` decorator examines the class to find ``field``'s.  A
 type annotation.  With a single exception described below, none of the
 Data Class machinery examines the type specified in the annotation.
 
-The ``dataclass`` decorator is typicalled applied with no parameters.
-However, it also supports the following logical signature::
+The ``dataclass`` decorator is typically used with no parameters and
+no parenthesis.  However, it also supports the following logical
+signature::
 
   def dataclass(*, init=True, repr=True, hash=None, cmp=True, frozen=False)
 
 If ``dataclass`` is used just as a simple decorator with no
 parameters, it acts as if it has the default values documented in this
-signature.  For example::
+signature.  For example, these three uses of ``@dataclass`` are equivalent::
 
   @dataclass
   class C:
       ...
 
-is equivalent to::
-
   @dataclass()
   class C:
       ...
-
-and::
 
   @dataclass(init=True, repr=True, hash=None, cmp=True, frozen=False)
   class C:
@@ -186,7 +183,7 @@ per-field information.  To satisfy this need for additional
 information, you can replace the default field value with a call to
 the provided ``field()`` function.  The signature of ``field()`` is::
 
-  def field(*, default=<MISSING>, default_factory=None, repr=True,
+  def field(*, default=<MISSING>, default_factory=<MISSING>, repr=True,
             hash=None, init=True, cmp=True)
 
 The ``<MISSING>`` value is an unspecified sentinel object used to
@@ -213,28 +210,50 @@ The various parameters are:
 - ``hash``, ``cmp``: See the discussion of how these fields interact,
   below.
 
+``Field`` objects
+-----------------
+
+``Field`` objects describe each ``field``. These objects are created
+internally, and are returned by the ``fields()`` module method (see
+below).  Users should never instantiate a ``Field`` object.  The
+fields are:
+
+ - ``name``: The name of the field.
+
+ - ``type``: The type of the field.
+
+ - ``default``, ``default_factory``, ``init``, ``repr``, ``hash``, and
+   ``cmp`` have the identical meaning as they do in the ``field()``
+   declaration.
+
 post-init processing
 --------------------
 
-Also allows for initial field values that depend on one or more other
-fields.
+The generated ``__init__`` code will call a method named
+``__dataclass_post_init__``, if it is defined on the class.  It will
+be called as ``self.__dataclass_post_init__()``.
 
-class variables
+Among other uses, this allows for initializing field values that
+depend on one or more other fields.
+
+Class variables
 ---------------
 
-hash and cmp
-------------
+``hash`` and ``cmp``
+--------------------
 
-frozen instances
+Frozen instances
 ----------------
 
-mutable default values
+Mutable default values
 ----------------------
 
 Module level helper functions
 -----------------------------
 
-- ``fields(class_or_instance)``
+- ``fields(class_or_instance)``: Returns a list of ``Field`` objects
+  that define the fields for this Data Class.  Accepts either a Data
+  Class, or an instance of a Data Class.
 
 - ``asdict(instance)``
 
@@ -297,33 +316,62 @@ workarounds:
 Should post-init take params?
 -----------------------------
 
+The post-init function ``__dataclass_post_init__`` takes no
+parameters.  This was deemed to be simpler than trying to find a
+mechanism to optionally pass a parameter to the
+``__dataclass_post_init__`` function.
 
-why not namedtuple
+
+Why not namedtuple
 ------------------
 
-- Point3D(2017, 6, 2) == Date(2017, 6, 2)
-- Point2D(1, 10) == (1, 10)
-- Accidental iteration, which makes it difficult to add fields
-- No option for mutable instances
-- Cannot specify default values
-- Cannot control which fields are used for hash, repr, etc.
+- Any namedtuple can be compared to any other with the same number of
+  fields. For example: ``Point3D(2017, 6, 2) == Date(2017, 6, 2)``.
+  With Data Classes, this would return False.
 
-why not attrs
+- A namedtuple can be compared to a tuple.  For example ``Point2D(1,
+  10) == (1, 10)``.  With Data Classes, this would return False.
+
+- Instances are always iterable, which can make it difficult to add
+  fields.  If a library defines::
+
+   Time = namedtuple('Time', ['hour', 'minute'])
+   def get_time():
+       return Time(12, 0)
+
+  Then if a user uses this code as::
+
+   hour, minute = get_time()
+
+  then it would not be possible to add a ``second`` field to ``Time``
+  without breaking the user's code.
+
+- No option for mutable instances.
+
+- Cannot specify default values.
+
+- Cannot control which fields are used for ``__init__``, ``__repr__``,
+  etc.
+
+Why not typing.NamedTuple
+-------------------------
+
+For classes with statically defined fields, it does support similar
+syntax to Data Classes, using type annotations.  This produces a
+namedtuple, so it shares ``namedtuple``'s benefits and some of its
+downsides.
+
+Why not attrs
 -------------
 
 - attrs is constrained in using new language features, Data Classes
   can use features that are only in the newest version of Python.
 
-- Syntax is simpler if using variable annotations
+- attrs moves faster than could be accomodated if it were moved in to
+  the standard library.
 
-why not typing.NamedTuple
--------------------------
-
-This produces a namedtuple, so it shares namedtuple's benefits and
-some of its downsides.  For classes with statically defined fields, it
-does support the more familiar class creation syntax, including type
-annotations.  However, its use of metaclasses sometimes makes it
-difficult to use in certain inheritance scenarios.
+- attrs supports additional features not being proposed here:
+  validators, converters, metadata, etc.
 
 Dynamic creation of classes
 ---------------------------
@@ -348,19 +396,50 @@ Here's is one way of dynamically creating the same Data Class::
   C = dataclass(type('C', (object,), cls_dict))
 
 
-Examples from Python's source code
-==================================
+Examples
+========
 
-(or, from other projects)
+This code exists in a closed source project::
 
+  class Application:
+      def __init__(self, name, requirements, constraints=None, path='', executable_links=None, executables_dir=()):
+          self.name = name
+          self.requirements = requirements
+          self.constraints = {} if constraints is None else constraints
+          self.path = path
+          self.executable_links = [] if executable_links is None else executable_links
+          self.executables_dir = executables_dir
+          self.additional_items = []
+
+      def __repr__(self):
+          return f'Application({self.name!r},{self.requirements!r},{self.constraints!r},{self.path!r},{self.executable_links!r},{self.executables_dir!r},{self.additional_items!r})'
+
+This can be replaced by::
+
+  @dataclass
+  class Application:
+      name: str
+      requirements: list
+      constraints: List[str] = field(default_factory=list)
+      path: str = ''
+      executable_links: List[str] = field(default_factory=list)
+      executable_dir: Tuple[str] = ()
+      additional_items: List[str] = field(init=False, default_factory=list)
+
+The Data Class version is more declarative, has less code, supports
+``typing``, and includes the other generated functions.
 
 Acknowledgements
 ================
-Ivan Levkivskyi,
-Hynek Schlawack,
-Guido van Rossum,
-Raymond Hettinger,
-attrs project
+
+The following people provided invaluable input during the development
+of this PEP and code: Ivan Levkivskyi, Guido van Rossum, Hynek
+Schlawack, and Raymond Hettinger.  I thank them for their time and
+expertise.
+
+A special mention must be made about the attrs project.  It was a true
+inspiration for this PEP, and I respect the design decisions they
+made.
 
 References
 ==========
