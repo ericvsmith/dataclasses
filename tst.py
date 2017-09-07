@@ -1,5 +1,5 @@
 from dataclass import (
-    dataclass, field, make_class, FrozenInstanceError, fields, asdict, astuple
+    dataclass, field, FrozenInstanceError, fields, asdict, astuple
 )
 
 import inspect
@@ -413,39 +413,30 @@ class TestCase(unittest.TestCase):
             y: str = field(init=False, default=None)
             z: str = field(repr=False)
 
-        # And the equivalent dynamically created class:
-        D = make_class('D',
-                       [field('x', int),
-                        field('y', str, init=False, default=None),
-                        field('z', str, repr=False),
-                        ])
+        field_dict = fields(C)
+        # field_dict is an OrderedDict of 3 items, each value
+        #  is in __annotations__.
+        self.assertIsInstance(field_dict, OrderedDict)
+        for f in field_dict.values():
+            self.assertIn(f.name, C.__annotations__)
 
-        for cls in C, D:
-            with self.subTest(cls=cls):
-                field_dict = fields(cls)
-                # field_dict is an OrderedDict of 3 items, each value
-                #  is in __annotations__.
-                self.assertIsInstance(field_dict, OrderedDict)
-                for f in field_dict.values():
-                    self.assertIn(f.name, cls.__annotations__)
-
-                self.assertEqual(len(field_dict), 3)
-                field_list = list(field_dict.values())
-                self.assertEqual(field_list[0].name, 'x')
-                self.assertEqual(field_list[0].type, int)
-                self.assertFalse(hasattr(cls, 'x'))
-                self.assertTrue (field_list[0].init)
-                self.assertTrue (field_list[0].repr)
-                self.assertEqual(field_list[1].name, 'y')
-                self.assertEqual(field_list[1].type, str)
-                self.assertIsNone(getattr(cls, 'y'))
-                self.assertFalse(field_list[1].init)
-                self.assertTrue (field_list[1].repr)
-                self.assertEqual(field_list[2].name, 'z')
-                self.assertEqual(field_list[2].type, str)
-                self.assertFalse(hasattr(cls, 'z'))
-                self.assertTrue (field_list[2].init)
-                self.assertFalse(field_list[2].repr)
+        self.assertEqual(len(field_dict), 3)
+        field_list = list(field_dict.values())
+        self.assertEqual(field_list[0].name, 'x')
+        self.assertEqual(field_list[0].type, int)
+        self.assertFalse(hasattr(C, 'x'))
+        self.assertTrue (field_list[0].init)
+        self.assertTrue (field_list[0].repr)
+        self.assertEqual(field_list[1].name, 'y')
+        self.assertEqual(field_list[1].type, str)
+        self.assertIsNone(getattr(C, 'y'))
+        self.assertFalse(field_list[1].init)
+        self.assertTrue (field_list[1].repr)
+        self.assertEqual(field_list[2].name, 'z')
+        self.assertEqual(field_list[2].type, str)
+        self.assertFalse(hasattr(C, 'z'))
+        self.assertTrue (field_list[2].init)
+        self.assertFalse(field_list[2].repr)
 
     def test_field_order(self):
         @dataclass
@@ -588,76 +579,6 @@ class TestCase(unittest.TestCase):
             x: int
             y: int
         self.assertNotEqual(Point(1, 3), C(1, 3))
-
-    def test_no_name_or_type(self):
-        with self.assertRaisesRegex(TypeError,
-                                    'cannot specify name or type '
-                                    "for 'x'"):
-            @dataclass
-            class Point:
-                x: int = field('x')
-
-        with self.assertRaisesRegex(TypeError,
-                                    'cannot specify name or type '
-                                    "for 'x'"):
-            @dataclass
-            class Point:
-                x: int = field(type=str)
-
-    def test_make_derived(self):
-        @dataclass
-        class Base:
-            x: int
-            y: int
-
-        C = make_class('C',
-                       [field('z', int),
-                        field('x', int),
-                        ],
-                       bases=(Base,))
-        self.assertEqual(repr(C(4,5,6)), 'C(x=4,y=5,z=6)')
-
-    def test_make_derived_defaults(self):
-        @dataclass
-        class Base:
-            x: int = 5
-            y: int = 20
-
-        C = make_class('C',
-                       [field('z', int, default=30),
-                        field('x', int, default=10),
-                        ],
-                       bases=(Base,))
-        self.assertEqual(repr(C()), 'C(x=10,y=20,z=30)')
-
-        C = make_class('C',
-                       [field('z', int, default=30),
-                        field('x', int, default=10, init=False),
-                        ],
-                       bases=(Base,))
-        self.assertEqual(repr(C(1)), 'C(x=10,y=1,z=30)')
-
-    def test_make_empty(self):
-        C = make_class('C', [])
-        self.assertEqual(repr(C()), 'C()')
-        self.assertEqual(len(fields(C)), 0)
-
-        # XXX: is this right, or should there be no annotations?
-        self.assertEqual(len(C.__annotations__), 0)
-
-    def test_make_invalid_fields(self):
-        with self.assertRaisesRegex(TypeError,
-                                    'name must be specified for field #2'):
-            C = make_class('C',
-                           [field('x', int),
-                            field(),
-                            ])
-
-        with self.assertRaisesRegex(TypeError,
-                                    "type must be specified for field 'x'"):
-            C = make_class('C',
-                           [field('x'),
-                            ])
 
     def test_base_has_init(self):
         class B:
@@ -1114,32 +1035,6 @@ class TestCase(unittest.TestCase):
         class C:
             x: list=field(default_factory=list, cmp=False)
         self.assertEqual(C(), C([1]))
-
-    def test_dynamic_default_factory(self):
-        # Test a factory that returns a new list.
-        C = make_class('C',
-                       [field('x', int),
-                        field('y', list, default_factory=list),
-                        ])
-        c0 = C(3)
-        c1 = C(3)
-        self.assertEqual(c0.x, 3)
-        self.assertEqual(c0.y, [])
-        self.assertEqual(c0, c1)
-        self.assertIsNot(c0.y, c1.y)
-
-        # Test a factory that returns a shared list.
-        l = []
-        C = make_class('C',
-                       [field('x', int),
-                        field('y', list, default_factory=lambda: l),
-                        ])
-        c0 = C(3)
-        c1 = C(3)
-        self.assertEqual(c0.x, 3)
-        self.assertEqual(c0.y, [])
-        self.assertEqual(c0, c1)
-        self.assertIs(c0.y, c1.y)
 
     def test_default_factory_with_no_init(self):
         # We need a factory with a side effect.
