@@ -115,7 +115,9 @@ Where is it not appropriate to use Data Classes?
 - True immutability is required.
 
 - Type validation beyond that provided by PEPs 484 and 526 is
-  required, or value validation.
+  required, or value validation is required.
+
+XXX Motivation for each dataclass() and field() parameter
 
 XXX What do we provide that people want, but don't find above?
 
@@ -143,7 +145,7 @@ signature::
 
 If ``dataclass`` is used just as a simple decorator with no
 parameters, it acts as if it has the default values documented in this
-signature.  For example, these three uses of ``@dataclass`` are equivalent::
+signature.  That is, these three uses of ``@dataclass`` are equivalent::
 
   @dataclass
   class C:
@@ -159,9 +161,14 @@ signature.  For example, these three uses of ``@dataclass`` are equivalent::
 
 The various parameters to ``dataclass`` are:
 
-- ``init``: If false, no ``__init__`` method will be generated.
+- ``init``: If true, a ``__init__`` method will be generated.
 
-- ``repr``: If false, no ``__repr__`` function will be generated.
+- ``repr``: If true, a ``__repr__`` function will be generated.  The
+  generated repr string will have the class name and the name and repr
+  of each field, in the order they are defined in the class.  Fields
+  that are marked as being excluded from the repr are not included.
+  For example:
+  ``InventoryItem(name='widget',unit_price=3.0,quantity_on_hand=10)``.
 
 - ``hash``, ``cmp``: For a discussion of ``hash`` and ``cmp`` and how
   they interact, see below.
@@ -215,8 +222,8 @@ The various parameters are:
 -----------------
 
 ``Field`` objects describe each ``field``. These objects are created
-internally, and are returned by the ``fields()`` module method (see
-below).  Users should never instantiate a ``Field`` object.  The
+internally, and are returned by the ``fields()`` module-level method
+(see below).  Users should never instantiate a ``Field`` object.  The
 fields are:
 
  - ``name``: The name of the field.
@@ -240,6 +247,13 @@ depend on one or more other fields.
 Class variables
 ---------------
 
+The one place where ``dataclass`` actually inspects the type of a
+field is to determine if a field is a class variable.  It does this by
+seeing if the type of the field is given as of type
+``typing.ClassVar``.  If a field is a ``ClassVar``, it is excluded
+from consideration as a field and is ignored by the Data Class
+mechanisms.
+
 ``hash`` and ``cmp``
 --------------------
 
@@ -256,31 +270,22 @@ Module level helper functions
   that define the fields for this Data Class.  Accepts either a Data
   Class, or an instance of a Data Class.
 
-- ``asdict(instance)``
+- ``asdict(instance)``: todo: recursion, class factories, etc.
 
-- ``astuple(instance)``
+- ``astuple(instance)``: todo: recursion, class factories, etc.
 
 Notes to self
 -----
 - docstr for __init__, etc.
 - Should there be a __dir__ that includes the module-level helpers?
-- PEP 526 Variable Annotations
-- Generated functions contain variable annotations
-- Generate __init__
-- Generate __repr__
-- Frozen classes
-- Generate __hash__ and __cmp__
 - Mutable defaults
 - __dataclass_fields__ attribute: implementation detail
 - Only variable declarations are inspected, not methods or properties, even if they are annotated with return types.
 - Members that are ClassVar are ignored
 - Reserved field names
-- make_class()
-- post-init function: Take a parameter?
 - Valid field names
 - Module helper functions
 - Default factory functions: called in __init__ time if init=False
-- default values are added
 
 .. _discussion:
 
