@@ -299,15 +299,24 @@ Consider this example, not using Data Classes::
   assert C().x is C().x
   assert C().x is not C([]).x
 
-That is, two instances of ``C`` that do not not specify a value for
-``x`` when creating a ``C`` instance will share the same instance of
+That is, two instances of class ``C`` that do not not specify a value
+for ``x`` when creating a class instance will share the same copy of
 the list.  Because Data Classes just use normal Python class creation,
 they also share this problem.  There is no general way for Data
 Classes to detect this condition.  Instead, Data Classes will raise a
 ``TypeError`` if it detects a default parameter of type ``list``,
 ``dict``, or ``set``.  This is a partial solution, but it does protect
 against many common errors.  See `How to support mutable default
-values`_ for more details.
+values`_ in the Discussion section for more details.
+
+Using default factory functions is a way to create new instances of
+mutable types as default values for fields::
+
+  @dataclass
+  class C:
+      x: list = field(default_factory=list)
+
+  assert C().x is not C().x
 
 Inheritance
 -----------
