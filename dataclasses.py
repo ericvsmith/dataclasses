@@ -66,7 +66,7 @@ class Field:
 #  type checker can be told (via overloads) that this is a function
 #  whose type depends on its parameters.
 def field(*, default=_MISSING, default_factory=_MISSING, init=True, repr=True,
-          hash=True, cmp=True):
+          hash=None, cmp=True):
     if default is not _MISSING and default_factory is not _MISSING:
         raise ValueError('cannot specify both default and default_factory')
     return Field(default, default_factory, init, repr, hash, cmp)
@@ -391,7 +391,10 @@ def _process_class(cls, repr, cmp, hash, init, frozen):
         generate_hash = hash
     if generate_hash:
         _set_attribute(cls, '__hash__',
-                       _hash_fn(list(filter(lambda f: f.hash, field_list))))
+                       _hash_fn(list(filter(lambda f: f.cmp
+                                                      if f.hash is None
+                                                      else f.hash,
+                                            field_list))))
 
     if cmp:
         # Create and set the comparison functions.
