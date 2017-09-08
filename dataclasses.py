@@ -13,10 +13,7 @@ __all__ = ['dataclass',
 
 
 # Raised when an attempt is made to modify a frozen class.
-class FrozenInstanceError(AttributeError):
-    msg = "can't set attribute"
-    args = [msg]
-
+class FrozenInstanceError(AttributeError): pass
 
 _MISSING = object()
 _MARKER = '__dataclass_fields__'
@@ -233,11 +230,11 @@ def _repr_fn(fields):
 
 
 def _frozen_setattr(self, name, value):
-    raise FrozenInstanceError()
+    raise FrozenInstanceError(f'cannot assign to field {name!r}')
 
 
 def _frozen_delattr(self, name):
-    raise FrozenInstanceError()
+    raise FrozenInstanceError(f'cannot delete field {name!r}')
 
 
 def _cmp_fn(name, op, self_tuple, other_tuple):
