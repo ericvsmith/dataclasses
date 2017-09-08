@@ -120,15 +120,44 @@ def _field_init(f, frozen, globals, self_name):
     #  this field.
 
     default_name = f'_dflt_{f.name}'
-    if f.default is _MISSING and f.default_factory is _MISSING:
-        # There's no default, just do an assignment.
-        value = f.name
-    elif f.default is not _MISSING:
-        globals[default_name] = f.default
-        value = f'{default_name} if {f.name} is _MISSING else {f.name}'
-    elif f.default_factory is not _MISSING:
-        globals[default_name] = f.default_factory
-        value = f'{default_name}() if {f.name} is _MISSING else {f.name}'
+    if f.default_factory is not _MISSING:
+        if f.init:
+            # This field has a default factory.  If a parameter is
+            #  given, use it.  If not, call the factory.
+            globals[default_name] = f.default_factory
+            value = f'{default_name}() if {f.name} is _MISSING else {f.name}'
+        else:
+            # This is a field that's not in the __init__ params, but
+            #  has a default factory function.  It needs to be
+            #  initialized here by calling the factory function,
+            #  because there's no other way to initialize it.
+
+            # For a field initialized with a default=defaultvalue, the
+            #  class dict just has the default value
+            #  (cls.fieldname=defaultvalue). But that won't work for a
+            #  default factory, the factory must be called in __init__
+            #  and we must assign that to self.fieldname. We can't
+            #  fall back to the class dict's value, both because it's
+            #  not set, and because it might different per-class
+            #  (which, after all, is why we have a factory function!).
+
+            globals[default_name] = f.default_factory
+            value = f'{default_name}()'
+    else:
+        # No default factory.
+        if f.init:
+            if f.default is _MISSING:
+                # There's no default, just do an assignment.
+                value = f.name
+            elif f.default is not _MISSING:
+                globals[default_name] = f.default
+                value = f.name
+        else:
+            # This field does not need initialization. Signify that to
+            #  the caller by returning None.
+            return None
+
+    # Now, actually generate the field assignment.
     return _field_assign(frozen, f.name, value, self_name)
 
 
@@ -142,7 +171,7 @@ def _init_param(f):
         #  output the variable name and type.
         default = ''
     elif f.default is not _MISSING:
-        # There's a default.
+        # There's a default, this will be the name that's used to look it up.
         default = f'=_dflt_{f.name}'
     elif f.default_factory is not _MISSING:
         # There's a factory function. Set a marker.
@@ -168,15 +197,14 @@ def _init_fn(fields, frozen, has_post_init):
 
     self_name = '__dataclass_self__'
     globals = {'_MISSING': _MISSING}
-    body_lines = [_field_init(f, frozen, globals, self_name)
-                  for f in fields if f.init]
 
-    # Call any factory functions for fields that aren't params to __init__.
+    body_lines = []
     for f in fields:
-        if not f.init and f.default_factory is not _MISSING:
-            default_name = f'_dflt_{f.name}'
-            globals[default_name] = f.default_factory
-            body_lines.append(f'{self_name}.{f.name} = {default_name}()')
+        line = _field_init(f, frozen, globals, self_name)
+        if line is not None:
+            # line is None means that this field doesn't require
+            #  initialization. Just skip it.
+            body_lines.append(line)
 
     # Does this class have an post-init function?
     if has_post_init:
