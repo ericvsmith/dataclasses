@@ -137,6 +137,9 @@ The ``dataclass`` decorator examines the class to find ``field``'s.  A
 type annotation.  With a single exception described below, none of the
 Data Class machinery examines the type specified in the annotation.
 
+Note that ``__annotations__`` is an ordered mapping, in class
+declaration order.
+
 The ``dataclass`` decorator is typically used with no parameters and
 no parenthesis.  However, it also supports the following logical
 signature::
@@ -264,6 +267,27 @@ Frozen instances
 Mutable default values
 ----------------------
 
+Inheritance
+-----------
+
+When the Data Class is being created by the ``@dataclass`` decorator,
+it looks through all of the class's base classes in reverse MRO.
+
+Default factory functions
+-------------------------
+
+If a field specifies a ``default_factory``, it is called with zero
+arguments when a default value for the field is needed.  For example,
+to create a new instance of a list, use::
+
+  l: list = field(default_factory=list)
+
+If a field is excluded from ``__init__`` (using ``init=False``) and
+the field also specifies ``default_factory``, then the default factory
+function will always be called from the generated ``__init__``
+function.  This happens because there is no other way to give the
+field a default value.
+
 Module level helper functions
 -----------------------------
 
@@ -277,15 +301,9 @@ Module level helper functions
 
 Notes to self
 -----
-- docstr for __init__, etc.
 - Should there be a __dir__ that includes the module-level helpers?
-- Mutable defaults
 - __dataclass_fields__ attribute: implementation detail
 - Only variable declarations are inspected, not methods or properties, even if they are annotated with return types.
-- Members that are ClassVar are ignored
-- Reserved field names
-- Valid field names
-- Module helper functions
 - Default factory functions: called in __init__ time if init=False
 
 .. _discussion:
@@ -297,21 +315,19 @@ python-ideas discussion
 -----------------------
 
 This discussion started on python-ideas [#]_ and was moved to a GitHub
-repo [#]_ for further discussion.
-
-- New syntax rejected, PEP 526 give enough flexibility.
-
-- Mutable defaults
+repo [#]_ for further discussion.  As part of this discussion, we made
+the decision to use PEP 526 syntax to drive the discovery of fields.
 
 Support for automatically setting ``__slots__``?
 ------------------------------------------------
 
-For the initial release, no.  ``__slots__`` needs to be added at class
-creation time.  The decorator is called after the class is created, so
-in order to add ``__slots__`` the decorator would have to create a new
-class, set ``__slots__``, and return it.  Because this behavior is
-somewhat surprising, the initial version of Data Classes will not
-support automatically setting ``__slots__``.  There are a number of
+At least for the initial release, ``__slots__`` will not be supported.
+``__slots__`` needs to be added at class creation time.  The Data
+Class decorator is called after the class is created, so in order to
+add ``__slots__`` the decorator would have to create a new class, set
+``__slots__``, and return it.  Because this behavior is somewhat
+surprising, the initial version of Data Classes will not support
+automatically setting ``__slots__``.  There are a number of
 workarounds:
 
   - Manually add ``__slots__`` in the class definition.
@@ -319,6 +335,8 @@ workarounds:
   - Write a function (which could be used as a decorator) that
     inspects the class using ``fields()`` and creates a new class with
     ``__slots__`` set.
+
+For more discussion, see [#]_.
 
 Should post-init take params?
 -----------------------------
@@ -371,12 +389,6 @@ downsides.
 Why not just use attrs
 ----------------------
 
-- attrs is constrained in using new language features.  Data Classes
-  can use features that are only in the newest version of Python.  In
-  particular, this allows Data Classes to use PEP 526 variable
-  annotations, which means that in the typical case, field definitions
-  consist of only a name, a type, and an optional default.
-
 - attrs moves faster than could be accommodated if it were moved in to
   the standard library.
 
@@ -384,6 +396,8 @@ Why not just use attrs
   validators, converters, metadata, etc.  Data Classes makes a
   tradeoff to achieve simplicity by not implementing these
   features.
+
+For more discussion, see [#]_.
 
 Dynamic creation of classes
 ---------------------------
@@ -400,13 +414,22 @@ dynamically defined.  For this Data Class::
       x: int
       y: int = field(init=False, default=0)
 
-Here's is one way of dynamically creating the same Data Class::
+Here is one way of dynamically creating the same Data Class::
 
-  cls_dict = {'__annotations__': OrderedDict(x=int, y=int,),
+  cls_dict = {'__annotations__': OrderedDict(x=int, y=int),
               'y': field(init=False, default=0),
               }
   C = dataclass(type('C', (object,), cls_dict))
 
+How to support mutable default values
+-------------------------------------
+
+One proposal was to automatically copy defaults, so that if a literal
+list ``[]`` was a default value, each instance would get a new list.
+There were undesirable side effects of this decision, so the final
+decision is to disallow the 3 known built-in mutable types: list,
+dict, and set.  For a complete discussion of this and other options,
+see [#]_.
 
 Examples
 ========
@@ -430,10 +453,10 @@ This can be replaced by::
 
   @dataclass
   class Application:
-      name: str
-      requirements: list
+      name: Str
+      requirements: List
       constraints: List[str] = field(default_factory=list)
-      path: str = ''
+      path: Str = ''
       executable_links: List[str] = field(default_factory=list)
       executable_dir: Tuple[str] = ()
       additional_items: List[str] = field(init=False, default_factory=list)
@@ -476,6 +499,15 @@ References
 
 .. [#] GitHub repo where discussions and initial development took place
        (https://github.com/ericvsmith/dataclasses)
+
+.. [#] Support __slots__?
+       (https://github.com/ericvsmith/dataclasses/issues/28)
+
+.. [#] why not just attrs?
+       (https://github.com/ericvsmith/dataclasses/issues/19)
+
+.. [#] Copying mutable defaults
+       (https://github.com/ericvsmith/dataclasses/issues/3)
 
 Copyright
 =========
