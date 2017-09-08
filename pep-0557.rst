@@ -1,4 +1,4 @@
-PEP: xxx
+PEP: 557
 Title: Data Classes
 Author: Eric V. Smith <eric@trueblade.com>
 Status: Draft
