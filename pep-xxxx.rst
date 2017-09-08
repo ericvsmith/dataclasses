@@ -368,13 +368,6 @@ Module level helper functions
 
 - ``astuple(instance)``: todo: recursion, class factories, etc.
 
-Notes to self
------
-- Should there be a __dir__ that includes the module-level helpers?
-- __dataclass_fields__ attribute: implementation detail
-- Only variable declarations are inspected, not methods or properties, even if they are annotated with return types.
-- Default factory functions: called in __init__ time if init=False
-
 .. _discussion:
 
 Discussion
