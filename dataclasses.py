@@ -1,10 +1,3 @@
-# TODO:
-
-#  what exception to raise when non-default follows default? currently
-#  ValueError
-
-# special name in __init__: __dataclass_self__: reserve this name?
-
 import typing
 import collections
 
@@ -229,7 +222,7 @@ def _cmp_fn(name, op, self_tuple, other_tuple):
     # Create a comparison function.  If the fields in the object are
     #  named 'x' and 'y', then self_tuple is the string
     #  '(self.x,self.y)' and other_tuple is the string
-    #  '(other.x,other.y'),
+    #  '(other.x,other.y)'.
 
     if op == '!=':
         # __ne__ is slightly different from other comparison
@@ -284,7 +277,7 @@ def _find_fields(cls):
         # This test uses a typing internal class, but it's the best
         #  way to test if this is a ClassVar.
         if type(a_type) is typing._ClassVar:
-            # Skip this field if it's a ClassVar
+            # Skip this field if it's a ClassVar.
             continue
 
         # If the default value isn't derived from field, then it's

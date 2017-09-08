@@ -296,7 +296,7 @@ class TestCase(unittest.TestCase):
         #  hash=True/False/None
         #  cmp=True/False
         #  frozen=True/False
-        for hash, cmp, frozen, result in [
+        for hash,   cmp,   frozen, result in [
             (True,  False, False,  'fn'),
             (True,  False, True,   'fn'),
             (True,  True,  False,  'fn'),
@@ -317,14 +317,14 @@ class TestCase(unittest.TestCase):
 
                 # See if the result matches what's expected.
                 if result == 'fn':
-                    # Contains the function we generated.
+                    # __hash__ contains the function we generated.
                     self.assertIn('__hash__', C.__dict__)
                     self.assertIsNot(C.__dict__['__hash__'], None)
                 elif result == 'absent':
-                    # Not present in our class.
+                    # __hash__ is not present in our class.
                     self.assertNotIn('__hash__', C.__dict__)
                 elif result == 'none':
-                    # Is set to None.
+                    # __hash__ is set to None.
                     self.assertIn('__hash__', C.__dict__)
                     self.assertIs(C.__dict__['__hash__'], None)
                 else:
