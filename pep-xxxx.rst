@@ -100,15 +100,20 @@ So, why is this PEP needed?
 
 With the addition of PEP 526, Python has a concise way to specify the
 type of class members.  This PEP leverages that syntax to provide a
-simple, unobtrusive way to describe Data Classes.
+simple, unobtrusive way to describe Data Classes.  With one exception,
+the specified attribute type annotation is completely ignored by Data
+Classes.
 
-No base classes or metaclasses are used.  The decorated classes are
-truly "normal" Python classes.  The Data Class decorator should not
+No base classes or metaclasses are used by Data Classes.  Users of
+these classes are free to use inheritance and metaclasses without any
+interference from Data Classes.  The decorated classes are truly
+"normal" Python classes.  The Data Class decorator should not
 interfere with any usage of the class.
 
-Being in the standard library will allow many of the simpler usages of
-existing libraries like those listed above to consolidate on Data
-Classes.  Many of the libraries listed will have different feature
+Data Classes are not, and are not intended to be, a replacement
+mechanism for all of the above libraries.  But being in the standard
+library will allow many of the simpler use cases to instead leverage
+Data Classes.  Many of the libraries listed have different feature
 sets, and will of course continue to exist and prosper.
 
 Where is it not appropriate to use Data Classes?
@@ -121,8 +126,6 @@ Where is it not appropriate to use Data Classes?
   required, or value validation is required.
 
 XXX Motivation for each dataclass() and field() parameter
-
-XXX What do we provide that people want, but don't find above?
 
 Specification
 =============
@@ -140,8 +143,9 @@ The ``dataclass`` decorator examines the class to find ``field``'s.  A
 type annotation.  With a single exception described below, none of the
 Data Class machinery examines the type specified in the annotation.
 
-Note that ``__annotations__`` is an ordered mapping, in class
-declaration order.
+Note that ``__annotations__`` is guaranateed to be an ordered mapping,
+in class declaration order.  The order of the fields in all of the
+generated methods is the order in which they appear in the class.
 
 The ``dataclass`` decorator is typically used with no parameters and
 no parenthesis.  However, it also supports the following logical
@@ -176,25 +180,27 @@ The parameters to ``dataclass`` are:
   For example:
   ``InventoryItem(name='widget',unit_price=3.0,quantity_on_hand=10)``.
 
-- ``cmp``: If true, a ``__eq__``, ``__ne__``, ``__lt__``, ``__le__``,
-  ``__gt__``, and ``__ge__`` method will be generated. These compare
-  the class as if it were a tuple of its attrs attributes. But the
-  attributes are only compared if the type of both classes is identical!
+- ``cmp``: If true, ``__eq__``, ``__ne__``, ``__lt__``, ``__le__``,
+  ``__gt__``, and ``__ge__`` methods will be generated.  These compare
+  the class as if it were a tuple of its fields, in order.  Both
+  instances in the comparison must be of the identical type.
 
-- ``hash``: Either a bool or None. If None (default), the ``__hash__``
-  method is generated according to how cmp and frozen are set.
+- ``hash``: Either a bool or ``None``.  If ``None`` (the default), the
+  ``__hash__`` method is generated according to how cmp and frozen are
+  set.
 
-  If both are true, attrs will generate a ``__hash__`` for you.
-  If cmp is true and frozen is false, ``__hash__`` will be set to None,
-  marking it unhashable (which it is).
-  If cmp is false, ``__hash__`` will be left untouched meaning the
-  ``__hash__`` method of the superclass will be used (if superclass is
-  object, this means it will fall back to id-based hashing).
+  If ``cmp`` and ``hash`` are both true, Data Classes will generate a
+  ``__hash__`` for you.  If ``cmp`` is true and ``frozen`` is false,
+  ``__hash__`` will be set to ``None``, marking it unhashable (which
+  it is).  If cmp is false, ``__hash__`` will be left untouched
+  meaning the ``__hash__`` method of the superclass will be used (if
+  superclass is object, this means it will fall back to id-based
+  hashing).
 
-  Although not recommended, you can decide for yourself and force attrs
-  to create one (e.g. if the class is immutable even though you didn’t
-  freeze it programmatically) by passing True or not. Both of these cases
-  are rather special and should be used carefully.
+  Although not recommended, you force Data Classes to create a
+  ``__hash__`` method ``hash=True``. This might be the case if your
+  class is logically immutable but can none the less be mutated. This
+  is a specialized use case and should be considered carefully.
 
   See the Python documentation [#]_ for more information.
 
@@ -244,10 +250,12 @@ The parameters to ``field()`` are:
 - ``cmp``: If true, this field is included in the generated comparison
   methods (``__eq__`` et al).
 
-- ``hash``: This can be a bool or None. If true, this field is included
-  in the generated ``__hash__`` method. If None (default), mirror cmp’s
-  value. This is the correct behavior according the Python spec. Setting
-  this value to anything other than None is discouraged.
+- ``hash``: This can be a bool or ``None``.  If true, this field is
+  included in the generated ``__hash__`` method.  If ``None`` (the
+  default), use the value of ``cmp``: this would normally be the
+  expected behavior.  A field needs to be considered in the hash if
+  it's used for comparisons.  Setting this value to anything other
+  than ``None`` is discouraged.
 
 ``Field`` objects
 -----------------
@@ -287,6 +295,12 @@ mechanisms.
 
 Frozen instances
 ----------------
+
+It is not possible to create truly immutable Python objects.  However,
+by passing ``frozen=True`` to the ``@dataclass`` decorator you can
+emulate immutability.  In that case, Data Classes will add
+``__setattr__`` and ``__delattr__`` member functions to the class.
+These functions will raise a ``FrozenInstanceError`` when invoked.
 
 Mutable default values
 ----------------------
