@@ -1,4 +1,4 @@
-import typing
+import sys
 import collections
 
 __all__ = ['dataclass',
@@ -286,11 +286,19 @@ def _find_fields(cls):
 
     results = []
     for a_name, a_type in annotations.items():
-        # This test uses a typing internal class, but it's the best
-        #  way to test if this is a ClassVar.
-        if type(a_type) is typing._ClassVar:
-            # Skip this field if it's a ClassVar.
-            continue
+        # If this is a ClassVar, ignore it. It makes no sense for a
+        #  ClassVar to be a field.
+
+        # If typing has not been imported, then it's impossible for
+        #  any annotation to be a ClassVar. So, only look for ClassVar
+        #  if typing has been imported.
+        typing = sys.modules.get('typing')
+        if typing is not None:
+            # This test uses a typing internal class, but it's the best
+            #  way to test if this is a ClassVar.
+            if type(a_type) is typing._ClassVar:
+                # This field is a ClassVar. Ignore it.
+                continue
 
         # If the default value isn't derived from field, then it's
         #  only a normal default value.  Convert it to a Field().
