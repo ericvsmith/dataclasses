@@ -288,11 +288,50 @@ Frozen instances
 Mutable default values
 ----------------------
 
+Python stores the default field values in class attributes.
+Consider this example, not using Data Classes::
+
+  class C:
+      x = []
+      def __init__(self, x=x):
+          self.x = x
+
+  assert C().x is C().x
+  assert C().x is not C([]).x
+
+That is, two instances of ``C`` that do not not specify a value for
+``x`` when creating a ``C`` instance will share the same instance of
+the list.  Because Data Classes just use normal Python class creation,
+they also share this problem.  There is no general way for Data
+Classes to detect this condition.  Instead, Data Classes will raise a
+``TypeError`` if it detects a default parameter of type ``list``,
+``dict``, or ``set``.  This is a partial solution, but it does protect
+against many common errors.  See `How to support mutable default
+values`_ for more details.
+
 Inheritance
 -----------
 
 When the Data Class is being created by the ``@dataclass`` decorator,
-it looks through all of the class's base classes in reverse MRO.
+it looks through all of the class's base classes in reverse MRO (that
+is, starting at ``object``) and, for each Data Class that it finds,
+adds the fields from that base class to an ordered mapping of fields.
+After all of the base classes, it adds its own fields to the ordered
+mapping.  Because the fields are in insertion order, derived classes
+override base classes.  An example::
+
+  @dataclass
+  class Base:
+      x: float = 15.0
+      y: int = 0
+
+  @dataclass
+  class C(Base):
+      z: int = 10
+      x: int = 15
+
+The final list of fields is, in order, ``x``, ``y``, ``z``.  The final
+type of ``x`` is ``int``, as specified in class ``C``.
 
 Default factory functions
 -------------------------
