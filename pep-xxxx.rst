@@ -302,6 +302,10 @@ emulate immutability.  In that case, Data Classes will add
 ``__setattr__`` and ``__delattr__`` member functions to the class.
 These functions will raise a ``FrozenInstanceError`` when invoked.
 
+There is a tiny performance penalty when using ``frozen=True``:
+``__init__`` cannot use simple assignment to initialize fields, and
+must use ``object.__setattr__``.
+
 Mutable default values
 ----------------------
 
