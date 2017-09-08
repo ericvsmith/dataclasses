@@ -174,8 +174,8 @@ The parameters to ``dataclass`` are:
   ``InventoryItem(name='widget',unit_price=3.0,quantity_on_hand=10)``.
 
 - ``cmp``: If true, a ``__eq__``, ``__ne__``, ``__lt__``, ``__le__``,
-  ``__gt__``, and ``__ge__`` method will be generated. These compare 
-  the class as if it were a tuple of its attrs attributes. But the 
+  ``__gt__``, and ``__ge__`` method will be generated. These compare
+  the class as if it were a tuple of its attrs attributes. But the
   attributes are only compared if the type of both classes is identical!
 
 - ``hash``: Either a bool or None. If None (default), the ``__hash__``
@@ -184,7 +184,7 @@ The parameters to ``dataclass`` are:
   If both are true, attrs will generate a ``__hash__`` for you.
   If cmp is true and frozen is false, ``__hash__`` will be set to None,
   marking it unhashable (which it is).
-  If cmp is false, ``__hash__`` will be left untouched meaning the 
+  If cmp is false, ``__hash__`` will be left untouched meaning the
   ``__hash__`` method of the superclass will be used (if superclass is
   object, this means it will fall back to id-based hashing).
 
@@ -193,8 +193,7 @@ The parameters to ``dataclass`` are:
   freeze it programmatically) by passing True or not. Both of these cases
   are rather special and should be used carefully.
 
-  See the Python documentation (https://docs.python.org/3/reference/datamodel.html#object.__hash__)
-  for more information.
+  See the Python documentation [#]_ for more information.
 
 - ``frozen``: If true, assigning to fields will generate an exception.
   This emulates read-only frozen instances.  See the discussion below.
@@ -241,10 +240,10 @@ The parameters to ``field()`` are:
 
 - ``cmp``: If true, this field is included in the generated comparison
   methods (``__eq__`` et al).
- 
-- ``hash``: This can be a bool or None. If true, this field is included 
+
+- ``hash``: This can be a bool or None. If true, this field is included
   in the generated ``__hash__`` method. If None (default), mirror cmp’s
-  value. This is the correct behavior according the Python spec. Setting 
+  value. This is the correct behavior according the Python spec. Setting
   this value to anything other than None is discouraged.
 
 ``Field`` objects
@@ -515,6 +514,9 @@ References
 
 .. [#] David Beazley metaclass talk featuring data classes
        (https://www.youtube.com/watch?v=sPiWg5jSoZI)
+
+.. [#] Python documentation for __hash__
+       (https://docs.python.org/3/reference/datamodel.html#object.__hash__)
 
 .. [#] Start of python-ideas discussion
        (https://mail.python.org/pipermail/python-ideas/2017-May/045618.html)
