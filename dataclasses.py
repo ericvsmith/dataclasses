@@ -1,4 +1,4 @@
-import typing
+import sys
 import collections
 
 __all__ = ['dataclass',
@@ -11,15 +11,20 @@ __all__ = ['dataclass',
            'astuple',
            ]
 
+_debug = False
 
 # Raised when an attempt is made to modify a frozen class.
-class FrozenInstanceError(AttributeError):
-    msg = "can't set attribute"
-    args = [msg]
+class FrozenInstanceError(AttributeError): pass
 
-
+# A sentinel object to detect if a parameter is supplied or not.
 _MISSING = object()
+
+# The name of an attribute on the class where we store the Field
+#  objects. Also used to check if a class is a Data Class.
 _MARKER = '__dataclass_fields__'
+
+# The name of the function, that if it exists, is called at the end of
+# __init__.
 _POST_INIT_NAME = '__dataclass_post_init__'
 
 # This is only ever created from within this module, although instances are
@@ -97,9 +102,13 @@ def _create_fn(name, args, body, globals=None, locals=None,
     body = '\n'.join(f' {b}' for b in body)
 
     txt = f'def {name}({args}){return_annotation}:\n{body}'
-    #print(txt)
-    #print(locals)
-    #print(globals)
+
+    if _debug:
+        print(txt)
+        print('locals:', locals)
+        print('globals:', globals)
+        print()
+
     exec(txt, globals, locals)
     return locals[name]
 
@@ -120,15 +129,44 @@ def _field_init(f, frozen, globals, self_name):
     #  this field.
 
     default_name = f'_dflt_{f.name}'
-    if f.default is _MISSING and f.default_factory is _MISSING:
-        # There's no default, just do an assignment.
-        value = f.name
-    elif f.default is not _MISSING:
-        globals[default_name] = f.default
-        value = f'{default_name} if {f.name} is _MISSING else {f.name}'
-    elif f.default_factory is not _MISSING:
-        globals[default_name] = f.default_factory
-        value = f'{default_name}() if {f.name} is _MISSING else {f.name}'
+    if f.default_factory is not _MISSING:
+        if f.init:
+            # This field has a default factory.  If a parameter is
+            #  given, use it.  If not, call the factory.
+            globals[default_name] = f.default_factory
+            value = f'{default_name}() if {f.name} is _MISSING else {f.name}'
+        else:
+            # This is a field that's not in the __init__ params, but
+            #  has a default factory function.  It needs to be
+            #  initialized here by calling the factory function,
+            #  because there's no other way to initialize it.
+
+            # For a field initialized with a default=defaultvalue, the
+            #  class dict just has the default value
+            #  (cls.fieldname=defaultvalue). But that won't work for a
+            #  default factory, the factory must be called in __init__
+            #  and we must assign that to self.fieldname. We can't
+            #  fall back to the class dict's value, both because it's
+            #  not set, and because it might different per-class
+            #  (which, after all, is why we have a factory function!).
+
+            globals[default_name] = f.default_factory
+            value = f'{default_name}()'
+    else:
+        # No default factory.
+        if f.init:
+            if f.default is _MISSING:
+                # There's no default, just do an assignment.
+                value = f.name
+            elif f.default is not _MISSING:
+                globals[default_name] = f.default
+                value = f.name
+        else:
+            # This field does not need initialization. Signify that to
+            #  the caller by returning None.
+            return None
+
+    # Now, actually generate the field assignment.
     return _field_assign(frozen, f.name, value, self_name)
 
 
@@ -142,7 +180,7 @@ def _init_param(f):
         #  output the variable name and type.
         default = ''
     elif f.default is not _MISSING:
-        # There's a default.
+        # There's a default, this will be the name that's used to look it up.
         default = f'=_dflt_{f.name}'
     elif f.default_factory is not _MISSING:
         # There's a factory function. Set a marker.
@@ -150,7 +188,7 @@ def _init_param(f):
     return f'{f.name}:_type_{f.name}{default}'
 
 
-def _init_fn(fields, frozen, has_post_init):
+def _init_fn(fields, frozen, has_post_init, self_name):
     # Make sure we don't have fields without defaults following fields
     #  with defaults.  This actually would be caught when exec-ing the
     #  function source code, but catching it here gives a better error
@@ -166,17 +204,15 @@ def _init_fn(fields, frozen, has_post_init):
                 raise TypeError(f'non-default argument {f.name!r} '
                                 'follows default argument')
 
-    self_name = '__dataclass_self__'
     globals = {'_MISSING': _MISSING}
-    body_lines = [_field_init(f, frozen, globals, self_name)
-                  for f in fields if f.init]
 
-    # Call any factory functions for fields that aren't params to __init__.
+    body_lines = []
     for f in fields:
-        if not f.init and f.default_factory is not _MISSING:
-            default_name = f'_dflt_{f.name}'
-            globals[default_name] = f.default_factory
-            body_lines.append(f'{self_name}.{f.name} = {default_name}()')
+        line = _field_init(f, frozen, globals, self_name)
+        if line is not None:
+            # line is None means that this field doesn't require
+            #  initialization. Just skip it.
+            body_lines.append(line)
 
     # Does this class have an post-init function?
     if has_post_init:
@@ -205,11 +241,11 @@ def _repr_fn(fields):
 
 
 def _frozen_setattr(self, name, value):
-    raise FrozenInstanceError()
+    raise FrozenInstanceError(f'cannot assign to field {name!r}')
 
 
 def _frozen_delattr(self, name):
-    raise FrozenInstanceError()
+    raise FrozenInstanceError(f'cannot delete field {name!r}')
 
 
 def _cmp_fn(name, op, self_tuple, other_tuple):
@@ -261,11 +297,19 @@ def _find_fields(cls):
 
     results = []
     for a_name, a_type in annotations.items():
-        # This test uses a typing internal class, but it's the best
-        #  way to test if this is a ClassVar.
-        if type(a_type) is typing._ClassVar:
-            # Skip this field if it's a ClassVar.
-            continue
+        # If this is a ClassVar, ignore it. It makes no sense for a
+        #  ClassVar to be a field.
+
+        # If typing has not been imported, then it's impossible for
+        #  any annotation to be a ClassVar. So, only look for ClassVar
+        #  if typing has been imported.
+        typing = sys.modules.get('typing')
+        if typing is not None:
+            # This test uses a typing internal class, but it's the best
+            #  way to test if this is a ClassVar.
+            if type(a_type) is typing._ClassVar:
+                # This field is a ClassVar. Ignore it.
+                continue
 
         # If the default value isn't derived from field, then it's
         #  only a normal default value.  Convert it to a Field().
@@ -365,7 +409,13 @@ def _process_class(cls, repr, cmp, hash, init, frozen):
         _set_attribute(cls, '__init__',
                        _init_fn(field_list,
                                 is_frozen,
-                                has_post_init))
+                                has_post_init,
+
+                                # The name to use for the "self" param
+                                #  in __init__.
+                                '__dataclass_self__' if 'self' in fields
+                                    else 'self',
+                                ))
     if repr:
         _set_attribute(cls, '__repr__',
                        _repr_fn(list(filter(lambda f: f.repr, field_list))))
