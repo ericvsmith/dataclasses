@@ -159,7 +159,7 @@ signature.  That is, these three uses of ``@dataclass`` are equivalent::
   class C:
       ...
 
-The various parameters to ``dataclass`` are:
+The parameters to ``dataclass`` are:
 
 - ``init``: If true, a ``__init__`` method will be generated.
 
@@ -190,14 +190,15 @@ per-field information.  To satisfy this need for additional
 information, you can replace the default field value with a call to
 the provided ``field()`` function.  The signature of ``field()`` is::
 
-  def field(*, default=<MISSING>, default_factory=<MISSING>, repr=True,
+  def field(*, default=_MISSING, default_factory=_MISSING, repr=True,
             hash=None, init=True, cmp=True)
 
-The ``<MISSING>`` value is an unspecified sentinel object used to
-detect if the ``default`` and ``default_factory`` parameters are
-provided.
+The ``_MISSING`` value is a sentinel object used to detect if the
+``default`` and ``default_factory`` parameters are provided.  Users
+should never use ``_MISSING`` or depend on its value.  This sentinel
+is used because ``None`` is a valid value for ``default``.
 
-The various parameters are:
+The parameters to ``field()`` are:
 
 - ``default``: If provided, this will be the default value for this
   field.  This is needed because the ``field`` call itself replaces
@@ -221,10 +222,10 @@ The various parameters are:
 ``Field`` objects
 -----------------
 
-``Field`` objects describe each ``field``. These objects are created
-internally, and are returned by the ``fields()`` module-level method
-(see below).  Users should never instantiate a ``Field`` object.  The
-fields are:
+``Field`` objects describe each defined field. These objects are
+created internally, and are returned by the ``fields()`` module-level
+method (see below).  Users should never instantiate a ``Field``
+object directly.  Its attributes are:
 
  - ``name``: The name of the field.
 
@@ -370,14 +371,19 @@ downsides.
 Why not just use attrs
 ----------------------
 
-- attrs is constrained in using new language features, Data Classes
-  can use features that are only in the newest version of Python.
+- attrs is constrained in using new language features.  Data Classes
+  can use features that are only in the newest version of Python.  In
+  particular, this allows Data Classes to use PEP 526 variable
+  annotations, which means that in the typical case, field definitions
+  consist of only a name, a type, and an optional default.
 
-- attrs moves faster than could be accomodated if it were moved in to
+- attrs moves faster than could be accommodated if it were moved in to
   the standard library.
 
 - attrs supports additional features not being proposed here:
-  validators, converters, metadata, etc.
+  validators, converters, metadata, etc.  Data Classes makes a
+  tradeoff to achieve simplicity by not implementing these
+  features.
 
 Dynamic creation of classes
 ---------------------------
