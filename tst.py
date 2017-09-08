@@ -387,6 +387,32 @@ class TestCase(unittest.TestCase):
         self.assertNotEqual(C(3), C(4, 10))
         self.assertNotEqual(C(3, 10), C(4, 10))
 
+    def test_hash_field_rules(self):
+        # Test all 6 cases of:
+        #  hash=True/False/None
+        #  cmp=True/False
+        for hash_val, cmp,   result in [
+            (True,    False, 'field'),
+            (True,    True,  'field'),
+            (False,   False, 'absent'),
+            (False,   True,  'absent'),
+            (None,    False, 'absent'),
+            (None,    True,  'field'),
+            ]:
+            with self.subTest(hash_val=hash_val, cmp=cmp):
+                @dataclass(hash=True)
+                class C:
+                    x: int = field(cmp=cmp, hash=hash_val, default=5)
+
+                if result == 'field':
+                    # __hash__ contains the field.
+                    self.assertEqual(C(5).__hash__(), hash((5,)))
+                elif result == 'absent':
+                    # The field is not present in the hash.
+                    self.assertEqual(C(5).__hash__(), hash(()))
+                else:
+                    assert False, f'unknown result {result!r}'
+
     def test_not_in_init(self):
         # If init=False, we must have a default value.
         # Otherwise, how would it get initialized?
