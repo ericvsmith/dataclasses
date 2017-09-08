@@ -15,8 +15,15 @@ __all__ = ['dataclass',
 # Raised when an attempt is made to modify a frozen class.
 class FrozenInstanceError(AttributeError): pass
 
+# A sentinel object to detect if a parameter is supplied or not.
 _MISSING = object()
+
+# The name of an attribute on the class where we store the Field
+#  objects. Also used to check if a class is a Data Class.
 _MARKER = '__dataclass_fields__'
+
+# The name of the function, that if it exists, is called at the end of
+# __init__.
 _POST_INIT_NAME = '__dataclass_post_init__'
 
 # This is only ever created from within this module, although instances are
