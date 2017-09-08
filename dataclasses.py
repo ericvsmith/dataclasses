@@ -176,7 +176,7 @@ def _init_param(f):
     return f'{f.name}:_type_{f.name}{default}'
 
 
-def _init_fn(fields, frozen, has_post_init):
+def _init_fn(fields, frozen, has_post_init, self_name):
     # Make sure we don't have fields without defaults following fields
     #  with defaults.  This actually would be caught when exec-ing the
     #  function source code, but catching it here gives a better error
@@ -192,7 +192,6 @@ def _init_fn(fields, frozen, has_post_init):
                 raise TypeError(f'non-default argument {f.name!r} '
                                 'follows default argument')
 
-    self_name = '__dataclass_self__'
     globals = {'_MISSING': _MISSING}
 
     body_lines = []
@@ -398,7 +397,13 @@ def _process_class(cls, repr, cmp, hash, init, frozen):
         _set_attribute(cls, '__init__',
                        _init_fn(field_list,
                                 is_frozen,
-                                has_post_init))
+                                has_post_init,
+
+                                # The name to use for the "self" param
+                                #  in __init__.
+                                '__dataclass_self__' if 'self' in fields
+                                    else 'self',
+                                ))
     if repr:
         _set_attribute(cls, '__repr__',
                        _repr_fn(list(filter(lambda f: f.repr, field_list))))
