@@ -21,13 +21,13 @@ Abstract
 
 This PEP describes an addition to the standard library called Data
 Classes.  A class decorator is provided which inspects a class
-definition for variables annotated with PEP 526 "Syntax for Variable
-Annotations".  In this document, such variables are called fields.
-Using these fields, the decorator adds generated method definitions to
-the class to support instance initialization, a repr, and comparisons
-methods.  Such a class is called a Data Class, but there's really
-nothing special about the class: it is the same class but with the
-generated methods added.
+definition for variables with type annotations as defined in PEP 526
+"Syntax for Variable Annotations".  In this document, such variables
+are called fields.  Using these fields, the decorator adds generated
+method definitions to the class to support instance initialization, a
+repr, and comparisons methods.  Such a class is called a Data Class,
+but there's really nothing special about the class: it is the same
+class but with the generated methods added.
 
 As an example::
 
@@ -531,8 +531,8 @@ Acknowledgements
 
 The following people provided invaluable input during the development
 of this PEP and code: Ivan Levkivskyi, Guido van Rossum, Hynek
-Schlawack, and Raymond Hettinger.  I thank them for their time and
-expertise.
+Schlawack, Raymond Hettinger, and Lisa Roach.  I thank them for their
+time and expertise.
 
 A special mention must be made about the attrs project.  It was a true
 inspiration for this PEP, and I respect the design decisions they
