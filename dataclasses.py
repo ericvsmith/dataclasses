@@ -11,6 +11,7 @@ __all__ = ['dataclass',
            'astuple',
            ]
 
+_debug = False
 
 # Raised when an attempt is made to modify a frozen class.
 class FrozenInstanceError(AttributeError): pass
@@ -101,9 +102,13 @@ def _create_fn(name, args, body, globals=None, locals=None,
     body = '\n'.join(f' {b}' for b in body)
 
     txt = f'def {name}({args}){return_annotation}:\n{body}'
-    #print(txt)
-    #print(locals)
-    #print(globals)
+
+    if _debug:
+        print(txt)
+        print('locals:', locals)
+        print('globals:', globals)
+        print()
+
     exec(txt, globals, locals)
     return locals[name]
 
