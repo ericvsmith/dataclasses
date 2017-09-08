@@ -238,6 +238,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(C(0, 0), C(0, 0))
         self.assertEqual(C(1, 2), C(1, 2))
         self.assertNotEqual(C(1, 0), C(0, 0))
+        self.assertNotEqual(C(1, 0), C(1, 1))
         self.assertLess(C(0, 0), C(0, 1))
         self.assertLess(C(0, 0), C(1, 0))
         self.assertLessEqual(C(0, 0), C(0, 1))

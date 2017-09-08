@@ -212,29 +212,16 @@ def _frozen_delattr(self, name):
     raise FrozenInstanceError()
 
 
-# All __ne__ functions are the same, and don't depend on the fields.
-def _ne(self, other) -> bool:
-    result = self.__eq__(other)
-    return NotImplemented if result is NotImplemented else not result
-
-
 def _cmp_fn(name, op, self_tuple, other_tuple):
     # Create a comparison function.  If the fields in the object are
     #  named 'x' and 'y', then self_tuple is the string
     #  '(self.x,self.y)' and other_tuple is the string
     #  '(other.x,other.y)'.
 
-    if op == '!=':
-        # __ne__ is slightly different from other comparison
-        #  functions, since it only calls __eq__.  Return a regular
-        #  function: no need to generate the source code, since it's
-        #  indepenedent of the fields involved.
-        return _ne
-
     return _create_fn(name,
                       ['self', 'other'],
                       [ 'if other.__class__ is self.__class__:',
-                       f'    return {self_tuple}{op}{other_tuple}',
+                       f' return {self_tuple}{op}{other_tuple}',
                         'return NotImplemented'])
 
 
