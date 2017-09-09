@@ -1111,6 +1111,28 @@ class TestCase(unittest.TestCase):
         self.assertEqual(cls1, cls)
         self.assertEqual(asdict(cls1(1)), {'x': 1, 'y': 5})
 
+    def test_init_in_order(self):
+        @dataclass
+        class C:
+            a: int
+            b: int = field()
+            c: list = field(default_factory=list, init=False)
+            d: list = field(default_factory=list)
+            e: int = field(default=4, init=False)
+            f: int = 4
+
+        calls = []
+        def setattr(self, name, value):
+            calls.append((name, value))
+
+        C.__setattr__ = setattr
+        c = C(0, 1)
+        self.assertEqual(('a', 0), calls[0])
+        self.assertEqual(('b', 1), calls[1])
+        self.assertEqual(('c', []), calls[2])
+        self.assertEqual(('d', []), calls[3])
+        self.assertNotIn(('e', 4), calls)
+        self.assertEqual(('f', 4), calls[4])
 
 def main():
     unittest.main()
