@@ -1134,6 +1134,35 @@ class TestCase(unittest.TestCase):
         self.assertNotIn(('e', 4), calls)
         self.assertEqual(('f', 4), calls[4])
 
+    def test_items_in_dicts(self):
+        @dataclass
+        class C:
+            a: int
+            b: list = field(default_factory=list, init=False)
+            c: list = field(default_factory=list)
+            d: int = field(default=4, init=False)
+            e: int = 0
+
+        c = C(0)
+        # Class dict
+        self.assertNotIn('a', C.__dict__)
+        self.assertNotIn('b', C.__dict__)
+        self.assertNotIn('c', C.__dict__)
+        self.assertIn('d', C.__dict__)
+        self.assertEqual(C.d, 4)
+        self.assertIn('e', C.__dict__)
+        self.assertEqual(C.e, 0)
+        # Instance dict
+        self.assertIn('a', c.__dict__)
+        self.assertEqual(c.a, 0)
+        self.assertIn('b', c.__dict__)
+        self.assertEqual(c.b, [])
+        self.assertIn('c', c.__dict__)
+        self.assertEqual(c.c, [])
+        self.assertNotIn('d', c.__dict__)
+        self.assertIn('e', c.__dict__)
+        self.assertEqual(c.e, 0)
+
 def main():
     unittest.main()
 
