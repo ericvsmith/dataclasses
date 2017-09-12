@@ -4,7 +4,7 @@ from dataclasses import (
 
 import inspect
 import unittest
-from typing import ClassVar
+from typing import ClassVar, Any
 from collections import OrderedDict
 
 # Just any custom exception we can catch.
@@ -171,13 +171,16 @@ class TestCase(unittest.TestCase):
         #  the same as defined in Base.
         @dataclass
         class Base:
-            x: float = 15.0
+            x: Any = 15.0
             y: int = 0
 
         @dataclass
         class C1(Base):
             z: int = 10
             x: int = 15
+
+        o = Base()
+        self.assertEqual(repr(o), 'Base(x=15.0,y=0)')
 
         o = C1()
         self.assertEqual(repr(o), 'C1(x=15,y=0,z=10)')
