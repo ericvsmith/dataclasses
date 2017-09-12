@@ -11,6 +11,7 @@ __all__ = ['dataclass',
            'astuple',
            ]
 
+# Just for development, I'll remove this before shipping.
 _debug = False
 
 # Raised when an attempt is made to modify a frozen class.
@@ -27,10 +28,14 @@ _MARKER = '__dataclass_fields__'
 # __init__.
 _POST_INIT_NAME = '__dataclass_post_init__'
 
-# This is only ever created from within this module, although instances are
+# Instances of Field are only ever created from within this module,
+#  and only from the field() function, although Field instances are
 #  exposed externally as (conceptually) read-only objects.
-# name and type are filled in after the fact, not in __init__. They're not
-#  known at the time this class is instantiated.
+# name and type are filled in after the fact, not in __init__. They're
+#  not known at the time this class is instantiated, but it's
+#  convenient if they're available later.
+# When cls._MARKER is filled in with a list of Field objects, the name
+#  and type fields will have been populated.
 class Field:
     __slots__ = ('name',
                  'type',
@@ -65,11 +70,9 @@ class Field:
                 ')')
 
 
-# When cls._MARKER is filled in with a list of Field objects, the name
-#  and type fields will have been populated.
-# This function is used instead of exposing Field directly, so that a
-#  type checker can be told (via overloads) that this is a function
-#  whose type depends on its parameters.
+# This function is used instead of exposing Field creation directly,
+#  so that a type checker can be told (via overloads) that this is a
+#  function whose type depends on its parameters.
 def field(*, default=_MISSING, default_factory=_MISSING, init=True, repr=True,
           hash=None, cmp=True):
     if default is not _MISSING and default_factory is not _MISSING:
@@ -412,13 +415,14 @@ def _process_class(cls, repr, cmp, hash, init, frozen):
                                 has_post_init,
 
                                 # The name to use for the "self" param
-                                #  in __init__.
+                                #  in __init__.  Use "self" if possible.
                                 '__dataclass_self__' if 'self' in fields
                                     else 'self',
                                 ))
     if repr:
         _set_attribute(cls, '__repr__',
                        _repr_fn(list(filter(lambda f: f.repr, field_list))))
+
     if is_frozen:
         _set_attribute(cls, '__setattr__', _frozen_setattr)
         _set_attribute(cls, '__delattr__', _frozen_delattr)
