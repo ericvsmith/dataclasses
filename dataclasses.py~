@@ -491,7 +491,7 @@ def asdict(obj):
       assert asdict(c) == {'x': 1, 'y': 2}
     """
     if isinstance(obj, type):
-        raise ValueError("asdict() should be called on dataclass instances, not classes")
+        raise ValueError("asdcit() should be called on dataclass instances, not classes")
     return {name: getattr(obj, name) for name in fields(obj)}
 
 
