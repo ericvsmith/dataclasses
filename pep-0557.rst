@@ -334,8 +334,9 @@ it looks through all of the class's base classes in reverse MRO (that
 is, starting at ``object``) and, for each Data Class that it finds,
 adds the fields from that base class to an ordered mapping of fields.
 After all of the base classes, it adds its own fields to the ordered
-mapping.  Because the fields are in insertion order, derived classes
-override base classes.  An example::
+mapping.  All of the generated methods will use this combined,
+calculated ordered mapping of fields.  Because the fields are in
+insertion order, derived classes override base classes.  An example::
 
   @dataclass
   class Base:
@@ -349,6 +350,10 @@ override base classes.  An example::
 
 The final list of fields is, in order, ``x``, ``y``, ``z``.  The final
 type of ``x`` is ``int``, as specified in class ``C``.
+
+The generated ``__init__`` method for ``C`` will look like::
+
+  def __init__(self, x:int = 15, y:int = 0, z:int = 10):
 
 Default factory functions
 -------------------------
