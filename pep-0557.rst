@@ -28,14 +28,16 @@ variables with type annotations as defined in PEP 526, "Syntax for
 Variable Annotations".  In this document, such variables are called
 fields.  Using these fields, the decorator adds generated method
 definitions to the class to support instance initialization, a repr,
-and comparisons methods.  Such a class is called a Data Class, but
-there's really nothing special about the class: it is the same class
-but with the generated methods added.
+and comparisons methods, and optionally other methods as described in
+Specification_.  Such a class is called a Data Class, but there's
+really nothing special about the class: it is the same class but with
+the generated methods added.
 
 As an example::
 
   @dataclass
   class InventoryItem:
+      '''Class for keeping track of an item in inventory.'''
       name: str
       unit_price: float
       quantity_on_hand: int = 0
@@ -110,6 +112,12 @@ interference from Data Classes.  The decorated classes are truly
 "normal" Python classes.  The Data Class decorator should not
 interfere with any usage of the class.
 
+One main design goal of Data Classes is to support static type
+checkers.  The use of PEP 526 syntax is one example of this, but so is
+the design of the ``fields()`` function and the ``@dataclass``
+decorator.  Due to their very dynamic nature, some of the libraries
+mentioned above are difficult to use with static type checkers.
+
 Data Classes are not, and are not intended to be, a replacement
 mechanism for all of the above libraries.  But being in the standard
 library will allow many of the simpler use cases to instead leverage
@@ -118,14 +126,12 @@ sets, and will of course continue to exist and prosper.
 
 Where is it not appropriate to use Data Classes?
 
-- Compatibility with tuples is required.
-
-- True immutability is required.
+- API compatibility with tuples or dicts is required.
 
 - Type validation beyond that provided by PEPs 484 and 526 is
   required, or value validation is required.
 
-XXX Motivation for each dataclass() and field() parameter
+.. _Specification:
 
 Specification
 =============
@@ -134,14 +140,14 @@ All of the functions described in this PEP will live in a module named
 ``dataclasses``.
 
 A function ``dataclass`` which is typically used as a class decorator
-is provided to post-process classes and add generated member
-functions, described below.
+is provided to post-process classes and add generated methods,
+described below.
 
 The ``dataclass`` decorator examines the class to find ``field``'s.  A
 ``field`` is defined as any variable identified in
-``__annotations__``.  That is, a variable that is decorated with a
-type annotation.  With a single exception described below, none of the
-Data Class machinery examines the type specified in the annotation.
+``__annotations__``.  That is, a variable that has a type annotation.
+With a single exception described below, none of the Data Class
+machinery examines the type specified in the annotation.
 
 Note that ``__annotations__`` is guaranteed to be an ordered mapping,
 in class declaration order.  The order of the fields in all of the
@@ -215,6 +221,11 @@ Python syntax::
       a: int       # 'a' has no default value
       b: int = 0   # assign a default value for 'b'
 
+In this example, both ``a`` and ``b`` will be included in the added
+``__init__`` function, which will be defined as::
+
+  def __init__(self, a:int, b:int = 0):
+
 For common and simple use cases, no other functionality is required.
 There are, however, some Data Class features that require additional
 per-field information.  To satisfy this need for additional
@@ -241,14 +252,14 @@ The parameters to ``field()`` are:
   with mutable default values, as discussed below.  It is an error to
   specify both ``default`` and ``default_factory``.
 
-- ``init``: If True, this field is included as a parameter to the
-  generated ``__init__`` function.
+- ``init``: If True (the default), this field is included as a
+  parameter to the generated ``__init__`` function.
 
-- ``repr``: If True, this field is included in the string returned by
-  the generated ``__repr__`` function.
+- ``repr``: If True (the default), this field is included in the
+  string returned by the generated ``__repr__`` function.
 
-- ``cmp``: If True, this field is included in the generated comparison
-  methods (``__eq__`` et al).
+- ``cmp``: If True (the default), this field is included in the
+  generated comparison methods (``__eq__`` et al).
 
 - ``hash``: This can be a bool or ``None``.  If True, this field is
   included in the generated ``__hash__`` method.  If ``None`` (the
@@ -281,7 +292,16 @@ The generated ``__init__`` code will call a method named
 be called as ``self.__dataclass_post_init__()``.
 
 Among other uses, this allows for initializing field values that
-depend on one or more other fields.
+depend on one or more other fields.  For example::
+
+    @dataclass
+    class C:
+        a: float
+        b: float
+        c: float = field(init=False)
+
+        def __dataclass_post_init__(self):
+            self.c = self.a + self.b
 
 Class variables
 ---------------
@@ -291,7 +311,7 @@ field is to determine if a field is a class variable.  It does this by
 seeing if the type of the field is given as of type
 ``typing.ClassVar``.  If a field is a ``ClassVar``, it is excluded
 from consideration as a field and is ignored by the Data Class
-mechanisms.
+mechanisms. For more discussion, see [#]_.
 
 Frozen instances
 ----------------
@@ -305,39 +325,6 @@ These functions will raise a ``FrozenInstanceError`` when invoked.
 There is a tiny performance penalty when using ``frozen=True``:
 ``__init__`` cannot use simple assignment to initialize fields, and
 must use ``object.__setattr__``.
-
-Mutable default values
-----------------------
-
-Python stores the default field values in class attributes.
-Consider this example, not using Data Classes::
-
-  class C:
-      x = []
-      def __init__(self, x=x):
-          self.x = x
-
-  assert C().x is C().x
-  assert C().x is not C([]).x
-
-That is, two instances of class ``C`` that do not not specify a value
-for ``x`` when creating a class instance will share the same copy of
-the list.  Because Data Classes just use normal Python class creation,
-they also share this problem.  There is no general way for Data
-Classes to detect this condition.  Instead, Data Classes will raise a
-``TypeError`` if it detects a default parameter of type ``list``,
-``dict``, or ``set``.  This is a partial solution, but it does protect
-against many common errors.  See `How to support mutable default
-values`_ in the Discussion section for more details.
-
-Using default factory functions is a way to create new instances of
-mutable types as default values for fields::
-
-  @dataclass
-  class C:
-      x: list = field(default_factory=list)
-
-  assert C().x is not C().x
 
 Inheritance
 -----------
@@ -377,6 +364,38 @@ the field also specifies ``default_factory``, then the default factory
 function will always be called from the generated ``__init__``
 function.  This happens because there is no other way to give the
 field a default value.
+
+Mutable default values
+----------------------
+
+Python stores the default field values in class attributes.
+Consider this example, not using Data Classes::
+
+  class C:
+      def __init__(self, x=[]):
+          self.x = x
+
+  assert C().x is C().x
+  assert C().x is not C([]).x
+
+That is, two instances of class ``C`` that do not not specify a value
+for ``x`` when creating a class instance will share the same copy of
+the list.  Because Data Classes just use normal Python class creation,
+they also share this problem.  There is no general way for Data
+Classes to detect this condition.  Instead, Data Classes will raise a
+``TypeError`` if it detects a default parameter of type ``list``,
+``dict``, or ``set``.  This is a partial solution, but it does protect
+against many common errors.  See `How to support mutable default
+values`_ in the Discussion section for more details.
+
+Using default factory functions is a way to create new instances of
+mutable types as default values for fields::
+
+  @dataclass
+  class C:
+      x: list = field(default_factory=list)
+
+  assert C().x is not C().x
 
 Module level helper functions
 -----------------------------
@@ -433,9 +452,9 @@ mechanism to optionally pass a parameter to the
 Why not just use namedtuple
 ---------------------------
 
-- Any namedtuple can be compared to any other with the same number of
-  fields. For example: ``Point3D(2017, 6, 2) == Date(2017, 6, 2)``.
-  With Data Classes, this would return False.
+- Any namedtuple can be accidentally compared to any other with the
+  same number of fields. For example: ``Point3D(2017, 6, 2) ==
+  Date(2017, 6, 2)``.  With Data Classes, this would return False.
 
 - A namedtuple can be compared to a tuple.  For example ``Point2D(1,
   10) == (1, 10)``.  With Data Classes, this would return False.
@@ -460,6 +479,8 @@ Why not just use namedtuple
 
 - Cannot control which fields are used for ``__init__``, ``__repr__``,
   etc.
+
+- Cannot support combining fields by inheritance.
 
 Why not just use typing.NamedTuple
 ----------------------------------
@@ -536,10 +557,10 @@ This can be replaced by::
 
   @dataclass
   class Application:
-      name: Str
-      requirements: List
+      name: str
+      requirements: List[Requirement]
       constraints: List[str] = field(default_factory=list)
-      path: Str = ''
+      path: str = ''
       executable_links: List[str] = field(default_factory=list)
       executable_dir: Tuple[str] = ()
       additional_items: List[str] = field(init=False, default_factory=list)
@@ -579,6 +600,9 @@ References
 
 .. [#] Python documentation for __hash__
        (https://docs.python.org/3/reference/datamodel.html#object.__hash__)
+
+.. [#] ClassVar discussion in PEP 526
+       (https://www.python.org/dev/peps/pep-0526/#class-and-instance-variable-annotations)
 
 .. [#] Start of python-ideas discussion
        (https://mail.python.org/pipermail/python-ideas/2017-May/045618.html)
