@@ -180,13 +180,13 @@ class TestCase(unittest.TestCase):
             x: int = 15
 
         o = Base()
-        self.assertEqual(repr(o), 'Base(x=15.0,y=0)')
+        self.assertEqual(repr(o), 'Base(x=15.0, y=0)')
 
         o = C1()
-        self.assertEqual(repr(o), 'C1(x=15,y=0,z=10)')
+        self.assertEqual(repr(o), 'C1(x=15, y=0, z=10)')
 
         o = C1(x=5)
-        self.assertEqual(repr(o), 'C1(x=5,y=0,z=10)')
+        self.assertEqual(repr(o), 'C1(x=5, y=0, z=10)')
 
     def test_field_named_self(self):
         @dataclass
@@ -205,12 +205,12 @@ class TestCase(unittest.TestCase):
             y: int = 10
 
         o = C(4)
-        self.assertEqual(repr(o), 'C(x=4,y=10)')
+        self.assertEqual(repr(o), 'C(x=4, y=10)')
 
         @dataclass
         class D(C):
             x: int = 20
-        self.assertEqual(repr(D()), 'D(x=20,y=10)')
+        self.assertEqual(repr(D()), 'D(x=20, y=10)')
 
     def test_0_field_cmp(self):
         @dataclass
@@ -880,7 +880,7 @@ class TestCase(unittest.TestCase):
             t: ClassVar[int] = 3000
 
         c = C(5)
-        self.assertEqual(repr(c), 'C(x=5,y=10)')
+        self.assertEqual(repr(c), 'C(x=5, y=10)')
         self.assertEqual(len(fields(C)), 2)                 # We have 2 fields
         self.assertEqual(len(C.__annotations__), 5)         # And 3 ClassVars
         self.assertEqual(c.z, 1000)
@@ -905,7 +905,7 @@ class TestCase(unittest.TestCase):
             t: ClassVar[int] = 3000
 
         c = C(5)
-        self.assertEqual(repr(C(5)), 'C(x=5,y=10)')
+        self.assertEqual(repr(C(5)), 'C(x=5, y=10)')
         self.assertEqual(len(fields(C)), 2)                 # We have 2 fields
         self.assertEqual(len(C.__annotations__), 5)         # And 3 ClassVars
         self.assertEqual(c.z, 1000)
@@ -934,7 +934,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c0.y, [])
         self.assertEqual(c0, c1)
         self.assertIsNot(c0.y, c1.y)
-        self.assertEqual(repr(C(5, [1])), 'C(x=5,y=[1])')
+        self.assertEqual(repr(C(5, [1])), 'C(x=5, y=[1])')
 
         # Test a factory that returns a shared list.
         l = []
@@ -949,7 +949,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c0.y, [])
         self.assertEqual(c0, c1)
         self.assertIs(c0.y, c1.y)
-        self.assertEqual(repr(C(5, [1])), 'C(x=5,y=[1])')
+        self.assertEqual(repr(C(5, [1])), 'C(x=5, y=[1])')
 
         # Test various other field flags.
         # repr
