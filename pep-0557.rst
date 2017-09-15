@@ -160,7 +160,7 @@ The ``dataclass`` decorator is typically used with no parameters and
 no parentheses.  However, it also supports the following logical
 signature::
 
-  def dataclass(*, init=True, repr=True, hash=None, cmp=True, frozen=False)
+  def dataclass(*, init=True, repr=True, hash=None, eq=True, compare=True, frozen=False)
 
 If ``dataclass`` is used just as a simple decorator with no
 parameters, it acts as if it has the default values documented in this
@@ -174,7 +174,7 @@ signature.  That is, these three uses of ``@dataclass`` are equivalent::
   class C:
       ...
 
-  @dataclass(init=True, repr=True, hash=None, cmp=True, frozen=False)
+  @dataclass(init=True, repr=True, hash=None, eq=True, compare=True, frozen=False)
   class C:
       ...
 
@@ -189,19 +189,26 @@ The parameters to ``dataclass`` are:
   For example:
   ``InventoryItem(name='widget',unit_price=3.0,quantity_on_hand=10)``.
 
-- ``cmp``: If true, ``__eq__``, ``__ne__``, ``__lt__``, ``__le__``,
-  ``__gt__``, and ``__ge__`` methods will be generated.  These compare
-  the class as if it were a tuple of its fields, in order.  Both
-  instances in the comparison must be of the identical type.
+- ``eq``: If True, ``__eq__`` and ``__ne__`` methods will be
+  generated.  These compare the class as if it were a tuple of its
+  fields, in order.  Both instances in the comparison
+  must be of the identical type.
+
+- ``compare``: If true, ``__lt__``, ``__le__``, ``__gt__``, and
+  ``__ge__`` methods will be generated.  These compare the class as if
+  it were a tuple of its fields, in order.  Both instances in the
+  comparison must be of the identical type.  If ``compare`` is True,
+  then ``eq`` is ignored, and ``__eq__`` and ``__ne__`` will be
+  automatically generated.
 
 - ``hash``: Either a bool or ``None``.  If ``None`` (the default), the
-  ``__hash__`` method is generated according to how cmp and frozen are
-  set.
+  ``__hash__`` method is generated according to how ``eq and
+  ``frozen`` are set.
 
-  If ``cmp`` and ``frozen`` are both true, Data Classes will generate
-  a ``__hash__`` for you.  If ``cmp`` is true and ``frozen`` is false,
+  If ``eq`` and ``frozen`` are both true, Data Classes will generate a
+  ``__hash__`` for you.  If ``eq`` is true and ``frozen`` is false,
   ``__hash__`` will be set to ``None``, marking it unhashable (which
-  it is).  If cmp is false, ``__hash__`` will be left untouched
+  it is).  If ``eq`` is false, ``__hash__`` will be left untouched
   meaning the ``__hash__`` method of the superclass will be used (if
   superclass is ``object``, this means it will fall back to id-based
   hashing).

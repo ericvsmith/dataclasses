@@ -99,7 +99,7 @@ class TestCase(unittest.TestCase):
                 def __eq__(self):
                     pass
 
-        @dataclass(cmp=False)
+        @dataclass(compare=False, eq=False)
         class C:
             x: int
             def __eq__(self, other):
@@ -296,26 +296,39 @@ class TestCase(unittest.TestCase):
             hash(C(1))
 
     def test_hash_rules(self):
-        # Test all 12 cases of:
+        # Test all 24cases of:
         #  hash=True/False/None
+        #  eq=True/False
         #  cmp=True/False
         #  frozen=True/False
-        for hash,   cmp,   frozen, result in [
-            (True,  False, False,  'fn'),
-            (True,  False, True,   'fn'),
-            (True,  True,  False,  'fn'),
-            (True,  True,  True,   'fn'),
-            (False, False, False,  'absent'),
-            (False, False, True,   'absent'),
-            (False, True,  False,  'absent'),
-            (False, True,  True,   'absent'),
-            (None,  False, False,  'absent'),
-            (None,  False, True,   'absent'),
-            (None,  True,  False,  'none'),
-            (None,  True,  True,   'fn'),
+        for hash,   eq,    compare, frozen, result in [
+            (False, False, False,   False,  'absent'),
+            (False, False, False,   True,   'absent'),
+            (False, False, True,    False,  'absent'),
+            (False, False, True,    True,   'absent'),
+            (False, True,  False,   False,  'absent'),
+            (False, True,  False,   True,   'absent'),
+            (False, True,  True,    False,  'absent'),
+            (False, True,  True,    True,   'absent'),
+            (True,  False, False,   False,  'fn'),
+            (True,  False, False,   True,   'fn'),
+            (True,  False, True,    False,  'fn'),
+            (True,  False, True,    True,   'fn'),
+            (True,  True,  False,   False,  'fn'),
+            (True,  True,  False,   True,   'fn'),
+            (True,  True,  True,    False,  'fn'),
+            (True,  True,  True,    True,   'fn'),
+            (None,  False, False,   False,  'absent'),
+            (None,  False, False,   True,   'absent'),
+            (None,  False, True,    False,  'none'),
+            (None,  False, True,    True,   'fn'),
+            (None,  True,  False,   False,  'none'),
+            (None,  True,  False,   True,   'fn'),
+            (None,  True,  True,    False,  'none'),
+            (None,  True,  True,    True,   'fn'),
             ]:
-            with self.subTest(hash=hash, cmp=cmp, frozen=frozen):
-                @dataclass(hash=hash, cmp=cmp, frozen=frozen)
+            with self.subTest(hash=hash, eq=eq, compare=compare, frozen=frozen):
+                @dataclass(hash=hash, eq=eq, compare=compare, frozen=frozen)
                 class C:
                     pass
 
@@ -331,6 +344,43 @@ class TestCase(unittest.TestCase):
                     # __hash__ is set to None.
                     self.assertIn('__hash__', C.__dict__)
                     self.assertIs(C.__dict__['__hash__'], None)
+                else:
+                    assert False, f'unknown result {result!r}'
+
+    def test_eq_compare(self):
+        # Check that if compare is True, then eq is forced to True, too.
+        for eq,     compare, result in [
+            (False, False,   'neither'),
+            (False, True,    'both'),
+            (True,  False,   'eq_only'),
+            (True,  True,    'both'),
+            ]:
+            with self.subTest(eq=eq, compare=compare):
+                @dataclass(eq=eq, compare=compare)
+                class C:
+                    pass
+
+                if result == 'neither':
+                    self.assertNotIn('__eq__', C.__dict__)
+                    self.assertNotIn('__ne__', C.__dict__)
+                    self.assertNotIn('__lt__', C.__dict__)
+                    self.assertNotIn('__le__', C.__dict__)
+                    self.assertNotIn('__gt__', C.__dict__)
+                    self.assertNotIn('__ge__', C.__dict__)
+                elif result == 'both':
+                    self.assertIn('__eq__', C.__dict__)
+                    self.assertIn('__ne__', C.__dict__)
+                    self.assertIn('__lt__', C.__dict__)
+                    self.assertIn('__le__', C.__dict__)
+                    self.assertIn('__gt__', C.__dict__)
+                    self.assertIn('__ge__', C.__dict__)
+                elif result == 'eq_only':
+                    self.assertIn('__eq__', C.__dict__)
+                    self.assertIn('__ne__', C.__dict__)
+                    self.assertNotIn('__lt__', C.__dict__)
+                    self.assertNotIn('__le__', C.__dict__)
+                    self.assertNotIn('__gt__', C.__dict__)
+                    self.assertNotIn('__ge__', C.__dict__)
                 else:
                     assert False, f'unknown result {result!r}'
 

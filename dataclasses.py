@@ -264,15 +264,25 @@ def _cmp_fn(name, op, self_tuple, other_tuple):
                         'return NotImplemented'])
 
 
-def _set_cmp_fns(cls, fields):
-    # Create and set all of the comparison functions on cls.
+def _set_eq_fns(cls, fields):
+    # Create and set the equality comparison methods on cls.
     # Pre-compute self_tuple and other_tuple, then re-use them for
     #  each function.
     self_tuple = _tuple_str('self', fields)
     other_tuple = _tuple_str('other', fields)
     for name, op in [('__eq__', '=='),
                      ('__ne__', '!='),
-                     ('__lt__', '<'),
+                     ]:
+        _set_attribute(cls, name, _cmp_fn(name, op, self_tuple, other_tuple))
+
+
+def _set_compare_fns(cls, fields):
+    # Create and set the comparison methods on cls.
+    # Pre-compute self_tuple and other_tuple, then re-use them for
+    #  each function.
+    self_tuple = _tuple_str('self', fields)
+    other_tuple = _tuple_str('other', fields)
+    for name, op in [('__lt__', '<'),
                      ('__le__', '<='),
                      ('__gt__', '>'),
                      ('__ge__', '>='),
@@ -334,7 +344,7 @@ def _set_attribute(cls, name, value):
     setattr(cls, name, value)
 
 
-def _process_class(cls, repr, cmp, hash, init, frozen):
+def _process_class(cls, repr, eq, compare, hash, init, frozen):
     # Use an OrderedDict because:
     #  - Order matters!
     #  - Derived class fields overwrite base class fields.
@@ -351,7 +361,9 @@ def _process_class(cls, repr, cmp, hash, init, frozen):
             for f in b_fields.values():
                 fields[f.name] = f
 
-    # Now process our class.
+    # Now find fields in our class.  While doing so, validate some
+    #  things, and set the default values (as class attributes)
+    #  where we can.
     for name, type_, f in _find_fields(cls):
         fields[name] = f
 
@@ -359,7 +371,7 @@ def _process_class(cls, repr, cmp, hash, init, frozen):
         #  grabbed them from the annotations.
         assert f.name is None and f.type is None
 
-        # Set the name and type, which we don't know until now.
+        # Set the field name and type, which we don't know until now.
         f.name = name
         f.type = type_
 
@@ -406,6 +418,10 @@ def _process_class(cls, repr, cmp, hash, init, frozen):
     #  be inherited down.
     is_frozen = frozen or cls.__setattr__ is _frozen_setattr
 
+    # If we're generating comparison methods, also generate the eq methods.
+    if compare:
+        eq = True
+
     if init:
         # Does this class have a post-init function?
         has_post_init = hasattr(cls, _POST_INIT_NAME)
@@ -429,13 +445,13 @@ def _process_class(cls, repr, cmp, hash, init, frozen):
 
     generate_hash = False
     if hash is None:
-        if cmp and frozen:
+        if eq and frozen:
             # Generate a hash function.
             generate_hash = True
-        elif cmp and not frozen:
+        elif eq and not frozen:
             # Not hashable.
             _set_attribute(cls, '__hash__', None)
-        elif not cmp:
+        elif not eq:
             # Otherwise, use the base class definition of hash().  That is,
             #  don't set anything on this class.
             pass
@@ -450,9 +466,14 @@ def _process_class(cls, repr, cmp, hash, init, frozen):
                                                       else f.hash,
                                             field_list))))
 
-    if cmp:
+    if eq:
+        # Create and __eq__ and __ne__ methods.
+        _set_eq_fns(cls, list(filter(lambda f: f.cmp, field_list)))
+
+    if compare:
+        # Create and __lt__, __le__, __gt__, and __ge__ methods.
         # Create and set the comparison functions.
-        _set_cmp_fns(cls, list(filter(lambda f: f.cmp, field_list)))
+        _set_compare_fns(cls, list(filter(lambda f: f.cmp, field_list)))
 
     return cls
 
@@ -460,10 +481,10 @@ def _process_class(cls, repr, cmp, hash, init, frozen):
 # _cls should never be specified by keyword, so start it with an
 #  underscore. The presense of _cls is used to detect if this
 #  decorator is being called with parameters or not.
-def dataclass(_cls=None, *, init=True, repr=True, hash=None, cmp=True,
-               frozen=False):
+def dataclass(_cls=None, *, init=True, repr=True, hash=None, eq=True,
+              compare=True, frozen=False):
     def wrap(cls):
-        return _process_class(cls, repr, cmp, hash, init, frozen)
+        return _process_class(cls, repr, eq, compare, hash, init, frozen)
 
     # See if we're being called as @dataclass or @dataclass().
     if _cls is None:
