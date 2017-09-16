@@ -463,6 +463,28 @@ parameters.  This was deemed to be simpler than trying to find a
 mechanism to optionally pass a parameter to the
 ``__dataclass_post_init__`` function.
 
+The normal way of doing such parameterized initialization (and not
+just with Data Classes) is to provide an alternate classmethod
+constructor.  For example::
+
+  @dataclass
+  class C:
+      x: int
+
+      @classmethod
+      def from_file(cls, filename):
+          with open(filename) as fl:
+              file_value = int(fl.read())
+          return C(file_value)
+
+  c = C.from_file('file.txt')
+
+Because ``__dataclass_post_init__`` function is the last thing called
+in the generated ``__init__``, having a classmethod constructor (which
+can also execute code immmediately after constructing the object), is
+functionally equivalent to being able to pass parameters to a
+`__dataclass_post_init__`` function.
+
 
 Why not just use namedtuple
 ---------------------------

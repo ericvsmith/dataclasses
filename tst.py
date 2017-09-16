@@ -1216,6 +1216,22 @@ class TestCase(unittest.TestCase):
         self.assertIn('e', c.__dict__)
         self.assertEqual(c.e, 0)
 
+    def test_alternate_classmethod_constructor(self):
+        # Since __dataclass_post_init__ can't take params, use a
+        #  classmethod alternate constructor. This is mostly an
+        #  example to show how to use this technique.
+        @dataclass
+        class C:
+            x: int
+            @classmethod
+            def from_file(cls, filename):
+                # In a real example, create a new instance
+                #  and populate 'x' from contents of a file.
+                value_in_file = 20
+                return cls(value_in_file)
+
+        self.assertEqual(C.from_file('filename').x, 20)
+
 def main():
     unittest.main()
 
