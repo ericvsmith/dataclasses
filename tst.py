@@ -1157,6 +1157,20 @@ class TestCase(unittest.TestCase):
         self.assertEqual(asdict(u, nested=True), {'name': 'Joe',
                                                   'id': {'token': 123, 'group': 2}})
 
+    def test_helper_asdict_factory(self):
+        @dataclass
+        class C:
+            x: int
+            y: int
+        c = C(1, 2)
+        d = asdict(c, dict_factory=OrderedDict)
+        self.assertEqual(d, OrderedDict([('x', 1), ('y', 2)]))
+        self.assertIsNot(d, asdict(c, dict_factory=OrderedDict))
+        c.x = 42
+        d = asdict(c, dict_factory=OrderedDict)
+        self.assertEqual(d, OrderedDict([('x', 42), ('y', 2)]))
+        self.assertIs(type(d), OrderedDict)
+
     def test_helper_astuple(self):
         # Basic tests for astuple(), it should return a new tuple
         @dataclass

@@ -500,7 +500,7 @@ def fields(cls):
     return getattr(cls, _MARKER)
 
 
-def asdict(obj, *, copy_fields=True, nested=False):
+def asdict(obj, *, copy_fields=True, nested=False, dict_factory=None):
     """Get the fields of a dataclass instance as a new dictionary mapping
     field names to field values. Example usage::
 
@@ -513,20 +513,21 @@ def asdict(obj, *, copy_fields=True, nested=False):
       assert asdict(c) == {'x': 1, 'y': 2}
 
     If 'copy_fields' is True (default), use shallow copy of field values.
+    If given, 'dict_factory' will be used instead of built-in dict.
     If 'nested' is True, apply 'asdict' to field values that are dataclass
     instances.
     """
     if isinstance(obj, type):
         raise ValueError("asdict() should be called on dataclass instances, not classes")
-    result = {}
+    result = []
     for name in fields(obj):
         value = getattr(obj, name)
         if nested and hasattr(value, _MARKER):
             value = asdict(value, copy_fields=copy_fields, nested=nested)
         elif copy_fields:
             value = copy.copy(value)
-        result[name] = value
-    return result
+        result.append((name, value))
+    return (dict_factory or dict)(result)
 
 
 def astuple(obj, *, copy_fields=True, nested=False):
