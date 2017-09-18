@@ -1,4 +1,5 @@
 import sys
+import copy
 import collections
 
 __all__ = ['dataclass',
@@ -499,7 +500,7 @@ def fields(cls):
     return getattr(cls, _MARKER)
 
 
-def asdict(obj):
+def asdict(obj, *, copy_fields=True, nested=False):
     """Get the fields of a dataclass instance as a new dictionary mapping
     field names to field values. Example usage::
 
@@ -510,13 +511,25 @@ def asdict(obj):
 
       c = C(1, 2)
       assert asdict(c) == {'x': 1, 'y': 2}
+
+    If 'copy_fields' is True (default), use shallow copy of field values.
+    If 'nested' is True, apply 'asdict' to field values that are dataclass
+    instances.
     """
     if isinstance(obj, type):
         raise ValueError("asdict() should be called on dataclass instances, not classes")
-    return {name: getattr(obj, name) for name in fields(obj)}
+    result = {}
+    for name in fields(obj):
+        value = getattr(obj, name)
+        if nested and hasattr(value, _MARKER):
+            value = asdict(value, copy_fields=copy_fields, nested=nested)
+        elif copy_fields:
+            value = copy.copy(value)
+        result[name] = value
+    return result
 
 
-def astuple(obj):
+def astuple(obj, *, copy_fields=True, nested=False):
     """Get the fields of a dataclass instance as a new tuple of field values.
     Example usage::
 
@@ -527,7 +540,19 @@ def astuple(obj):
 
     c = C(1, 2)
     assert asdtuple(c) == (1, 2)
+
+    If 'copy_fields' is True (default), use shallow copy of field values.
+    If 'nested' is True, apply 'astuple' to field values that are dataclass
+    instances.
     """
     if isinstance(obj, type):
         raise ValueError("astuple() should be called on dataclass instances, not classes")
-    return tuple(getattr(obj, name) for name in fields(obj))
+    result = []
+    for name in fields(obj):
+        value = getattr(obj, name)
+        if nested and hasattr(value, _MARKER):
+            value = astuple(value, copy_fields=copy_fields, nested=nested)
+        elif copy_fields:
+            value = copy.copy(value)
+        result.append(value)
+    return tuple(result)

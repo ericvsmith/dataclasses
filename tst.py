@@ -4,7 +4,7 @@ from dataclasses import (
 
 import inspect
 import unittest
-from typing import ClassVar, Any
+from typing import ClassVar, Any, List
 from collections import OrderedDict
 
 # Just any custom exception we can catch.
@@ -1111,6 +1111,52 @@ class TestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'dataclass instance'):
             asdict(int)
 
+    def test_helper_asdict_copy_values(self):
+        @dataclass
+        class C:
+            x: int
+            y: List[int] = field(default_factory=list)
+        initial = []
+        c = C(1, initial)
+        d = asdict(c)
+        self.assertEqual(d['y'], initial)
+        self.assertIsNot(d['y'], initial)
+        c = C(1)
+        d = asdict(c)
+        d['y'].append(1)
+        self.assertEqual(c.y, [])
+
+    def test_helper_asdict_no_copy(self):
+        @dataclass
+        class C:
+            x: int
+            y: List[int] = field(default_factory=list)
+        initial = []
+        c = C(1, initial)
+        d = asdict(c, copy_fields=False)
+        self.assertIs(d['y'], initial)
+        c = C(1)
+        d = asdict(c, copy_fields=False)
+        d['y'].append(1)
+        self.assertEqual(c.y, [1])
+
+    def test_helper_asdict_nested(self):
+        @dataclass
+        class UserId:
+            token: int
+            group: int
+        @dataclass
+        class User:
+            name: str
+            id: UserId
+        u = User('Joe', UserId(123, 1))
+        d = asdict(u, nested=True)
+        self.assertEqual(d, {'name': 'Joe', 'id': {'token': 123, 'group': 1}})
+        self.assertIsNot(asdict(u, nested=True), asdict(u, nested=True))
+        u.id.group = 2
+        self.assertEqual(asdict(u, nested=True), {'name': 'Joe',
+                                                  'id': {'token': 123, 'group': 2}})
+
     def test_helper_astuple(self):
         # Basic tests for astuple(), it should return a new tuple
         @dataclass
@@ -1136,6 +1182,51 @@ class TestCase(unittest.TestCase):
             astuple(C)
         with self.assertRaisesRegex(ValueError, 'dataclass instance'):
             astuple(int)
+
+    def test_helper_tuple_copy_values(self):
+        @dataclass
+        class C:
+            x: int
+            y: List[int] = field(default_factory=list)
+        initial = []
+        c = C(1, initial)
+        t = astuple(c)
+        self.assertEqual(t[1], initial)
+        self.assertIsNot(t[1], initial)
+        c = C(1)
+        t = astuple(c)
+        t[1].append(1)
+        self.assertEqual(c.y, [])
+
+    def test_helper_astuple_no_copy(self):
+        @dataclass
+        class C:
+            x: int
+            y: List[int] = field(default_factory=list)
+        initial = []
+        c = C(1, initial)
+        t = astuple(c, copy_fields=False)
+        self.assertIs(t[1], initial)
+        c = C(1)
+        t = astuple(c, copy_fields=False)
+        t[1].append(1)
+        self.assertEqual(c.y, [1])
+
+    def test_helper_astuple_nested(self):
+        @dataclass
+        class UserId:
+            token: int
+            group: int
+        @dataclass
+        class User:
+            name: str
+            id: UserId
+        u = User('Joe', UserId(123, 1))
+        t = astuple(u, nested=True)
+        self.assertEqual(t, ('Joe', (123, 1)))
+        self.assertIsNot(astuple(u, nested=True), astuple(u, nested=True))
+        u.id.group = 2
+        self.assertEqual(astuple(u, nested=True), ('Joe', (123, 2)))
 
     def test_dynamic_class_creation(self):
         cls_dict = {'__annotations__': OrderedDict(x=int, y=int),
