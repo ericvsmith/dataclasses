@@ -5,7 +5,7 @@ from dataclasses import (
 import inspect
 import unittest
 from typing import ClassVar, Any, List
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple
 
 # Just any custom exception we can catch.
 class CustomError(Exception): pass
@@ -1241,6 +1241,23 @@ class TestCase(unittest.TestCase):
         self.assertIsNot(astuple(u, nested=True), astuple(u, nested=True))
         u.id.group = 2
         self.assertEqual(astuple(u, nested=True), ('Joe', (123, 2)))
+
+    def test_helper_astuple_factory(self):
+        @dataclass
+        class C:
+            x: int
+            y: int
+        NT = namedtuple('NT', 'x y')
+        def nt(lst):
+            return NT(*lst)
+        c = C(1, 2)
+        t = astuple(c, tuple_factory=nt)
+        self.assertEqual(t, NT(1, 2))
+        self.assertIsNot(t, astuple(c, tuple_factory=nt))
+        c.x = 42
+        t = astuple(c, tuple_factory=nt)
+        self.assertEqual(t, NT(42, 2))
+        self.assertIs(type(t), NT)
 
     def test_dynamic_class_creation(self):
         cls_dict = {'__annotations__': OrderedDict(x=int, y=int),

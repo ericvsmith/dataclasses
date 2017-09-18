@@ -523,14 +523,15 @@ def asdict(obj, *, copy_fields=True, nested=False, dict_factory=None):
     for name in fields(obj):
         value = getattr(obj, name)
         if nested and hasattr(value, _MARKER):
-            value = asdict(value, copy_fields=copy_fields, nested=nested)
+            value = asdict(value, copy_fields=copy_fields,
+                           nested=nested, dict_factory=dict_factory)
         elif copy_fields:
             value = copy.copy(value)
         result.append((name, value))
     return (dict_factory or dict)(result)
 
 
-def astuple(obj, *, copy_fields=True, nested=False):
+def astuple(obj, *, copy_fields=True, nested=False, tuple_factory=None):
     """Get the fields of a dataclass instance as a new tuple of field values.
     Example usage::
 
@@ -543,6 +544,7 @@ def astuple(obj, *, copy_fields=True, nested=False):
     assert asdtuple(c) == (1, 2)
 
     If 'copy_fields' is True (default), use shallow copy of field values.
+    If given, 'tuple_factory' will be used instead of built-in tuple.
     If 'nested' is True, apply 'astuple' to field values that are dataclass
     instances.
     """
@@ -552,8 +554,9 @@ def astuple(obj, *, copy_fields=True, nested=False):
     for name in fields(obj):
         value = getattr(obj, name)
         if nested and hasattr(value, _MARKER):
-            value = astuple(value, copy_fields=copy_fields, nested=nested)
+            value = astuple(value, copy_fields=copy_fields,
+                            nested=nested, tuple_factory=tuple_factory)
         elif copy_fields:
             value = copy.copy(value)
         result.append(value)
-    return tuple(result)
+    return (tuple_factory or tuple)(result)
