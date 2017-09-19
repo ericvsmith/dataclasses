@@ -500,7 +500,7 @@ def fields(cls):
     return getattr(cls, _MARKER)
 
 
-def asdict(obj, *, copy_fields=True, nested=False, dict_factory=None):
+def asdict(obj, *, copy_function=copy.copy, dict_factory=dict, nested=False):
     """Get the fields of a dataclass instance as a new dictionary mapping
     field names to field values. Example usage::
 
@@ -512,7 +512,8 @@ def asdict(obj, *, copy_fields=True, nested=False, dict_factory=None):
       c = C(1, 2)
       assert asdict(c) == {'x': 1, 'y': 2}
 
-    If 'copy_fields' is True (default), use shallow copy of field values.
+    The 'copy_function' (if not None) is applied to field values, by default
+    this is shallow copy.copy from standard library.
     If given, 'dict_factory' will be used instead of built-in dict.
     If 'nested' is True, apply 'asdict' to field values that are dataclass
     instances.
@@ -523,15 +524,15 @@ def asdict(obj, *, copy_fields=True, nested=False, dict_factory=None):
     for name in fields(obj):
         value = getattr(obj, name)
         if nested and hasattr(value, _MARKER):
-            value = asdict(value, copy_fields=copy_fields,
-                           nested=nested, dict_factory=dict_factory)
-        elif copy_fields:
-            value = copy.copy(value)
+            value = asdict(value, copy_function=copy_function,
+                           dict_factory=dict_factory, nested=nested)
+        elif copy_function is not None:
+            value = copy_function(value)
         result.append((name, value))
-    return (dict_factory or dict)(result)
+    return dict_factory(result)
 
 
-def astuple(obj, *, copy_fields=True, nested=False, tuple_factory=None):
+def astuple(obj, *, copy_function=copy.copy, tuple_factory=tuple, nested=False):
     """Get the fields of a dataclass instance as a new tuple of field values.
     Example usage::
 
@@ -543,7 +544,8 @@ def astuple(obj, *, copy_fields=True, nested=False, tuple_factory=None):
     c = C(1, 2)
     assert asdtuple(c) == (1, 2)
 
-    If 'copy_fields' is True (default), use shallow copy of field values.
+    The 'copy_function' (if not None) is applied to field values, by default
+    this is shallow copy.copy from standard library.
     If given, 'tuple_factory' will be used instead of built-in tuple.
     If 'nested' is True, apply 'astuple' to field values that are dataclass
     instances.
@@ -554,9 +556,9 @@ def astuple(obj, *, copy_fields=True, nested=False, tuple_factory=None):
     for name in fields(obj):
         value = getattr(obj, name)
         if nested and hasattr(value, _MARKER):
-            value = astuple(value, copy_fields=copy_fields,
-                            nested=nested, tuple_factory=tuple_factory)
-        elif copy_fields:
-            value = copy.copy(value)
+            value = astuple(value, copy_function=copy_function,
+                            tuple_factory=tuple_factory, nested=nested)
+        elif copy_function is not None:
+            value = copy_function(value)
         result.append(value)
-    return (tuple_factory or tuple)(result)
+    return tuple_factory(result)

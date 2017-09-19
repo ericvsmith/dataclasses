@@ -1133,10 +1133,10 @@ class TestCase(unittest.TestCase):
             y: List[int] = field(default_factory=list)
         initial = []
         c = C(1, initial)
-        d = asdict(c, copy_fields=False)
+        d = asdict(c, copy_function=None)
         self.assertIs(d['y'], initial)
         c = C(1)
-        d = asdict(c, copy_fields=False)
+        d = asdict(c, copy_function=None)
         d['y'].append(1)
         self.assertEqual(c.y, [1])
 
@@ -1219,10 +1219,10 @@ class TestCase(unittest.TestCase):
             y: List[int] = field(default_factory=list)
         initial = []
         c = C(1, initial)
-        t = astuple(c, copy_fields=False)
+        t = astuple(c, copy_function=None)
         self.assertIs(t[1], initial)
         c = C(1)
-        t = astuple(c, copy_fields=False)
+        t = astuple(c, copy_function=None)
         t[1].append(1)
         self.assertEqual(c.y, [1])
 
