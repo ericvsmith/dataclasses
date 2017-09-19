@@ -9,6 +9,7 @@ __all__ = ['dataclass',
            'fields',
            'asdict',
            'astuple',
+           'replace'
            ]
 
 # Just for development, I'll remove this before shipping.
@@ -531,3 +532,25 @@ def astuple(obj):
     if isinstance(obj, type):
         raise ValueError("astuple() should be called on dataclass instances, not classes")
     return tuple(getattr(obj, name) for name in fields(obj))
+
+
+def replace(obj, **changes):
+    """Return a new T object replacing specified fields with new values.  This
+    especially useful for frozen classes.  Example usage::
+
+      @dataclass(frozen=True)
+      class C:
+          x: int
+          y: int
+
+      c = C(1, 2)
+      c1 = replace(c, x=3)
+      assert c1.x == 3 and c1.y == 2
+      """
+
+    for f in fields(obj).values():
+        if not f.init:
+            continue
+        if f.name not in changes:
+            changes[f.name] = getattr(obj, f.name)
+    return obj.__class__(**changes)

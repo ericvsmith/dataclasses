@@ -1,5 +1,5 @@
 from dataclasses import (
-    dataclass, field, FrozenInstanceError, fields, asdict, astuple
+    dataclass, field, FrozenInstanceError, fields, asdict, astuple, replace
 )
 
 import inspect
@@ -1231,6 +1231,56 @@ class TestCase(unittest.TestCase):
                 return cls(value_in_file)
 
         self.assertEqual(C.from_file('filename').x, 20)
+
+    def test_replace(self):
+        @dataclass(frozen=True)
+        class C:
+            x: int
+            y: int
+
+        c = C(1, 2)
+        c1 = replace(c, x=3)
+        self.assertEqual(c1.x, 3)
+        self.assertEqual(c1.y, 2)
+
+    def test_replace_frozen(self):
+        @dataclass(frozen=True)
+        class C:
+            x: int
+            y: int
+
+        c = C(1, 2)
+        c1 = replace(c, x=3)
+        self.assertEqual(c1.x, 3)
+        self.assertEqual(c1.y, 2)
+
+        # Make sure it's still frozen
+        with self.assertRaisesRegex(FrozenInstanceError, "cannot assign to field 'x'"):
+            c1.x = 3
+
+    def test_replace_invalid_field_name(self):
+      @dataclass(frozen=True)
+      class C:
+          x: int
+          y: int
+
+      c = C(1, 2)
+      with self.assertRaisesRegex(TypeError, "__init__\(\) got an unexpected "
+                                             "keyword argument 'z'"):
+          c1 = replace(c, z=3)
+
+    def test_replace_no_init(self):
+      @dataclass
+      class C:
+          x: int
+          y: int = field(init=False, default=10)
+
+      c = C(1)
+      c.y = 20
+
+      # Make sure y gets the default value, not what c contained
+      c1 = replace(c, x=5)
+      self.assertEqual((c1.x, c1.y), (5, 10))
 
 def main():
     unittest.main()
