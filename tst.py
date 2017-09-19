@@ -1232,7 +1232,7 @@ class TestCase(unittest.TestCase):
 
         self.assertEqual(C.from_file('filename').x, 20)
 
-    def test_replace(self):
+    def test_helper_replace(self):
         @dataclass(frozen=True)
         class C:
             x: int
@@ -1243,22 +1243,31 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c1.x, 3)
         self.assertEqual(c1.y, 2)
 
-    def test_replace_frozen(self):
+    def test_helper_replace_frozen(self):
         @dataclass(frozen=True)
         class C:
             x: int
             y: int
+            z: int = field(init=False, default=10)
 
         c = C(1, 2)
         c1 = replace(c, x=3)
-        self.assertEqual(c1.x, 3)
-        self.assertEqual(c1.y, 2)
+        self.assertEqual((c.x, c.y, c.z), (1, 2, 10))
+        self.assertEqual((c1.x, c1.y, c1.z), (3, 2, 10))
 
-        # Make sure it's still frozen
+        c1 = replace(c, x=3, z=20)
+        self.assertEqual((c.x, c.y, c.z), (1, 2, 10))
+        self.assertEqual((c1.x, c1.y, c1.z), (3, 2, 20))
+
+        c1 = replace(c, z=20)
+        self.assertEqual((c.x, c.y, c.z), (1, 2, 10))
+        self.assertEqual((c1.x, c1.y, c1.z), (1, 2, 20))
+
+        # Make sure the result is still frozen.
         with self.assertRaisesRegex(FrozenInstanceError, "cannot assign to field 'x'"):
             c1.x = 3
 
-    def test_replace_invalid_field_name(self):
+    def test_helper_replace_invalid_field_name(self):
       @dataclass(frozen=True)
       class C:
           x: int
@@ -1269,7 +1278,7 @@ class TestCase(unittest.TestCase):
                                              "keyword argument 'z'"):
           c1 = replace(c, z=3)
 
-    def test_replace_no_init(self):
+    def test_helper_replace_no_init(self):
       @dataclass
       class C:
           x: int
@@ -1278,9 +1287,9 @@ class TestCase(unittest.TestCase):
       c = C(1)
       c.y = 20
 
-      # Make sure y gets the default value, not what c contained
+      # Make sure y gets what c contained, not the default value.
       c1 = replace(c, x=5)
-      self.assertEqual((c1.x, c1.y), (5, 10))
+      self.assertEqual((c1.x, c1.y), (5, 20))
 
 def main():
     unittest.main()

@@ -548,9 +548,24 @@ def replace(obj, **changes):
       assert c1.x == 3 and c1.y == 2
       """
 
+    non_init_fields = {}
     for f in fields(obj).values():
         if not f.init:
+            try:
+                non_init_fields[f.name] = changes[f.name]
+                del changes[f.name]
+            except KeyError:
+                non_init_fields[f.name] = getattr(obj, f.name)
             continue
         if f.name not in changes:
             changes[f.name] = getattr(obj, f.name)
-    return obj.__class__(**changes)
+
+    # Create the new object, which calls __init__()
+    new_obj = obj.__class__(**changes)
+
+    # Now, set fields that aren't params to __init__()
+    for name, value in non_init_fields.items():
+        object.__setattr__(new_obj, name, value)
+        #setattr(new_obj, name, value)
+
+    return new_obj
