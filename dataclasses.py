@@ -535,8 +535,8 @@ def astuple(obj):
 
 
 def replace(obj, **changes):
-    """Return a new T object replacing specified fields with new values.  This
-    especially useful for frozen classes.  Example usage::
+    """Return a new object replacing specified fields with new values. This
+    is especially useful for frozen classes.  Example usage::
 
       @dataclass(frozen=True)
       class C:
@@ -548,24 +548,55 @@ def replace(obj, **changes):
       assert c1.x == 3 and c1.y == 2
       """
 
+    # XXX: I'm modifying the keys while iterating over them. This
+    #  should probably be changed to not do that. I'll leave this as a
+    #  task for later.
+
+    # Keep track of the non-init fields to specify.
     non_init_fields = {}
+
+    # For each field:
+    # If it's an init field and it's not in 'changes', then get it's
+    #  value from 'obj'.  If it it's an init field and it is in
+    #  'changes', leave the new value in 'changes'.
+    # If it's not an init field, then if it's in 'changes', remember
+    #  it and remove it from 'changes'. If it's not in 'changes', use
+    #  the value in 'obj'.
     for f in fields(obj).values():
-        if not f.init:
+        if f.init:
+            if f.name not in changes:
+                changes[f.name] = getattr(obj, f.name)
+        else:
             try:
                 non_init_fields[f.name] = changes[f.name]
+                # Remove this from the list of fields we're going
+                #  to pass to the class constructor.
                 del changes[f.name]
             except KeyError:
                 non_init_fields[f.name] = getattr(obj, f.name)
-            continue
-        if f.name not in changes:
-            changes[f.name] = getattr(obj, f.name)
 
-    # Create the new object, which calls __init__()
+    # Create the new object, which calls __init__(), using all of the
+    #  init fields we've collected and/or left in 'changes'.
     new_obj = obj.__class__(**changes)
 
-    # Now, set fields that aren't params to __init__()
-    for name, value in non_init_fields.items():
-        object.__setattr__(new_obj, name, value)
-        #setattr(new_obj, name, value)
+    # Now, set fields that aren't params to __init__().
+    # For frozen objects, we have to call object.__setattr__. But we
+    #  don't know if an object is frozen or not.
+    # So the first time through, try to set the attribute, catch the
+    #  exception if one is raised, and remember if it's frozen.
+    is_frozen = False
+    for idx, (name, value) in enumerate(non_init_fields.items()):
+        if idx == 0:
+            try:
+                setattr(new_obj, name, value)
+                # setattr succeeded, move to the next field.
+                continue
+            except FrozenInstanceError:
+                frozen = True
+                # Fall through to set the attribute.
+        if frozen:
+            object.__setattr__(new_obj, name, value)
+        else:
+            setattr(new_obj, name, value)
 
     return new_obj
