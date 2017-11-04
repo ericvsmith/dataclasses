@@ -1252,14 +1252,15 @@ class TestCase(unittest.TestCase):
         samples = [P(1), P(1, 2), Q(1), q, R(1), R(1, [2, 3, 4])]
         for sample in samples:
             for proto in range(pickle.HIGHEST_PROTOCOL + 1):
-                new_sample = pickle.loads(pickle.dumps(sample, proto))
-                self.assertEqual(sample.x, new_sample.x)
-                self.assertEqual(sample.y, new_sample.y)
-                self.assertIsNot(sample, new_sample)
-                new_sample.x = 42
-                another_new_sample = pickle.loads(pickle.dumps(new_sample, proto))
-                self.assertEqual(new_sample.x, another_new_sample.x)
-                self.assertEqual(sample.y, another_new_sample.y)
+                with self.subTest(sample=sample, proto=proto):
+                    new_sample = pickle.loads(pickle.dumps(sample, proto))
+                    self.assertEqual(sample.x, new_sample.x)
+                    self.assertEqual(sample.y, new_sample.y)
+                    self.assertIsNot(sample, new_sample)
+                    new_sample.x = 42
+                    another_new_sample = pickle.loads(pickle.dumps(new_sample, proto))
+                    self.assertEqual(new_sample.x, another_new_sample.x)
+                    self.assertEqual(sample.y, another_new_sample.y)
 
 
 def main():
