@@ -150,7 +150,7 @@ def _field_init(f, frozen, globals, self_name):
             #  default factory, the factory must be called in __init__
             #  and we must assign that to self.fieldname. We can't
             #  fall back to the class dict's value, both because it's
-            #  not set, and because it might different per-class
+            #  not set, and because it might be different per-class
             #  (which, after all, is why we have a factory function!).
 
             globals[default_name] = f.default_factory
