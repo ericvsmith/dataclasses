@@ -5,6 +5,7 @@ from dataclasses import (
 import pickle
 import inspect
 import unittest
+from unittest.mock import Mock
 from typing import ClassVar, Any, List
 from collections import OrderedDict
 
@@ -40,7 +41,7 @@ class TestCase(unittest.TestCase):
         @dataclass
         class C:
             x: int
-            y: int=0
+            y: int = 0
 
         o = C(3)
         self.assertEqual((o.x, o.y), (3, 0))
@@ -51,7 +52,7 @@ class TestCase(unittest.TestCase):
                                     "default argument"):
             @dataclass
             class C:
-                x: int=0
+                x: int = 0
                 y: int
 
     def test_overwriting_init(self):
@@ -302,7 +303,7 @@ class TestCase(unittest.TestCase):
         #  eq=True/False
         #  cmp=True/False
         #  frozen=True/False
-        for hash,   eq,    compare, frozen, result in [
+        for (hash,  eq,    compare, frozen, result  ) in [
             (False, False, False,   False,  'absent'),
             (False, False, False,   True,   'absent'),
             (False, False, True,    False,  'absent'),
@@ -311,23 +312,23 @@ class TestCase(unittest.TestCase):
             (False, True,  False,   True,   'absent'),
             (False, True,  True,    False,  'absent'),
             (False, True,  True,    True,   'absent'),
-            (True,  False, False,   False,  'fn'),
-            (True,  False, False,   True,   'fn'),
-            (True,  False, True,    False,  'fn'),
-            (True,  False, True,    True,   'fn'),
-            (True,  True,  False,   False,  'fn'),
-            (True,  True,  False,   True,   'fn'),
-            (True,  True,  True,    False,  'fn'),
-            (True,  True,  True,    True,   'fn'),
+            (True,  False, False,   False,  'fn'    ),
+            (True,  False, False,   True,   'fn'    ),
+            (True,  False, True,    False,  'fn'    ),
+            (True,  False, True,    True,   'fn'    ),
+            (True,  True,  False,   False,  'fn'    ),
+            (True,  True,  False,   True,   'fn'    ),
+            (True,  True,  True,    False,  'fn'    ),
+            (True,  True,  True,    True,   'fn'    ),
             (None,  False, False,   False,  'absent'),
             (None,  False, False,   True,   'absent'),
-            (None,  False, True,    False,  'none'),
-            (None,  False, True,    True,   'fn'),
-            (None,  True,  False,   False,  'none'),
-            (None,  True,  False,   True,   'fn'),
-            (None,  True,  True,    False,  'none'),
-            (None,  True,  True,    True,   'fn'),
-            ]:
+            (None,  False, True,    False,  'none'  ),
+            (None,  False, True,    True,   'fn'    ),
+            (None,  True,  False,   False,  'none'  ),
+            (None,  True,  False,   True,   'fn'    ),
+            (None,  True,  True,    False,  'none'  ),
+            (None,  True,  True,    True,   'fn'    ),
+        ]:
             with self.subTest(hash=hash, eq=eq, compare=compare, frozen=frozen):
                 @dataclass(hash=hash, eq=eq, compare=compare, frozen=frozen)
                 class C:
@@ -337,25 +338,25 @@ class TestCase(unittest.TestCase):
                 if result == 'fn':
                     # __hash__ contains the function we generated.
                     self.assertIn('__hash__', C.__dict__)
-                    self.assertIsNot(C.__dict__['__hash__'], None)
+                    self.assertIsNotNone(C.__dict__['__hash__'])
                 elif result == 'absent':
                     # __hash__ is not present in our class.
                     self.assertNotIn('__hash__', C.__dict__)
                 elif result == 'none':
                     # __hash__ is set to None.
                     self.assertIn('__hash__', C.__dict__)
-                    self.assertIs(C.__dict__['__hash__'], None)
+                    self.assertIsNone(C.__dict__['__hash__'])
                 else:
                     assert False, f'unknown result {result!r}'
 
     def test_eq_compare(self):
         # Check that if compare is True, then eq is forced to True, too.
-        for eq,     compare, result in [
+        for (eq,    compare, result   ) in [
             (False, False,   'neither'),
-            (False, True,    'both'),
+            (False, True,    'both'   ),
             (True,  False,   'eq_only'),
-            (True,  True,    'both'),
-            ]:
+            (True,  True,    'both'   ),
+        ]:
             with self.subTest(eq=eq, compare=compare):
                 @dataclass(eq=eq, compare=compare)
                 class C:
@@ -445,14 +446,14 @@ class TestCase(unittest.TestCase):
         # Test all 6 cases of:
         #  hash=True/False/None
         #  cmp=True/False
-        for hash_val, cmp,   result in [
-            (True,    False, 'field'),
-            (True,    True,  'field'),
-            (False,   False, 'absent'),
-            (False,   True,  'absent'),
-            (None,    False, 'absent'),
-            (None,    True,  'field'),
-            ]:
+        for (hash_val, cmp,   result  ) in [
+            (True,     False, 'field' ),
+            (True,     True,  'field' ),
+            (False,    False, 'absent'),
+            (False,    True,  'absent'),
+            (None,     False, 'absent'),
+            (None,     True,  'field' ),
+        ]:
             with self.subTest(hash_val=hash_val, cmp=cmp):
                 @dataclass(hash=True)
                 class C:
@@ -781,7 +782,7 @@ class TestCase(unittest.TestCase):
         class C:
             i: int
             j: str
-            k: F=f
+            k: F = f
             l: float=field(default=None)
             z: complex=field(default=3+4j, init=False)
 
@@ -792,7 +793,7 @@ class TestCase(unittest.TestCase):
         class C:
             i: int
             j: str
-            k: F=f
+            k: F = f
             l: float=field(default=None)
             z: complex=field(default=3+4j, init=False)
 
@@ -977,7 +978,7 @@ class TestCase(unittest.TestCase):
         @dataclass
         class C:
             x: int
-            y: list=field(default_factory=list)
+            y: list = field(default_factory=list)
 
         c0 = C(3)
         c1 = C(3)
@@ -992,7 +993,7 @@ class TestCase(unittest.TestCase):
         @dataclass
         class C:
             x: int
-            y: list=field(default_factory=lambda: l)
+            y: list = field(default_factory=lambda: l)
 
         c0 = C(3)
         c1 = C(3)
@@ -1006,67 +1007,59 @@ class TestCase(unittest.TestCase):
         # repr
         @dataclass
         class C:
-            x: list=field(default_factory=list, repr=False)
+            x: list = field(default_factory=list, repr=False)
         self.assertEqual(repr(C()), 'C()')
         self.assertEqual(C().x, [])
 
         # hash
         @dataclass(hash=True)
         class C:
-            x: list=field(default_factory=list, hash=False)
+            x: list = field(default_factory=list, hash=False)
         self.assertEqual(repr(C()), 'C(x=[])')
         self.assertEqual(hash(C()), hash(()))
 
         # init (see also test_default_factory_with_no_init)
         @dataclass
         class C:
-            x: list=field(default_factory=list, init=False)
+            x: list = field(default_factory=list, init=False)
         self.assertEqual(repr(C()), 'C(x=[])')
 
         # cmp
         @dataclass
         class C:
-            x: list=field(default_factory=list, cmp=False)
+            x: list = field(default_factory=list, cmp=False)
         self.assertEqual(C(), C([1]))
 
     def test_default_factory_with_no_init(self):
         # We need a factory with a side effect.
-        class Factory:
-            def __init__(self):
-                self.count = 0
-            def incr(self):
-                self.count += 1
-                return self.count
-
-        factory = Factory()
-
-        @dataclass()
-        class C:
-            x: list=field(default_factory=factory.incr, init=False)
-
-        # Make sure the default factory is called for each new instance.
-        self.assertEqual(C().x, 1)
-        self.assertEqual(C().x, 2)
-
-    def test_default_factory_not_called_if_value_given(self):
-        # We need a factory that we can test if it's been called.
-        class Factory:
-            def __init__(self):
-                self.count = 0
-            def incr(self):
-                self.count += 1
-                return self.count
-        factory = Factory()
+        factory = Mock()
 
         @dataclass
         class C:
-            x: int=field(default_factory=factory.incr)
+            x: list = field(default_factory=factory, init=False)
+
+        # Make sure the default factory is called for each new instance.
+        C().x
+        self.assertEqual(factory.call_count, 1)
+        C().x
+        self.assertEqual(factory.call_count, 2)
+
+    def test_default_factory_not_called_if_value_given(self):
+        # We need a factory that we can test if it's been called.
+        factory = Mock()
+
+        @dataclass
+        class C:
+            x: int = field(default_factory=factory)
 
         # Make sure that if a field has a default factory function,
         #  it's not called if a value is specified.
-        self.assertEqual(C().x, 1)
+        C().x
+        self.assertEqual(factory.call_count, 1)
         self.assertEqual(C(10).x, 10)
-        self.assertEqual(C().x, 2)
+        self.assertEqual(factory.call_count, 1)
+        C().x
+        self.assertEqual(factory.call_count, 2)
 
     def x_test_classvar_default_factory(self):
         # XXX: it's an error for a ClassVar to have a factory function
@@ -1233,7 +1226,7 @@ class TestCase(unittest.TestCase):
 
         self.assertEqual(C.from_file('filename').x, 20)
 
-    def test_dataclassses_pickleadble(self):
+    def test_dataclassses_pickleable(self):
         global P, Q, R
         @dataclass
         class P:
