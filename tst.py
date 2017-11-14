@@ -6,8 +6,8 @@ import pickle
 import inspect
 import unittest
 from unittest.mock import Mock
-from typing import ClassVar, Any, List
-from collections import OrderedDict
+from typing import ClassVar, Any, List, Union
+from collections import deque, OrderedDict
 
 # Just any custom exception we can catch.
 class CustomError(Exception): pass
@@ -1254,6 +1254,89 @@ class TestCase(unittest.TestCase):
                     another_new_sample = pickle.loads(pickle.dumps(new_sample, proto))
                     self.assertEqual(new_sample.x, another_new_sample.x)
                     self.assertEqual(sample.y, another_new_sample.y)
+
+
+class TestDocString(unittest.TestCase):
+    def test_existing_docstring_not_overridden(self):
+        @dataclass
+        class C:
+            """Lorem ipsum"""
+            x: int
+
+        self.assertEqual(C.__doc__, "Lorem ipsum")
+
+    def test_docstring_no_fields(self):
+        @dataclass
+        class C:
+            pass
+
+        self.assertEqual(C.__doc__, "C()")
+
+    def test_docstring_one_field(self):
+        @dataclass
+        class C:
+            x: int
+
+        self.assertEqual(C.__doc__, "C(x:int)")
+
+    def test_docstring_two_fields(self):
+        @dataclass
+        class C:
+            x: int
+            y: int
+
+        self.assertEqual(C.__doc__, "C(x:int, y:int)")
+
+    def test_docstring_three_fields(self):
+        @dataclass
+        class C:
+            x: int
+            y: int
+            z: str
+
+        self.assertEqual(C.__doc__, "C(x:int, y:int, z:str)")
+
+    def test_docstring_one_field_with_default(self):
+        @dataclass
+        class C:
+            x: int = 3
+
+        self.assertEqual(C.__doc__, "C(x:int=3)")
+
+    def test_docstring_one_field_with_default_none(self):
+        @dataclass
+        class C:
+            x: Union[int, type(None)] = None
+
+        self.assertEqual(C.__doc__, "C(x:Union[int, NoneType]=None)")
+
+    def test_docstring_list_field(self):
+        @dataclass
+        class C:
+            x: List[int]
+
+        self.assertEqual(C.__doc__, "C(x:List[int])")
+
+    def test_docstring_list_field_with_default_factory(self):
+        @dataclass
+        class C:
+            x: List[int] = field(default_factory=list)
+
+        self.assertEqual(C.__doc__, "C(x:List[int]=<factory>)")
+
+    def test_docstring_deque_field(self):
+        @dataclass
+        class C:
+            x: deque
+
+        self.assertEqual(C.__doc__, "C(x:collections.deque)")
+
+    def test_docstring_deque_field_with_default_factory(self):
+        @dataclass
+        class C:
+            x: deque = field(default_factory=deque)
+
+        self.assertEqual(C.__doc__, "C(x:collections.deque=<factory>)")
 
 
 def main():
