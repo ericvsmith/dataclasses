@@ -2,10 +2,12 @@ from dataclasses import (
     dataclass, field, FrozenInstanceError, fields, asdict, astuple, replace
 )
 
+import pickle
 import inspect
 import unittest
-from typing import ClassVar, Any
-from collections import OrderedDict
+from unittest.mock import Mock
+from typing import ClassVar, Any, List, Union
+from collections import deque, OrderedDict
 
 # Just any custom exception we can catch.
 class CustomError(Exception): pass
@@ -39,7 +41,7 @@ class TestCase(unittest.TestCase):
         @dataclass
         class C:
             x: int
-            y: int=0
+            y: int = 0
 
         o = C(3)
         self.assertEqual((o.x, o.y), (3, 0))
@@ -50,7 +52,7 @@ class TestCase(unittest.TestCase):
                                     "default argument"):
             @dataclass
             class C:
-                x: int=0
+                x: int = 0
                 y: int
 
     def test_overwriting_init(self):
@@ -301,7 +303,7 @@ class TestCase(unittest.TestCase):
         #  eq=True/False
         #  cmp=True/False
         #  frozen=True/False
-        for hash,   eq,    compare, frozen, result in [
+        for (hash,  eq,    compare, frozen, result  ) in [
             (False, False, False,   False,  'absent'),
             (False, False, False,   True,   'absent'),
             (False, False, True,    False,  'absent'),
@@ -310,23 +312,23 @@ class TestCase(unittest.TestCase):
             (False, True,  False,   True,   'absent'),
             (False, True,  True,    False,  'absent'),
             (False, True,  True,    True,   'absent'),
-            (True,  False, False,   False,  'fn'),
-            (True,  False, False,   True,   'fn'),
-            (True,  False, True,    False,  'fn'),
-            (True,  False, True,    True,   'fn'),
-            (True,  True,  False,   False,  'fn'),
-            (True,  True,  False,   True,   'fn'),
-            (True,  True,  True,    False,  'fn'),
-            (True,  True,  True,    True,   'fn'),
+            (True,  False, False,   False,  'fn'    ),
+            (True,  False, False,   True,   'fn'    ),
+            (True,  False, True,    False,  'fn'    ),
+            (True,  False, True,    True,   'fn'    ),
+            (True,  True,  False,   False,  'fn'    ),
+            (True,  True,  False,   True,   'fn'    ),
+            (True,  True,  True,    False,  'fn'    ),
+            (True,  True,  True,    True,   'fn'    ),
             (None,  False, False,   False,  'absent'),
             (None,  False, False,   True,   'absent'),
-            (None,  False, True,    False,  'none'),
-            (None,  False, True,    True,   'fn'),
-            (None,  True,  False,   False,  'none'),
-            (None,  True,  False,   True,   'fn'),
-            (None,  True,  True,    False,  'none'),
-            (None,  True,  True,    True,   'fn'),
-            ]:
+            (None,  False, True,    False,  'none'  ),
+            (None,  False, True,    True,   'fn'    ),
+            (None,  True,  False,   False,  'none'  ),
+            (None,  True,  False,   True,   'fn'    ),
+            (None,  True,  True,    False,  'none'  ),
+            (None,  True,  True,    True,   'fn'    ),
+        ]:
             with self.subTest(hash=hash, eq=eq, compare=compare, frozen=frozen):
                 @dataclass(hash=hash, eq=eq, compare=compare, frozen=frozen)
                 class C:
@@ -336,25 +338,25 @@ class TestCase(unittest.TestCase):
                 if result == 'fn':
                     # __hash__ contains the function we generated.
                     self.assertIn('__hash__', C.__dict__)
-                    self.assertIsNot(C.__dict__['__hash__'], None)
+                    self.assertIsNotNone(C.__dict__['__hash__'])
                 elif result == 'absent':
                     # __hash__ is not present in our class.
                     self.assertNotIn('__hash__', C.__dict__)
                 elif result == 'none':
                     # __hash__ is set to None.
                     self.assertIn('__hash__', C.__dict__)
-                    self.assertIs(C.__dict__['__hash__'], None)
+                    self.assertIsNone(C.__dict__['__hash__'])
                 else:
                     assert False, f'unknown result {result!r}'
 
     def test_eq_compare(self):
         # Check that if compare is True, then eq is forced to True, too.
-        for eq,     compare, result in [
+        for (eq,    compare, result   ) in [
             (False, False,   'neither'),
-            (False, True,    'both'),
+            (False, True,    'both'   ),
             (True,  False,   'eq_only'),
-            (True,  True,    'both'),
-            ]:
+            (True,  True,    'both'   ),
+        ]:
             with self.subTest(eq=eq, compare=compare):
                 @dataclass(eq=eq, compare=compare)
                 class C:
@@ -444,14 +446,14 @@ class TestCase(unittest.TestCase):
         # Test all 6 cases of:
         #  hash=True/False/None
         #  cmp=True/False
-        for hash_val, cmp,   result in [
-            (True,    False, 'field'),
-            (True,    True,  'field'),
-            (False,   False, 'absent'),
-            (False,   True,  'absent'),
-            (None,    False, 'absent'),
-            (None,    True,  'field'),
-            ]:
+        for (hash_val, cmp,   result  ) in [
+            (True,     False, 'field' ),
+            (True,     True,  'field' ),
+            (False,    False, 'absent'),
+            (False,    True,  'absent'),
+            (None,     False, 'absent'),
+            (None,     True,  'field' ),
+        ]:
             with self.subTest(hash_val=hash_val, cmp=cmp):
                 @dataclass(hash=True)
                 class C:
@@ -780,7 +782,7 @@ class TestCase(unittest.TestCase):
         class C:
             i: int
             j: str
-            k: F=f
+            k: F = f
             l: float=field(default=None)
             z: complex=field(default=3+4j, init=False)
 
@@ -791,7 +793,7 @@ class TestCase(unittest.TestCase):
         class C:
             i: int
             j: str
-            k: F=f
+            k: F = f
             l: float=field(default=None)
             z: complex=field(default=3+4j, init=False)
 
@@ -976,7 +978,7 @@ class TestCase(unittest.TestCase):
         @dataclass
         class C:
             x: int
-            y: list=field(default_factory=list)
+            y: list = field(default_factory=list)
 
         c0 = C(3)
         c1 = C(3)
@@ -991,7 +993,7 @@ class TestCase(unittest.TestCase):
         @dataclass
         class C:
             x: int
-            y: list=field(default_factory=lambda: l)
+            y: list = field(default_factory=lambda: l)
 
         c0 = C(3)
         c1 = C(3)
@@ -1005,67 +1007,59 @@ class TestCase(unittest.TestCase):
         # repr
         @dataclass
         class C:
-            x: list=field(default_factory=list, repr=False)
+            x: list = field(default_factory=list, repr=False)
         self.assertEqual(repr(C()), 'C()')
         self.assertEqual(C().x, [])
 
         # hash
         @dataclass(hash=True)
         class C:
-            x: list=field(default_factory=list, hash=False)
+            x: list = field(default_factory=list, hash=False)
         self.assertEqual(repr(C()), 'C(x=[])')
         self.assertEqual(hash(C()), hash(()))
 
         # init (see also test_default_factory_with_no_init)
         @dataclass
         class C:
-            x: list=field(default_factory=list, init=False)
+            x: list = field(default_factory=list, init=False)
         self.assertEqual(repr(C()), 'C(x=[])')
 
         # cmp
         @dataclass
         class C:
-            x: list=field(default_factory=list, cmp=False)
+            x: list = field(default_factory=list, cmp=False)
         self.assertEqual(C(), C([1]))
 
     def test_default_factory_with_no_init(self):
         # We need a factory with a side effect.
-        class Factory:
-            def __init__(self):
-                self.count = 0
-            def incr(self):
-                self.count += 1
-                return self.count
-
-        factory = Factory()
-
-        @dataclass()
-        class C:
-            x: list=field(default_factory=factory.incr, init=False)
-
-        # Make sure the default factory is called for each new instance.
-        self.assertEqual(C().x, 1)
-        self.assertEqual(C().x, 2)
-
-    def test_default_factory_not_called_if_value_given(self):
-        # We need a factory that we can test if it's been called.
-        class Factory:
-            def __init__(self):
-                self.count = 0
-            def incr(self):
-                self.count += 1
-                return self.count
-        factory = Factory()
+        factory = Mock()
 
         @dataclass
         class C:
-            x: int=field(default_factory=factory.incr)
+            x: list = field(default_factory=factory, init=False)
+
+        # Make sure the default factory is called for each new instance.
+        C().x
+        self.assertEqual(factory.call_count, 1)
+        C().x
+        self.assertEqual(factory.call_count, 2)
+
+    def test_default_factory_not_called_if_value_given(self):
+        # We need a factory that we can test if it's been called.
+        factory = Mock()
+
+        @dataclass
+        class C:
+            x: int = field(default_factory=factory)
 
         # Make sure that if a field has a default factory function,
         #  it's not called if a value is specified.
-        self.assertEqual(C().x, 1)
+        C().x
+        self.assertEqual(factory.call_count, 1)
         self.assertEqual(C(10).x, 10)
-        self.assertEqual(C().x, 2)
+        self.assertEqual(factory.call_count, 1)
+        C().x
+        self.assertEqual(factory.call_count, 2)
 
     def x_test_classvar_default_factory(self):
         # XXX: it's an error for a ClassVar to have a factory function
@@ -1303,6 +1297,119 @@ class TestCase(unittest.TestCase):
       # Make sure we can replace y, even though it's a non-init field.
       c1 = replace(c, y=30)
       self.assertEqual((c1.x, c1.y), (1, 30))
+
+    def test_dataclassses_pickleable(self):
+        global P, Q, R
+        @dataclass
+        class P:
+            x: int
+            y: int = 0
+        @dataclass
+        class Q:
+            x: int
+            y: int = field(default=0, init=False)
+        @dataclass
+        class R:
+            x: int
+            y: List[int] = field(default_factory=list)
+        q = Q(1)
+        q.y = 2
+        samples = [P(1), P(1, 2), Q(1), q, R(1), R(1, [2, 3, 4])]
+        for sample in samples:
+            for proto in range(pickle.HIGHEST_PROTOCOL + 1):
+                with self.subTest(sample=sample, proto=proto):
+                    new_sample = pickle.loads(pickle.dumps(sample, proto))
+                    self.assertEqual(sample.x, new_sample.x)
+                    self.assertEqual(sample.y, new_sample.y)
+                    self.assertIsNot(sample, new_sample)
+                    new_sample.x = 42
+                    another_new_sample = pickle.loads(pickle.dumps(new_sample, proto))
+                    self.assertEqual(new_sample.x, another_new_sample.x)
+                    self.assertEqual(sample.y, another_new_sample.y)
+
+
+class TestDocString(unittest.TestCase):
+    def test_existing_docstring_not_overridden(self):
+        @dataclass
+        class C:
+            """Lorem ipsum"""
+            x: int
+
+        self.assertEqual(C.__doc__, "Lorem ipsum")
+
+    def test_docstring_no_fields(self):
+        @dataclass
+        class C:
+            pass
+
+        self.assertEqual(C.__doc__, "C()")
+
+    def test_docstring_one_field(self):
+        @dataclass
+        class C:
+            x: int
+
+        self.assertEqual(C.__doc__, "C(x:int)")
+
+    def test_docstring_two_fields(self):
+        @dataclass
+        class C:
+            x: int
+            y: int
+
+        self.assertEqual(C.__doc__, "C(x:int, y:int)")
+
+    def test_docstring_three_fields(self):
+        @dataclass
+        class C:
+            x: int
+            y: int
+            z: str
+
+        self.assertEqual(C.__doc__, "C(x:int, y:int, z:str)")
+
+    def test_docstring_one_field_with_default(self):
+        @dataclass
+        class C:
+            x: int = 3
+
+        self.assertEqual(C.__doc__, "C(x:int=3)")
+
+    def test_docstring_one_field_with_default_none(self):
+        @dataclass
+        class C:
+            x: Union[int, type(None)] = None
+
+        self.assertEqual(C.__doc__, "C(x:Union[int, NoneType]=None)")
+
+    def test_docstring_list_field(self):
+        @dataclass
+        class C:
+            x: List[int]
+
+        self.assertEqual(C.__doc__, "C(x:List[int])")
+
+    def test_docstring_list_field_with_default_factory(self):
+        @dataclass
+        class C:
+            x: List[int] = field(default_factory=list)
+
+        self.assertEqual(C.__doc__, "C(x:List[int]=<factory>)")
+
+    def test_docstring_deque_field(self):
+        @dataclass
+        class C:
+            x: deque
+
+        self.assertEqual(C.__doc__, "C(x:collections.deque)")
+
+    def test_docstring_deque_field_with_default_factory(self):
+        @dataclass
+        class C:
+            x: deque = field(default_factory=deque)
+
+        self.assertEqual(C.__doc__, "C(x:collections.deque=<factory>)")
+
 
 def main():
     unittest.main()
