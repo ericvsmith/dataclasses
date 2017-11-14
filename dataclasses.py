@@ -1,6 +1,7 @@
 import sys
 import copy
 import collections
+import inspect
 
 __all__ = ['dataclass',
            'field',
@@ -20,6 +21,15 @@ class FrozenInstanceError(AttributeError): pass
 
 # A sentinel object to detect if a parameter is supplied or not.
 _MISSING = object()
+
+# A sentinel object for default values to signal that a
+#  default-factory will be used.
+# This is given a nice repr() which will appear in the function
+#  signature of dataclasses' constructors.
+class _HAS_DEFAULT_FACTORY_CLASS:
+    def __repr__(self):
+        return '<factory>'
+_HAS_DEFAULT_FACTORY = _HAS_DEFAULT_FACTORY_CLASS()
 
 # The name of an attribute on the class where we store the Field
 #  objects. Also used to check if a class is a Data Class.
@@ -138,7 +148,9 @@ def _field_init(f, frozen, globals, self_name):
             # This field has a default factory.  If a parameter is
             #  given, use it.  If not, call the factory.
             globals[default_name] = f.default_factory
-            value = f'{default_name}() if {f.name} is _MISSING else {f.name}'
+            value = (f'{default_name}() '
+                     f'if {f.name} is _HAS_DEFAULT_FACTORY '
+                     f'else {f.name}')
         else:
             # This is a field that's not in the __init__ params, but
             #  has a default factory function.  It needs to be
@@ -151,7 +163,7 @@ def _field_init(f, frozen, globals, self_name):
             #  default factory, the factory must be called in __init__
             #  and we must assign that to self.fieldname. We can't
             #  fall back to the class dict's value, both because it's
-            #  not set, and because it might different per-class
+            #  not set, and because it might be different per-class
             #  (which, after all, is why we have a factory function!).
 
             globals[default_name] = f.default_factory
@@ -188,7 +200,7 @@ def _init_param(f):
         default = f'=_dflt_{f.name}'
     elif f.default_factory is not _MISSING:
         # There's a factory function. Set a marker.
-        default = '=_MISSING'
+        default = '=_HAS_DEFAULT_FACTORY'
     return f'{f.name}:_type_{f.name}{default}'
 
 
@@ -208,7 +220,8 @@ def _init_fn(fields, frozen, has_post_init, self_name):
                 raise TypeError(f'non-default argument {f.name!r} '
                                 'follows default argument')
 
-    globals = {'_MISSING': _MISSING}
+    globals = {'_MISSING': _MISSING,
+               '_HAS_DEFAULT_FACTORY': _HAS_DEFAULT_FACTORY}
 
     body_lines = []
     for f in fields:
@@ -475,6 +488,11 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
         # Create and __lt__, __le__, __gt__, and __ge__ methods.
         # Create and set the comparison functions.
         _set_compare_fns(cls, list(filter(lambda f: f.cmp, field_list)))
+
+    if not getattr(cls, '__doc__'):
+        # Create a class doc-string
+        cls.__doc__ = \
+            cls.__name__ + str(inspect.signature(cls)).replace(' -> None', '')
 
     return cls
 
