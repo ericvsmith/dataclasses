@@ -6,6 +6,7 @@ import pickle
 import inspect
 import unittest
 from unittest.mock import Mock
+from typing import ClassVar, Any, List, Union
 from collections import deque, OrderedDict, namedtuple
 
 # Just any custom exception we can catch.
