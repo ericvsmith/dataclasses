@@ -1166,6 +1166,18 @@ class TestCase(unittest.TestCase):
         self.assertEqual(asdict(gd), {'id': 0, 'users': {'first': {'name': 'Alice', 'id': 1},
                                                          'second': {'name': 'Bob', 'id': 2}}})
 
+    def test_helper_asdict_builtin_containers(self):
+        @dataclass
+        class Child:
+            d: object
+
+        @dataclass
+        class Parent:
+            child: Child
+
+        self.assertEqual(asdict(Parent(Child([1]))), {'child': {'d': [1]}})
+        self.assertEqual(asdict(Parent(Child({1: 2}))), {'child': {'d': {1: 2}}})
+
     def test_helper_asdict_factory(self):
         @dataclass
         class C:
@@ -1262,6 +1274,18 @@ class TestCase(unittest.TestCase):
         self.assertEqual(astuple(gl), (0, [('Alice', 1), ('Bob', 2)]))
         self.assertEqual(astuple(gt), (0, (('Alice', 1), ('Bob', 2))))
         self.assertEqual(astuple(gd), (0, {'first': ('Alice', 1), 'second': ('Bob', 2)}))
+
+    def test_helper_astuple_builtin_containers(self):
+        @dataclass
+        class Child:
+            d: object
+
+        @dataclass
+        class Parent:
+            child: Child
+
+        self.assertEqual(astuple(Parent(Child([1]))), (([1],),))
+        self.assertEqual(astuple(Parent(Child({1: 2}))), (({1: 2},),))
 
     def test_helper_astuple_factory(self):
         @dataclass

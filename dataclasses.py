@@ -540,6 +540,8 @@ def asdict(obj, *, dict_factory=dict):
     return _asdict_inner(obj, dict_factory)
 
 def _asdict_inner(obj, dict_factory):
+    if not hasattr(obj, _MARKER):
+        return obj
     result = []
     for name in fields(obj):
         value = getattr(obj, name)
@@ -578,6 +580,8 @@ def astuple(obj, *, tuple_factory=tuple):
     return _astuple_inner(obj, tuple_factory)
 
 def _astuple_inner(obj, tuple_factory):
+    if not hasattr(obj, _MARKER):
+        return obj
     result = []
     for name in fields(obj):
         value = getattr(obj, name)
