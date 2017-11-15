@@ -1,5 +1,5 @@
 import sys
-import copy
+from copy import deepcopy
 import collections
 import inspect
 
@@ -518,7 +518,7 @@ def fields(cls):
     return getattr(cls, _MARKER)
 
 
-def asdict(obj, *, copy_function=copy.copy, dict_factory=dict, nested=False):
+def asdict(obj, *, dict_factory=dict):
     """Get the fields of a dataclass instance as a new dictionary mapping
     field names to field values. Example usage::
 
@@ -530,27 +530,33 @@ def asdict(obj, *, copy_function=copy.copy, dict_factory=dict, nested=False):
       c = C(1, 2)
       assert asdict(c) == {'x': 1, 'y': 2}
 
-    The 'copy_function' (if not None) is applied to field values, by default
-    this is shallow copy.copy from standard library.
     If given, 'dict_factory' will be used instead of built-in dict.
-    If 'nested' is True, apply 'asdict' to field values that are dataclass
-    instances.
+    The function applies recursively to field values that are
+    dataclass instances. This will also look into built-in containers: tuples,
+    lists, and dicts.
     """
-    if isinstance(obj, type):
-        raise ValueError("asdict() should be called on dataclass instances, not classes")
+    if isinstance(obj, type) or not hasattr(obj, _MARKER):
+        raise TypeError("asdict() should be called on dataclass instances")
+    return _asdict_inner(obj, dict_factory)
+
+def _asdict_inner(obj, dict_factory):
     result = []
     for name in fields(obj):
         value = getattr(obj, name)
-        if nested and hasattr(value, _MARKER):
-            value = asdict(value, copy_function=copy_function,
-                           dict_factory=dict_factory, nested=nested)
-        elif copy_function is not None:
-            value = copy_function(value)
+        if hasattr(value, _MARKER) and not isinstance(value, type):
+            value = _asdict_inner(value, dict_factory)
+        elif isinstance(value, (list, tuple)):
+            value = type(value)(_asdict_inner(v, dict_factory) for v in value)
+        elif isinstance(value, dict):
+            value = type(value)((k, _asdict_inner(v, dict_factory))
+                              for k, v in value.items())
+        else:
+            value = deepcopy(value)
         result.append((name, value))
     return dict_factory(result)
 
 
-def astuple(obj, *, copy_function=copy.copy, tuple_factory=tuple, nested=False):
+def astuple(obj, *, tuple_factory=tuple):
     """Get the fields of a dataclass instance as a new tuple of field values.
     Example usage::
 
@@ -562,21 +568,27 @@ def astuple(obj, *, copy_function=copy.copy, tuple_factory=tuple, nested=False):
     c = C(1, 2)
     assert asdtuple(c) == (1, 2)
 
-    The 'copy_function' (if not None) is applied to field values, by default
-    this is shallow copy.copy from standard library.
     If given, 'tuple_factory' will be used instead of built-in tuple.
-    If 'nested' is True, apply 'astuple' to field values that are dataclass
-    instances.
+    The function applies recursively to field values that are
+    dataclass instances. This will also look into built-in containers: tuples,
+    lists, and dicts.
     """
-    if isinstance(obj, type):
-        raise ValueError("astuple() should be called on dataclass instances, not classes")
+    if isinstance(obj, type) or not hasattr(obj, _MARKER):
+        raise TypeError("astuple() should be called on dataclass instances")
+    return _astuple_inner(obj, tuple_factory)
+
+def _astuple_inner(obj, tuple_factory):
     result = []
     for name in fields(obj):
         value = getattr(obj, name)
-        if nested and hasattr(value, _MARKER):
-            value = astuple(value, copy_function=copy_function,
-                            tuple_factory=tuple_factory, nested=nested)
-        elif copy_function is not None:
-            value = copy_function(value)
+        if hasattr(value, _MARKER) and not isinstance(value, type):
+            value = _astuple_inner(value, tuple_factory)
+        elif isinstance(value, (list, tuple)):
+            value = type(value)(_astuple_inner(v, tuple_factory) for v in value)
+        elif isinstance(value, dict):
+            value = type(value)((k, _astuple_inner(v, tuple_factory))
+                              for k, v in value.items())
+        else:
+            value = deepcopy(value)
         result.append(value)
     return tuple_factory(result)
