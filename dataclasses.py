@@ -547,13 +547,13 @@ def _asdict_inner(obj, dict_factory):
     if isdataclass(obj):
         result = []
         for name in fields(obj):
-            value = _asdict_inner(getattr(obj, name))
+            value = _asdict_inner(getattr(obj, name), dict_factory)
             result.append((name, value))
         return dict_factory(result)
     elif isinstance(obj, (list, tuple)):
-        value = type(obj)(_asdict_inner(v, dict_factory) for v in obj)
+        return type(obj)(_asdict_inner(v, dict_factory) for v in obj)
     elif isinstance(obj, dict):
-        value = type(obj)((_asdict_inner(k, dict_factory), _asdict_inner(v, dict_factory))
+        return type(obj)((_asdict_inner(k, dict_factory), _asdict_inner(v, dict_factory))
                           for k, v in obj.items())
     else:
         return deepcopy(obj)
@@ -584,13 +584,13 @@ def _astuple_inner(obj, tuple_factory):
     if isdataclass(obj):
         result = []
         for name in fields(obj):
-            value = _astuple_inner(getattr(obj, name))
+            value = _astuple_inner(getattr(obj, name), tuple_factory)
             result.append(value)
         return tuple_factory(result)
     elif isinstance(obj, (list, tuple)):
-        value = type(obj)(_astuple_inner(v, tuple_factory) for v in obj)
+        return type(obj)(_astuple_inner(v, tuple_factory) for v in obj)
     elif isinstance(obj, dict):
-        value = type(obj)((_astuple_inner(k, tuple_factory), _astuple_inner(v, tuple_factory))
+        return type(obj)((_astuple_inner(k, tuple_factory), _astuple_inner(v, tuple_factory))
                           for k, v in obj.items())
     else:
         return deepcopy(obj)
