@@ -7,8 +7,8 @@ import pickle
 import inspect
 import unittest
 from unittest.mock import Mock
-from typing import ClassVar, Any, List, Union
-from collections import deque, OrderedDict
+from typing import ClassVar, Any, List, Union, Tuple, Dict
+from collections import deque, OrderedDict, namedtuple
 
 # Just any custom exception we can catch.
 class CustomError(Exception): pass
@@ -1112,10 +1112,97 @@ class TestCase(unittest.TestCase):
         class C:
             x: int
             y: int
-        with self.assertRaisesRegex(ValueError, 'dataclass instance'):
+        with self.assertRaisesRegex(TypeError, 'dataclass instance'):
             asdict(C)
-        with self.assertRaisesRegex(ValueError, 'dataclass instance'):
+        with self.assertRaisesRegex(TypeError, 'dataclass instance'):
             asdict(int)
+
+    def test_helper_asdict_copy_values(self):
+        @dataclass
+        class C:
+            x: int
+            y: List[int] = field(default_factory=list)
+        initial = []
+        c = C(1, initial)
+        d = asdict(c)
+        self.assertEqual(d['y'], initial)
+        self.assertIsNot(d['y'], initial)
+        c = C(1)
+        d = asdict(c)
+        d['y'].append(1)
+        self.assertEqual(c.y, [])
+
+    def test_helper_asdict_nested(self):
+        @dataclass
+        class UserId:
+            token: int
+            group: int
+        @dataclass
+        class User:
+            name: str
+            id: UserId
+        u = User('Joe', UserId(123, 1))
+        d = asdict(u)
+        self.assertEqual(d, {'name': 'Joe', 'id': {'token': 123, 'group': 1}})
+        self.assertIsNot(asdict(u), asdict(u))
+        u.id.group = 2
+        self.assertEqual(asdict(u), {'name': 'Joe',
+                                     'id': {'token': 123, 'group': 2}})
+
+    def test_helper_asdict_builtin_containers(self):
+        @dataclass
+        class User:
+            name: str
+            id: int
+        @dataclass
+        class GroupList:
+            id: int
+            users: List[User]
+        @dataclass
+        class GroupTuple:
+            id: int
+            users: Tuple[User, ...]
+        @dataclass
+        class GroupDict:
+            id: int
+            users: Dict[str, User]
+        a = User('Alice', 1)
+        b = User('Bob', 2)
+        gl = GroupList(0, [a, b])
+        gt = GroupTuple(0, (a, b))
+        gd = GroupDict(0, {'first': a, 'second': b})
+        self.assertEqual(asdict(gl), {'id': 0, 'users': [{'name': 'Alice', 'id': 1},
+                                                         {'name': 'Bob', 'id': 2}]})
+        self.assertEqual(asdict(gt), {'id': 0, 'users': ({'name': 'Alice', 'id': 1},
+                                                         {'name': 'Bob', 'id': 2})})
+        self.assertEqual(asdict(gd), {'id': 0, 'users': {'first': {'name': 'Alice', 'id': 1},
+                                                         'second': {'name': 'Bob', 'id': 2}}})
+
+    def test_helper_asdict_builtin_containers(self):
+        @dataclass
+        class Child:
+            d: object
+
+        @dataclass
+        class Parent:
+            child: Child
+
+        self.assertEqual(asdict(Parent(Child([1]))), {'child': {'d': [1]}})
+        self.assertEqual(asdict(Parent(Child({1: 2}))), {'child': {'d': {1: 2}}})
+
+    def test_helper_asdict_factory(self):
+        @dataclass
+        class C:
+            x: int
+            y: int
+        c = C(1, 2)
+        d = asdict(c, dict_factory=OrderedDict)
+        self.assertEqual(d, OrderedDict([('x', 1), ('y', 2)]))
+        self.assertIsNot(d, asdict(c, dict_factory=OrderedDict))
+        c.x = 42
+        d = asdict(c, dict_factory=OrderedDict)
+        self.assertEqual(d, OrderedDict([('x', 42), ('y', 2)]))
+        self.assertIs(type(d), OrderedDict)
 
     def test_helper_astuple(self):
         # Basic tests for astuple(), it should return a new tuple
@@ -1138,10 +1225,96 @@ class TestCase(unittest.TestCase):
         class C:
             x: int
             y: int
-        with self.assertRaisesRegex(ValueError, 'dataclass instance'):
+        with self.assertRaisesRegex(TypeError, 'dataclass instance'):
             astuple(C)
-        with self.assertRaisesRegex(ValueError, 'dataclass instance'):
+        with self.assertRaisesRegex(TypeError, 'dataclass instance'):
             astuple(int)
+
+    def test_helper_astuple_copy_values(self):
+        @dataclass
+        class C:
+            x: int
+            y: List[int] = field(default_factory=list)
+        initial = []
+        c = C(1, initial)
+        t = astuple(c)
+        self.assertEqual(t[1], initial)
+        self.assertIsNot(t[1], initial)
+        c = C(1)
+        t = astuple(c)
+        t[1].append(1)
+        self.assertEqual(c.y, [])
+
+    def test_helper_astuple_nested(self):
+        @dataclass
+        class UserId:
+            token: int
+            group: int
+        @dataclass
+        class User:
+            name: str
+            id: UserId
+        u = User('Joe', UserId(123, 1))
+        t = astuple(u)
+        self.assertEqual(t, ('Joe', (123, 1)))
+        self.assertIsNot(astuple(u), astuple(u))
+        u.id.group = 2
+        self.assertEqual(astuple(u), ('Joe', (123, 2)))
+
+    def test_helper_astuple_builtin_containers(self):
+        @dataclass
+        class User:
+            name: str
+            id: int
+        @dataclass
+        class GroupList:
+            id: int
+            users: List[User]
+        @dataclass
+        class GroupTuple:
+            id: int
+            users: Tuple[User, ...]
+        @dataclass
+        class GroupDict:
+            id: int
+            users: Dict[str, User]
+        a = User('Alice', 1)
+        b = User('Bob', 2)
+        gl = GroupList(0, [a, b])
+        gt = GroupTuple(0, (a, b))
+        gd = GroupDict(0, {'first': a, 'second': b})
+        self.assertEqual(astuple(gl), (0, [('Alice', 1), ('Bob', 2)]))
+        self.assertEqual(astuple(gt), (0, (('Alice', 1), ('Bob', 2))))
+        self.assertEqual(astuple(gd), (0, {'first': ('Alice', 1), 'second': ('Bob', 2)}))
+
+    def test_helper_astuple_builtin_containers(self):
+        @dataclass
+        class Child:
+            d: object
+
+        @dataclass
+        class Parent:
+            child: Child
+
+        self.assertEqual(astuple(Parent(Child([1]))), (([1],),))
+        self.assertEqual(astuple(Parent(Child({1: 2}))), (({1: 2},),))
+
+    def test_helper_astuple_factory(self):
+        @dataclass
+        class C:
+            x: int
+            y: int
+        NT = namedtuple('NT', 'x y')
+        def nt(lst):
+            return NT(*lst)
+        c = C(1, 2)
+        t = astuple(c, tuple_factory=nt)
+        self.assertEqual(t, NT(1, 2))
+        self.assertIsNot(t, astuple(c, tuple_factory=nt))
+        c.x = 42
+        t = astuple(c, tuple_factory=nt)
+        self.assertEqual(t, NT(42, 2))
+        self.assertIs(type(t), NT)
 
     def test_dynamic_class_creation(self):
         cls_dict = {'__annotations__': OrderedDict(x=int, y=int),

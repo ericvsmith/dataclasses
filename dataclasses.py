@@ -1,4 +1,5 @@
 import sys
+from copy import deepcopy
 import collections
 import inspect
 
@@ -521,7 +522,7 @@ def isdataclass(obj):
     return not isinstance(obj, type) and hasattr(obj, _MARKER)
 
 
-def asdict(obj):
+def asdict(obj, *, dict_factory=dict):
     """Get the fields of a dataclass instance as a new dictionary mapping
     field names to field values. Example usage::
 
@@ -532,13 +533,33 @@ def asdict(obj):
 
       c = C(1, 2)
       assert asdict(c) == {'x': 1, 'y': 2}
+
+    If given, 'dict_factory' will be used instead of built-in dict.
+    The function applies recursively to field values that are
+    dataclass instances. This will also look into built-in containers: tuples,
+    lists, and dicts.
     """
-    if isinstance(obj, type):
-        raise ValueError("asdict() should be called on dataclass instances, not classes")
-    return {name: getattr(obj, name) for name in fields(obj)}
+    if not isdataclass(obj):
+        raise TypeError("asdict() should be called on dataclass instances")
+    return _asdict_inner(obj, dict_factory)
+
+def _asdict_inner(obj, dict_factory):
+    if isdataclass(obj):
+        result = []
+        for name in fields(obj):
+            value = _asdict_inner(getattr(obj, name), dict_factory)
+            result.append((name, value))
+        return dict_factory(result)
+    elif isinstance(obj, (list, tuple)):
+        return type(obj)(_asdict_inner(v, dict_factory) for v in obj)
+    elif isinstance(obj, dict):
+        return type(obj)((_asdict_inner(k, dict_factory), _asdict_inner(v, dict_factory))
+                          for k, v in obj.items())
+    else:
+        return deepcopy(obj)
 
 
-def astuple(obj):
+def astuple(obj, *, tuple_factory=tuple):
     """Get the fields of a dataclass instance as a new tuple of field values.
     Example usage::
 
@@ -549,7 +570,27 @@ def astuple(obj):
 
     c = C(1, 2)
     assert asdtuple(c) == (1, 2)
+
+    If given, 'tuple_factory' will be used instead of built-in tuple.
+    The function applies recursively to field values that are
+    dataclass instances. This will also look into built-in containers: tuples,
+    lists, and dicts.
     """
-    if isinstance(obj, type):
-        raise ValueError("astuple() should be called on dataclass instances, not classes")
-    return tuple(getattr(obj, name) for name in fields(obj))
+    if isinstance(obj, type) or not hasattr(obj, _MARKER):
+        raise TypeError("astuple() should be called on dataclass instances")
+    return _astuple_inner(obj, tuple_factory)
+
+def _astuple_inner(obj, tuple_factory):
+    if isdataclass(obj):
+        result = []
+        for name in fields(obj):
+            value = _astuple_inner(getattr(obj, name), tuple_factory)
+            result.append(value)
+        return tuple_factory(result)
+    elif isinstance(obj, (list, tuple)):
+        return type(obj)(_astuple_inner(v, tuple_factory) for v in obj)
+    elif isinstance(obj, dict):
+        return type(obj)((_astuple_inner(k, tuple_factory), _astuple_inner(v, tuple_factory))
+                          for k, v in obj.items())
+    else:
+        return deepcopy(obj)
