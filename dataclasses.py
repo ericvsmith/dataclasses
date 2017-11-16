@@ -518,6 +518,10 @@ def fields(cls):
     return getattr(cls, _MARKER)
 
 
+def isdataclass(obj):
+    return not isinstance(obj, type) and hasattr(obj, _MARKER)
+
+
 def asdict(obj, *, dict_factory=dict):
     """Get the fields of a dataclass instance as a new dictionary mapping
     field names to field values. Example usage::
