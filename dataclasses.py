@@ -535,27 +535,24 @@ def asdict(obj, *, dict_factory=dict):
     dataclass instances. This will also look into built-in containers: tuples,
     lists, and dicts.
     """
-    if isinstance(obj, type) or not hasattr(obj, _MARKER):
+    if not isdataclass(obj):
         raise TypeError("asdict() should be called on dataclass instances")
     return _asdict_inner(obj, dict_factory)
 
 def _asdict_inner(obj, dict_factory):
-    if not hasattr(obj, _MARKER):
-        return obj
-    result = []
-    for name in fields(obj):
-        value = getattr(obj, name)
-        if hasattr(value, _MARKER) and not isinstance(value, type):
-            value = _asdict_inner(value, dict_factory)
-        elif isinstance(value, (list, tuple)):
-            value = type(value)(_asdict_inner(v, dict_factory) for v in value)
-        elif isinstance(value, dict):
-            value = type(value)((k, _asdict_inner(v, dict_factory))
-                              for k, v in value.items())
-        else:
-            value = deepcopy(value)
-        result.append((name, value))
-    return dict_factory(result)
+    if isdataclass(obj):
+        result = []
+        for name in fields(obj):
+            value = _asdict_inner(getattr(obj, name))
+            result.append((name, value))
+        return dict_factory(result)
+    elif isinstance(obj, (list, tuple)):
+        value = type(obj)(_asdict_inner(v, dict_factory) for v in obj)
+    elif isinstance(obj, dict):
+        value = type(obj)((_asdict_inner(k, dict_factory), _asdict_inner(v, dict_factory))
+                          for k, v in obj.items())
+    else:
+        return deepcopy(obj)
 
 
 def astuple(obj, *, tuple_factory=tuple):
@@ -580,19 +577,16 @@ def astuple(obj, *, tuple_factory=tuple):
     return _astuple_inner(obj, tuple_factory)
 
 def _astuple_inner(obj, tuple_factory):
-    if not hasattr(obj, _MARKER):
-        return obj
-    result = []
-    for name in fields(obj):
-        value = getattr(obj, name)
-        if hasattr(value, _MARKER) and not isinstance(value, type):
-            value = _astuple_inner(value, tuple_factory)
-        elif isinstance(value, (list, tuple)):
-            value = type(value)(_astuple_inner(v, tuple_factory) for v in value)
-        elif isinstance(value, dict):
-            value = type(value)((k, _astuple_inner(v, tuple_factory))
-                              for k, v in value.items())
-        else:
-            value = deepcopy(value)
-        result.append(value)
-    return tuple_factory(result)
+    if isdataclass(obj):
+        result = []
+        for name in fields(obj):
+            value = _astuple_inner(getattr(obj, name))
+            result.append(value)
+        return tuple_factory(result)
+    elif isinstance(obj, (list, tuple)):
+        value = type(obj)(_astuple_inner(v, tuple_factory) for v in obj)
+    elif isinstance(obj, dict):
+        value = type(obj)((_astuple_inner(k, tuple_factory), _astuple_inner(v, tuple_factory))
+                          for k, v in obj.items())
+    else:
+        return deepcopy(obj)
