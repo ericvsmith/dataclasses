@@ -423,6 +423,9 @@ Module level helper functions
 
 - ``astuple(instance)``: todo: recursion, class factories, etc.
 
+- ``isdataclass(obj)``: Returns `True` if `obj` is an instance of a
+  Data Class, otherwise returns `False`.
+
 .. _discussion:
 
 Discussion
