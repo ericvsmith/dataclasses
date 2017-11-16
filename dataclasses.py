@@ -519,6 +519,8 @@ def fields(cls):
 
 
 def isdataclass(obj):
+    """Returns True if obj is an instance of a Data Class, otherwise
+    returns False"""
     return not isinstance(obj, type) and hasattr(obj, _MARKER)
 
 
