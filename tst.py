@@ -1081,7 +1081,7 @@ class TestCase(unittest.TestCase):
         self.assertFalse(isdataclass(C))
         self.assertTrue(isdataclass(C(0)))
 
-    def test_helper_fields_works_class_instance(self):
+    def test_helper_fields_with_class_instance(self):
         # Check that we can call fields() on either a class or instance,
         #  and get back the same thing.
         @dataclass
@@ -1090,6 +1090,18 @@ class TestCase(unittest.TestCase):
             y: float
 
         self.assertIs(fields(C), fields(C(0, 0.0)))
+
+    def test_helper_fields_exception(self):
+        # Check that TypeError is raised if not passed a dataclass or
+        #  instance.
+        with self.assertRaisesRegex(TypeError, 'dataclass type or instance'):
+            fields(0)
+
+        class C: pass
+        with self.assertRaisesRegex(TypeError, 'dataclass type or instance'):
+            fields(C)
+        with self.assertRaisesRegex(TypeError, 'dataclass type or instance'):
+            fields(C())
 
     def test_helper_asdict(self):
         # Basic tests for asdict(), it should return a new dictionary

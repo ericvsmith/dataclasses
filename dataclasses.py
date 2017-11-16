@@ -514,13 +514,18 @@ def dataclass(_cls=None, *, init=True, repr=True, hash=None, eq=True,
     return wrap(_cls)
 
 
-def fields(cls):
-    return getattr(cls, _MARKER)
+def fields(class_or_instance):
+    """Returns the list of fields of this dataclass. Accepts a dataclass
+    or an instance of one."""
+    try:
+        return getattr(class_or_instance, _MARKER)
+    except AttributeError:
+        raise TypeError('must be called with a dataclass type or instance')
 
 
 def isdataclass(obj):
-    """Returns True if obj is an instance of a Data Class, otherwise
-    returns False"""
+    """Returns True if obj is an instance of a dataclass, otherwise
+    returns False."""
     return not isinstance(obj, type) and hasattr(obj, _MARKER)
 
 
