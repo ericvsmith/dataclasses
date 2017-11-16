@@ -132,7 +132,7 @@ Where is it not appropriate to use Data Classes?
 - API compatibility with tuples or dicts is required.
 
 - Type validation beyond that provided by PEPs 484 and 526 is
-  required, or value validation is required.
+  required, or value validation or conversion is required.
 
 .. _Specification:
 
