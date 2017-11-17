@@ -559,7 +559,8 @@ Why not just use typing.NamedTuple
 For classes with statically defined fields, it does support similar
 syntax to Data Classes, using type annotations.  This produces a
 namedtuple, so it shares ``namedtuple``'s benefits and some of its
-downsides.
+downsides.  Data Classes, unlike ``typing.NamedTuple``, support
+combining fields via inheritance.
 
 Why not just use attrs
 ----------------------
@@ -596,8 +597,11 @@ Here is one way of dynamically creating the same Data Class::
               }
   C = dataclass(type('C', (object,), cls_dict))
 
-How to support mutable default values
--------------------------------------
+Rejected ideas
+==============
+
+Automatically support mutable default values
+--------------------------------------------
 
 One proposal was to automatically copy defaults, so that if a literal
 list ``[]`` was a default value, each instance would get a new list.
@@ -608,6 +612,9 @@ see [#]_.
 
 Examples
 ========
+
+A complicated example
+---------------------
 
 This code exists in a closed source project::
 
@@ -630,7 +637,7 @@ This can be replaced by::
   class Application:
       name: str
       requirements: List[Requirement]
-      constraints: List[str] = field(default_factory=list)
+      constraints: Dict[str, str] = field(default_factory=dict)
       path: str = ''
       executable_links: List[str] = field(default_factory=list)
       executable_dir: Tuple[str] = ()
