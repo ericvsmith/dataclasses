@@ -9,6 +9,7 @@ __all__ = ['dataclass',
 
            # Helper functions.
            'fields',
+           'isdataclass',
            'asdict',
            'astuple',
            ]
