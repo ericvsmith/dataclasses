@@ -1,5 +1,7 @@
 import sys
+from copy import deepcopy
 import collections
+import inspect
 
 __all__ = ['dataclass',
            'field',
@@ -7,6 +9,7 @@ __all__ = ['dataclass',
 
            # Helper functions.
            'fields',
+           'isdataclass',
            'asdict',
            'astuple',
            'replace'
@@ -20,6 +23,15 @@ class FrozenInstanceError(AttributeError): pass
 
 # A sentinel object to detect if a parameter is supplied or not.
 _MISSING = object()
+
+# A sentinel object for default values to signal that a
+#  default-factory will be used.
+# This is given a nice repr() which will appear in the function
+#  signature of dataclasses' constructors.
+class _HAS_DEFAULT_FACTORY_CLASS:
+    def __repr__(self):
+        return '<factory>'
+_HAS_DEFAULT_FACTORY = _HAS_DEFAULT_FACTORY_CLASS()
 
 # The name of an attribute on the class where we store the Field
 #  objects. Also used to check if a class is a Data Class.
@@ -138,7 +150,9 @@ def _field_init(f, frozen, globals, self_name):
             # This field has a default factory.  If a parameter is
             #  given, use it.  If not, call the factory.
             globals[default_name] = f.default_factory
-            value = f'{default_name}() if {f.name} is _MISSING else {f.name}'
+            value = (f'{default_name}() '
+                     f'if {f.name} is _HAS_DEFAULT_FACTORY '
+                     f'else {f.name}')
         else:
             # This is a field that's not in the __init__ params, but
             #  has a default factory function.  It needs to be
@@ -151,7 +165,7 @@ def _field_init(f, frozen, globals, self_name):
             #  default factory, the factory must be called in __init__
             #  and we must assign that to self.fieldname. We can't
             #  fall back to the class dict's value, both because it's
-            #  not set, and because it might different per-class
+            #  not set, and because it might be different per-class
             #  (which, after all, is why we have a factory function!).
 
             globals[default_name] = f.default_factory
@@ -188,7 +202,7 @@ def _init_param(f):
         default = f'=_dflt_{f.name}'
     elif f.default_factory is not _MISSING:
         # There's a factory function. Set a marker.
-        default = '=_MISSING'
+        default = '=_HAS_DEFAULT_FACTORY'
     return f'{f.name}:_type_{f.name}{default}'
 
 
@@ -208,7 +222,8 @@ def _init_fn(fields, frozen, has_post_init, self_name):
                 raise TypeError(f'non-default argument {f.name!r} '
                                 'follows default argument')
 
-    globals = {'_MISSING': _MISSING}
+    globals = {'_MISSING': _MISSING,
+               '_HAS_DEFAULT_FACTORY': _HAS_DEFAULT_FACTORY}
 
     body_lines = []
     for f in fields:
@@ -476,6 +491,11 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
         # Create and set the comparison functions.
         _set_compare_fns(cls, list(filter(lambda f: f.cmp, field_list)))
 
+    if not getattr(cls, '__doc__'):
+        # Create a class doc-string
+        cls.__doc__ = \
+            cls.__name__ + str(inspect.signature(cls)).replace(' -> None', '')
+
     return cls
 
 
@@ -496,11 +516,22 @@ def dataclass(_cls=None, *, init=True, repr=True, hash=None, eq=True,
     return wrap(_cls)
 
 
-def fields(cls):
-    return getattr(cls, _MARKER)
+def fields(class_or_instance):
+    """Returns the list of fields of this dataclass. Accepts a dataclass
+    or an instance of one."""
+    try:
+        return getattr(class_or_instance, _MARKER)
+    except AttributeError:
+        raise TypeError('must be called with a dataclass type or instance')
 
 
-def asdict(obj):
+def isdataclass(obj):
+    """Returns True if obj is an instance of a dataclass, otherwise
+    returns False."""
+    return not isinstance(obj, type) and hasattr(obj, _MARKER)
+
+
+def asdict(obj, *, dict_factory=dict):
     """Get the fields of a dataclass instance as a new dictionary mapping
     field names to field values. Example usage::
 
@@ -511,13 +542,33 @@ def asdict(obj):
 
       c = C(1, 2)
       assert asdict(c) == {'x': 1, 'y': 2}
+
+    If given, 'dict_factory' will be used instead of built-in dict.
+    The function applies recursively to field values that are
+    dataclass instances. This will also look into built-in containers: tuples,
+    lists, and dicts.
     """
-    if isinstance(obj, type):
-        raise ValueError("asdict() should be called on dataclass instances, not classes")
-    return {name: getattr(obj, name) for name in fields(obj)}
+    if not isdataclass(obj):
+        raise TypeError("asdict() should be called on dataclass instances")
+    return _asdict_inner(obj, dict_factory)
+
+def _asdict_inner(obj, dict_factory):
+    if isdataclass(obj):
+        result = []
+        for name in fields(obj):
+            value = _asdict_inner(getattr(obj, name), dict_factory)
+            result.append((name, value))
+        return dict_factory(result)
+    elif isinstance(obj, (list, tuple)):
+        return type(obj)(_asdict_inner(v, dict_factory) for v in obj)
+    elif isinstance(obj, dict):
+        return type(obj)((_asdict_inner(k, dict_factory), _asdict_inner(v, dict_factory))
+                          for k, v in obj.items())
+    else:
+        return deepcopy(obj)
 
 
-def astuple(obj):
+def astuple(obj, *, tuple_factory=tuple):
     """Get the fields of a dataclass instance as a new tuple of field values.
     Example usage::
 
@@ -528,10 +579,30 @@ def astuple(obj):
 
     c = C(1, 2)
     assert asdtuple(c) == (1, 2)
+
+    If given, 'tuple_factory' will be used instead of built-in tuple.
+    The function applies recursively to field values that are
+    dataclass instances. This will also look into built-in containers: tuples,
+    lists, and dicts.
     """
-    if isinstance(obj, type):
-        raise ValueError("astuple() should be called on dataclass instances, not classes")
-    return tuple(getattr(obj, name) for name in fields(obj))
+    if not isdataclass(obj):
+        raise TypeError("astuple() should be called on dataclass instances")
+    return _astuple_inner(obj, tuple_factory)
+
+def _astuple_inner(obj, tuple_factory):
+    if isdataclass(obj):
+        result = []
+        for name in fields(obj):
+            value = _astuple_inner(getattr(obj, name), tuple_factory)
+            result.append(value)
+        return tuple_factory(result)
+    elif isinstance(obj, (list, tuple)):
+        return type(obj)(_astuple_inner(v, tuple_factory) for v in obj)
+    elif isinstance(obj, dict):
+        return type(obj)((_astuple_inner(k, tuple_factory), _astuple_inner(v, tuple_factory))
+                          for k, v in obj.items())
+    else:
+        return deepcopy(obj)
 
 
 def replace(obj, **changes):
