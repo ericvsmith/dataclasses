@@ -1440,23 +1440,32 @@ class TestCase(unittest.TestCase):
             x: int
             y: int
             z: int = field(init=False, default=10)
+            t: int = field(init=False, default=100)
 
         c = C(1, 2)
         c1 = replace(c, x=3)
-        self.assertEqual((c.x, c.y, c.z), (1, 2, 10))
-        self.assertEqual((c1.x, c1.y, c1.z), (3, 2, 10))
+        self.assertEqual((c.x, c.y, c.z, c.t), (1, 2, 10, 100))
+        self.assertEqual((c1.x, c1.y, c1.z, c1.t), (3, 2, 10, 100))
 
-        c1 = replace(c, x=3, z=20)
-        self.assertEqual((c.x, c.y, c.z), (1, 2, 10))
-        self.assertEqual((c1.x, c1.y, c1.z), (3, 2, 20))
+        c1 = replace(c, x=3, z=20, t=50)
+        self.assertEqual((c.x, c.y, c.z, c.t), (1, 2, 10, 100))
+        self.assertEqual((c1.x, c1.y, c1.z, c1.t), (3, 2, 20, 50))
 
         c1 = replace(c, z=20)
-        self.assertEqual((c.x, c.y, c.z), (1, 2, 10))
-        self.assertEqual((c1.x, c1.y, c1.z), (1, 2, 20))
+        self.assertEqual((c.x, c.y, c.z, c.t), (1, 2, 10, 100))
+        self.assertEqual((c1.x, c1.y, c1.z, c1.t), (1, 2, 20, 100))
 
         # Make sure the result is still frozen.
         with self.assertRaisesRegex(FrozenInstanceError, "cannot assign to field 'x'"):
             c1.x = 3
+
+        # Make sure we can't replace an attribute that doesn't exit,
+        #  if we're also replacing one that does exist.  Test this
+        #  here, because setting attributes on frozen instances is
+        #  handled slightly differently from non-frozen ones.
+        with self.assertRaisesRegex(TypeError, "__init__\(\) got an unexpected "
+                                             "keyword argument 'a'"):
+            c1 = replace(c, x=20, a=5)
 
     def test_helper_replace_invalid_field_name(self):
       @dataclass(frozen=True)
@@ -1481,6 +1490,10 @@ class TestCase(unittest.TestCase):
       # Make sure y gets what c contained, not the default value.
       c1 = replace(c, x=5)
       self.assertEqual((c1.x, c1.y), (5, 20))
+
+      # Make sure we can replace y, even though it's a non-init field.
+      c1 = replace(c, y=30)
+      self.assertEqual((c1.x, c1.y), (1, 30))
 
     def test_dataclassses_pickleable(self):
         global P, Q, R
