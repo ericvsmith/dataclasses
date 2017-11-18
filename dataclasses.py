@@ -12,7 +12,7 @@ __all__ = ['dataclass',
            'isdataclass',
            'asdict',
            'astuple',
-           'replace'
+           'replace',
            ]
 
 # Just for development, I'll remove this before shipping.
@@ -622,53 +622,58 @@ def replace(obj, **changes):
     if not isdataclass(obj):
         raise TypeError("replace() should be called on dataclass instances")
 
-    # Keep track of the non-init fields to specify.
+    # Keep track of the non-init fields to fix up later.
     non_init_fields = {}
 
     # For each field:
-    # If it's an init field and it's not in 'changes', then get it's
-    #  value from 'obj'.  If it it's an init field and it is in
-    #  'changes', leave the new value in 'changes'.
-    # If it's not an init field, then if it's in 'changes', remember
-    #  it and remove it from 'changes'. If it's not in 'changes', use
-    #  the value in 'obj'.
+    #  If it's an init=True field and it's not in 'changes', then get
+    #   its value from 'obj'.
+    #  If it's an init=True field and it is in 'changes', leave the new
+    #   value in 'changes' (that is, do nothing).
+    #  If it's not an init=True field, then if it's in 'changes',
+    #   remember it and remove it from 'changes'. If it's not in
+    #   'changes', use the value in 'obj'.
     for f in fields(obj).values():
         if f.init:
             if f.name not in changes:
                 changes[f.name] = getattr(obj, f.name)
         else:
             try:
-                # If this field is in changes, remember it's value
-                #  there and remove it from changes (since it can't
-                #  be specified when creating the new object).
-                non_init_fields[f.name] = changes[f.name]
-                del changes[f.name]
+                # If this field is in changes, remember its value and
+                #  remove it from changes (since it can't be specified
+                #  when creating the new object).
+                non_init_fields[f.name] = changes.pop(f.name)
             except KeyError:
-                # This field wasn't in changes, use the current
+                # This field wasn't in changes: use the current
                 #  value of the field from obj.
                 non_init_fields[f.name] = getattr(obj, f.name)
 
-    # Create the new object, which calls __init__(), using all of the
-    #  init fields we've collected and/or left in 'changes'.
+    # Create the new object, which calls __init__() and
+    #  __dataclass_post_init__ (if defined), using all of the init
+    #  fields we've added and/or left in 'changes'.
     # If there are values supplied in changes that aren't fields, this
     #  will correctly raise a TypeError.
     new_obj = obj.__class__(**changes)
 
-    # Now, set fields that aren't init=True params to.
+    # Now, set fields that aren't init=True params to values from the
+    #  instance we're copying from.
     # For frozen objects, we have to call object.__setattr__. But we
     #  don't know if an object is frozen or not.
     # So the first time through, try to set the attribute, catch the
     #  exception if one is raised, and remember if it's frozen.
-    setter = setattr
+    first = True
     for idx, (name, value) in enumerate(non_init_fields.items()):
-        if idx == 0:
+        if first:
             try:
-                setter(new_obj, name, value)
+                setattr(new_obj, name, value)
+                setter = setattr
                 # setattr succeeded, move to the next field.
                 continue
             except FrozenInstanceError:
                 setter = object.__setattr__
                 # Fall through to set the attribute.
+        else:
+            first = False
         setter(new_obj, name, value)
 
     return new_obj

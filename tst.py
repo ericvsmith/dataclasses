@@ -1,6 +1,6 @@
 from dataclasses import (
     dataclass, field, FrozenInstanceError, fields, asdict, astuple,
-    isdataclass, replace
+    isdataclass, replace,
 )
 
 import pickle
