@@ -614,6 +614,17 @@ Here is one way of dynamically creating the same Data Class::
 How should replace() work, with regards to init=False fields?
 -------------------------------------------------------------
 
+Fields that are ``init=False`` are by definition not passed to
+``__init__``, but instead are initialized with a default value or by
+calling a default factory function.
+
+When creating a new object in ``replace()``, such fields would
+normally be given this default value.  However, because the instance
+on which ``replace()`` is being called will have a value for these
+``init=False`` fields (which might be different from the default), it
+was decided to copy all ``init=False`` fields from the existing
+instance to the new object, after the new object has been created.
+
 Rejected ideas
 ==============
 
