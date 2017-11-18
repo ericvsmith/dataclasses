@@ -697,13 +697,12 @@ def replace(obj, **changes):
     non_init_fields = {}
 
     # For each field:
-    #  If it's an init=True field and it's not in 'changes', then get
-    #   its value from 'obj'.
-    #  If it's an init=True field and it is in 'changes', leave the new
-    #   value in 'changes' (that is, do nothing).
-    #  If it's not an init=True field, then if it's in 'changes',
-    #   remember it and remove it from 'changes'. If it's not in
-    #   'changes', use the value in 'obj'.
+    # Is init=True?  In 'changes'?  Action
+    #     yes             yes       Do nothing (leave value in `changes')
+    #     yes             no        Get value from 'obj'.
+    #     no              yes       Get value from 'changes', and
+    #                                remove from 'changes'.
+    #     no              no        Get value from 'obj'.
     for f in fields(obj).values():
         if f.init:
             if f.name not in changes:
