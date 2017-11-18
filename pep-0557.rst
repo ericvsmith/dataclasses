@@ -1,4 +1,4 @@
-                PEP: 557
+PEP: 557
 Title: Data Classes
 Author: Eric V. Smith <eric@trueblade.com>
 Status: Draft
@@ -400,8 +400,8 @@ they also share this problem.  There is no general way for Data
 Classes to detect this condition.  Instead, Data Classes will raise a
 ``TypeError`` if it detects a default parameter of type ``list``,
 ``dict``, or ``set``.  This is a partial solution, but it does protect
-against many common errors.  See `How to support mutable default
-values`_ in the Discussion section for more details.
+against many common errors.  See `Automatically support mutable
+default values`_ in the Rejected Ideas section for more details.
 
 Using default factory functions is a way to create new instances of
 mutable types as default values for fields::
@@ -480,6 +480,20 @@ Module level helper functions
 
         def add_one(self):
             return self.x + 1
+
+- ``replace(instance, **changes)``: Creates a new object of the same
+  type of ``instance``, replacing fields with values from ``changes``.
+  If ``instance`` is not a Data Class, raises ``TypeError``.  If
+  values in ``changes`` do not specify fields, raises ``TypeError``.
+
+  The newly returned object is created by calling the ``__init__``
+  method of the Data Class.  This ensures that
+  ``__dataclass_post_init__()``, if present, is also called.
+
+  Any fields that are specified as ``init=False`` are copied from
+  ``instance`` to the new object, after the new object has been fully
+  created.  There is no other way for these fields to be initialized
+  to the values that were present in ``instance``.
 
 .. _discussion:
 
@@ -590,6 +604,20 @@ Here is one way of dynamically creating the same Data Class::
               'y': field(init=False, default=0),
               }
   C = dataclass(type('C', (object,), cls_dict))
+
+How should replace() work, with regards to init=False fields?
+-------------------------------------------------------------
+
+Fields that are ``init=False`` are by definition not passed to
+``__init__``, but instead are initialized with a default value or by
+calling a default factory function.
+
+When creating a new object in ``replace()``, such fields would
+normally be given this default value.  However, because the instance
+on which ``replace()`` is being called will have a value for these
+``init=False`` fields (which might be different from the default), it
+was decided to copy all ``init=False`` fields from the existing
+instance to the new object, after the new object has been created.
 
 Rejected ideas
 ==============
@@ -721,6 +749,7 @@ References
 
 .. [#] Copying mutable defaults
        (https://github.com/ericvsmith/dataclasses/issues/3)
+
 
 Copyright
 =========
