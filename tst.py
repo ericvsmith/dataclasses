@@ -1478,6 +1478,18 @@ class TestCase(unittest.TestCase):
                                              "keyword argument 'z'"):
           c1 = replace(c, z=3)
 
+    def test_helper_replace_invalid_object(self):
+      @dataclass(frozen=True)
+      class C:
+          x: int
+          y: int
+
+      with self.assertRaisesRegex(TypeError, 'dataclass instance'):
+          replace(C, x=3)
+
+      with self.assertRaisesRegex(TypeError, 'dataclass instance'):
+          replace(0, x=3)
+
     def test_helper_replace_no_init(self):
       @dataclass
       class C:
