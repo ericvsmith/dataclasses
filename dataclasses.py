@@ -22,9 +22,6 @@ _debug = False
 # Raised when an attempt is made to modify a frozen class.
 class FrozenInstanceError(AttributeError): pass
 
-# A sentinel object to detect if a parameter is supplied or not.
-_MISSING = object()
-
 # A sentinel object for default values to signal that a
 #  default-factory will be used.
 # This is given a nice repr() which will appear in the function
@@ -33,6 +30,12 @@ class _HAS_DEFAULT_FACTORY_CLASS:
     def __repr__(self):
         return '<factory>'
 _HAS_DEFAULT_FACTORY = _HAS_DEFAULT_FACTORY_CLASS()
+
+# A sentinel object to detect if a parameter is supplied or not.
+class _MISSING_FACTORY:
+    def __repr__(self):
+        return '<missing>'
+_MISSING = _MISSING_FACTORY()
 
 # The name of an attribute on the class where we store the Field
 #  objects. Also used to check if a class is a Data Class.
@@ -89,6 +92,19 @@ class Field:
 #  function whose type depends on its parameters.
 def field(*, default=_MISSING, default_factory=_MISSING, init=True, repr=True,
           hash=None, cmp=True):
+    """Return an object to identify dataclass fields.
+
+    default is the default value of the field. default_factory is a
+    0-argument function called to initialize a field's value. If init
+    is True, the field is will be a parameter to the class's
+    __init__() function. If repr is True, the field will be included
+    in the object's repr(). If hash is True, the field will be
+    included in the object's hash(). If cmp is True, the field will be
+    used in comparison functions.
+
+    It is an error to specify both default and default_factory."
+    """
+
     if default is not _MISSING and default_factory is not _MISSING:
         raise ValueError('cannot specify both default and default_factory')
     return Field(default, default_factory, init, repr, hash, cmp)
@@ -505,6 +521,18 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
 #  decorator is being called with parameters or not.
 def dataclass(_cls=None, *, init=True, repr=True, hash=None, eq=True,
               compare=True, frozen=False):
+    """Returns the same class as was passed in, with dunder methods
+    added based on the fields defined in the class.
+
+    Examines PEP 526 __annotations__ to determine fields.
+
+    If init is True, an __init__() method is added to the class. If
+    repr is True, a __repr__() method is added.  If hash is True, a
+    __hash__() method function is added. If compare is True, rich
+    comparison dunder methods are added. If frozen is True, fields may
+    not be assigned to after instance creation.
+    """
+
     def wrap(cls):
         return _process_class(cls, repr, eq, compare, hash, init, frozen)
 
@@ -518,8 +546,11 @@ def dataclass(_cls=None, *, init=True, repr=True, hash=None, eq=True,
 
 
 def fields(class_or_instance):
-    """Returns the list of fields of this dataclass. Accepts a dataclass
-    or an instance of one."""
+    """Return the list of fields of this dataclass.
+
+    Accepts a dataclass or an instance of one. List elements are of
+    type Field.
+    """
     try:
         return getattr(class_or_instance, _MARKER)
     except AttributeError:
@@ -527,14 +558,15 @@ def fields(class_or_instance):
 
 
 def isdataclass(obj):
-    """Returns True if obj is an instance of a dataclass, otherwise
-    returns False."""
+    """Returns True if obj is an instance of a dataclass."""
     return not isinstance(obj, type) and hasattr(obj, _MARKER)
 
 
 def asdict(obj, *, dict_factory=dict):
-    """Get the fields of a dataclass instance as a new dictionary mapping
-    field names to field values. Example usage::
+    """Return the fields of a dataclass instance as a new dictionary mapping
+    field names to field values.
+
+    Example usage:
 
       @dataclass
       class C:
@@ -546,8 +578,8 @@ def asdict(obj, *, dict_factory=dict):
 
     If given, 'dict_factory' will be used instead of built-in dict.
     The function applies recursively to field values that are
-    dataclass instances. This will also look into built-in containers: tuples,
-    lists, and dicts.
+    dataclass instances. This will also look into built-in containers:
+    tuples, lists, and dicts.
     """
     if not isdataclass(obj):
         raise TypeError("asdict() should be called on dataclass instances")
@@ -570,7 +602,8 @@ def _asdict_inner(obj, dict_factory):
 
 
 def astuple(obj, *, tuple_factory=tuple):
-    """Get the fields of a dataclass instance as a new tuple of field values.
+    """Return the fields of a dataclass instance as a new tuple of field values.
+
     Example usage::
 
       @dataclass
@@ -583,9 +616,10 @@ def astuple(obj, *, tuple_factory=tuple):
 
     If given, 'tuple_factory' will be used instead of built-in tuple.
     The function applies recursively to field values that are
-    dataclass instances. This will also look into built-in containers: tuples,
-    lists, and dicts.
+    dataclass instances. This will also look into built-in containers:
+    tuples, lists, and dicts.
     """
+
     if not isdataclass(obj):
         raise TypeError("astuple() should be called on dataclass instances")
     return _astuple_inner(obj, tuple_factory)
@@ -607,9 +641,11 @@ def _astuple_inner(obj, tuple_factory):
 
 
 def make_dataclass(cls_name, fields, *, bases=(), namespace=None):
-    """Creates a new dataclass named class_name. fields is an interable
+    """Return a new dynamically created dataclass.
+
+    The dataclass name will be 'cls_name'.  'fields' is an interable
     of either (name, type) or (name, type, Field) objects. Field
-    objects are created by calling field().
+    objects are created by calling 'field(name, type [, Field])'.
 
       C = make_class('C', [('a', int', ('b', int, Field(init=False))], bases=Base)
 
@@ -640,8 +676,9 @@ def make_dataclass(cls_name, fields, *, bases=(), namespace=None):
 
 
 def replace(obj, **changes):
-    """Return a new object replacing specified fields with new values. This
-    is especially useful for frozen classes.  Example usage::
+    """Return a new object replacing specified fields with new values.
+
+    This is especially useful for frozen classes.  Example usage:
 
       @dataclass(frozen=True)
       class C:
