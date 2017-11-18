@@ -12,6 +12,7 @@ __all__ = ['dataclass',
            'isdataclass',
            'asdict',
            'astuple',
+           'make_dataclass',
            ]
 
 # Just for development, I'll remove this before shipping.
@@ -602,3 +603,36 @@ def _astuple_inner(obj, tuple_factory):
                           for k, v in obj.items())
     else:
         return deepcopy(obj)
+
+
+def make_dataclass(cls_name, fields, *, bases=(), namespace=None):
+    """Creates a new dataclass named class_name. fields is an interable
+    of either (name, type) or (name, type, Field) objects. Field
+    objects are created by calling field().
+
+      C = make_class('C', [('a', int', ('b', int, Field(init=False))], bases=Base)
+
+    is equivalent to:
+
+      @dataclass
+      class C(Base):
+          a: int
+          b: int = field(init=False)
+
+    For the bases and namespace paremeters, see the builtin type() function.
+    """
+
+    if namespace is None:
+        namespace = {}
+    else:
+        # Copy namespace since we're going to mutate it.
+        namespace = namespace.copy()
+
+    anns = collections.OrderedDict((name, tp) for name, tp, *_ in fields)
+    namespace['__annotations__'] = anns
+    for item in fields:
+        if len(item) == 3:
+            name, tp, spec = item
+            namespace[name] = spec
+    cls = type(cls_name, bases, namespace)
+    return dataclass(cls)

@@ -1,6 +1,6 @@
 from dataclasses import (
     dataclass, field, FrozenInstanceError, fields, asdict, astuple,
-    isdataclass
+    isdataclass, make_dataclass
 )
 
 import pickle
@@ -1451,6 +1451,56 @@ class TestCase(unittest.TestCase):
                     another_new_sample = pickle.loads(pickle.dumps(new_sample, proto))
                     self.assertEqual(new_sample.x, another_new_sample.x)
                     self.assertEqual(sample.y, another_new_sample.y)
+
+    def test_helper_make_dataclass(self):
+        C = make_dataclass('C',
+                           [('x', int),
+                            ('y', int, field(default=5))],
+                           namespace={'add_one': lambda self: self.x + 1})
+        c = C(10)
+        self.assertEqual((c.x, c.y), (10, 5))
+        self.assertEqual(c.add_one(), 11)
+
+
+    def test_helper_make_dataclass_no_mutate_namespace(self):
+        # Make sure a provided namespace isn't mutated.
+        ns = {}
+        C = make_dataclass('C',
+                           [('x', int),
+                            ('y', int, field(default=5))],
+                           namespace=ns)
+        self.assertEqual(ns, {})
+
+    def test_helper_make_dataclass_base(self):
+        class Base1:
+            pass
+        class Base2:
+            pass
+        C = make_dataclass('C',
+                           [('x', int)],
+                           bases=(Base1, Base2))
+        c = C(2)
+        self.assertIsInstance(c, C)
+        self.assertIsInstance(c, Base1)
+        self.assertIsInstance(c, Base2)
+
+    def test_helper_make_dataclass_base_dataclass(self):
+        @dataclass
+        class Base1:
+            x: int
+        class Base2:
+            pass
+        C = make_dataclass('C',
+                           [('y', int)],
+                           bases=(Base1, Base2))
+        with self.assertRaisesRegex(TypeError, 'required positional'):
+            c = C(2)
+        c = C(1, 2)
+        self.assertIsInstance(c, C)
+        self.assertIsInstance(c, Base1)
+        self.assertIsInstance(c, Base2)
+
+        self.assertEqual((c.x, c.y), (1, 2))
 
 
 class TestDocString(unittest.TestCase):
