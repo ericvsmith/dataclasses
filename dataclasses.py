@@ -650,6 +650,8 @@ def replace(obj, **changes):
 
     # Create the new object, which calls __init__(), using all of the
     #  init fields we've collected and/or left in 'changes'.
+    # If there are values supplied in changes that aren't fields, this
+    #  will correctly raise a TypeError.
     new_obj = obj.__class__(**changes)
 
     # Now, set fields that aren't init=True params to.
