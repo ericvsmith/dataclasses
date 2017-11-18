@@ -12,6 +12,7 @@ __all__ = ['dataclass',
            'isdataclass',
            'asdict',
            'astuple',
+           'replace',
            ]
 
 # Just for development, I'll remove this before shipping.
@@ -584,7 +585,7 @@ def astuple(obj, *, tuple_factory=tuple):
     dataclass instances. This will also look into built-in containers: tuples,
     lists, and dicts.
     """
-    if isinstance(obj, type) or not hasattr(obj, _MARKER):
+    if not isdataclass(obj):
         raise TypeError("astuple() should be called on dataclass instances")
     return _astuple_inner(obj, tuple_factory)
 
@@ -602,3 +603,77 @@ def _astuple_inner(obj, tuple_factory):
                           for k, v in obj.items())
     else:
         return deepcopy(obj)
+
+
+def replace(obj, **changes):
+    """Return a new object replacing specified fields with new values. This
+    is especially useful for frozen classes.  Example usage::
+
+      @dataclass(frozen=True)
+      class C:
+          x: int
+          y: int
+
+      c = C(1, 2)
+      c1 = replace(c, x=3)
+      assert c1.x == 3 and c1.y == 2
+      """
+
+    if not isdataclass(obj):
+        raise TypeError("replace() should be called on dataclass instances")
+
+    # Keep track of the non-init fields to fix up later.
+    non_init_fields = {}
+
+    # For each field:
+    #  If it's an init=True field and it's not in 'changes', then get
+    #   its value from 'obj'.
+    #  If it's an init=True field and it is in 'changes', leave the new
+    #   value in 'changes' (that is, do nothing).
+    #  If it's not an init=True field, then if it's in 'changes',
+    #   remember it and remove it from 'changes'. If it's not in
+    #   'changes', use the value in 'obj'.
+    for f in fields(obj).values():
+        if f.init:
+            if f.name not in changes:
+                changes[f.name] = getattr(obj, f.name)
+        else:
+            try:
+                # If this field is in changes, remember its value and
+                #  remove it from changes (since it can't be specified
+                #  when creating the new object).
+                non_init_fields[f.name] = changes.pop(f.name)
+            except KeyError:
+                # This field wasn't in changes: use the current
+                #  value of the field from obj.
+                non_init_fields[f.name] = getattr(obj, f.name)
+
+    # Create the new object, which calls __init__() and
+    #  __dataclass_post_init__ (if defined), using all of the init
+    #  fields we've added and/or left in 'changes'.
+    # If there are values supplied in changes that aren't fields, this
+    #  will correctly raise a TypeError.
+    new_obj = obj.__class__(**changes)
+
+    # Now, set fields that aren't init=True params to values from the
+    #  instance we're copying from.
+    # For frozen objects, we have to call object.__setattr__. But we
+    #  don't know if an object is frozen or not.
+    # So the first time through, try to set the attribute, catch the
+    #  exception if one is raised, and remember if it's frozen.
+    first = True
+    for idx, (name, value) in enumerate(non_init_fields.items()):
+        if first:
+            try:
+                setattr(new_obj, name, value)
+                setter = setattr
+                # setattr succeeded, move to the next field.
+                continue
+            except FrozenInstanceError:
+                setter = object.__setattr__
+                # Fall through to set the attribute.
+        else:
+            first = False
+        setter(new_obj, name, value)
+
+    return new_obj
