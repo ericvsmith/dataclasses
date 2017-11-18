@@ -619,9 +619,8 @@ def replace(obj, **changes):
       assert c1.x == 3 and c1.y == 2
       """
 
-    # XXX: I'm modifying the keys while iterating over them. This
-    #  should probably be changed to not do that. I'll leave this as a
-    #  task for later.
+    if not isdataclass(obj):
+        raise TypeError("replace() should be called on dataclass instances")
 
     # Keep track of the non-init fields to specify.
     non_init_fields = {}
@@ -639,35 +638,35 @@ def replace(obj, **changes):
                 changes[f.name] = getattr(obj, f.name)
         else:
             try:
+                # If this field is in changes, remember it's value
+                #  there and remove it from changes (since it can't
+                #  be specified when creating the new object).
                 non_init_fields[f.name] = changes[f.name]
-                # Remove this from the list of fields we're going
-                #  to pass to the class constructor.
                 del changes[f.name]
             except KeyError:
+                # This field wasn't in changes, use the current
+                #  value of the field from obj.
                 non_init_fields[f.name] = getattr(obj, f.name)
 
     # Create the new object, which calls __init__(), using all of the
     #  init fields we've collected and/or left in 'changes'.
     new_obj = obj.__class__(**changes)
 
-    # Now, set fields that aren't params to __init__().
+    # Now, set fields that aren't init=True params to.
     # For frozen objects, we have to call object.__setattr__. But we
     #  don't know if an object is frozen or not.
     # So the first time through, try to set the attribute, catch the
     #  exception if one is raised, and remember if it's frozen.
-    is_frozen = False
+    setter = setattr
     for idx, (name, value) in enumerate(non_init_fields.items()):
         if idx == 0:
             try:
-                setattr(new_obj, name, value)
+                setter(new_obj, name, value)
                 # setattr succeeded, move to the next field.
                 continue
             except FrozenInstanceError:
-                frozen = True
+                setter = object.__setattr__
                 # Fall through to set the attribute.
-        if frozen:
-            object.__setattr__(new_obj, name, value)
-        else:
-            setattr(new_obj, name, value)
+        setter(new_obj, name, value)
 
     return new_obj

@@ -1492,6 +1492,9 @@ class TestCase(unittest.TestCase):
       self.assertEqual((c1.x, c1.y), (5, 20))
 
       # Make sure we can replace y, even though it's a non-init field.
+      c1 = replace(c, x=2, y=30)
+      self.assertEqual((c1.x, c1.y), (2, 30))
+
       c1 = replace(c, y=30)
       self.assertEqual((c1.x, c1.y), (1, 30))
 
