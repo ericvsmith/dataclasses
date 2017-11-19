@@ -1,4 +1,5 @@
 import sys
+import types
 from copy import deepcopy
 import collections
 import inspect
@@ -37,6 +38,10 @@ class _MISSING_FACTORY:
         return '<missing>'
 _MISSING = _MISSING_FACTORY()
 
+# Since most per-field metadata will be unused, create an empty
+#  read-only proxy that can be shared among all fields.
+_EMPTY_METADATA = types.MappingProxyType({})
+
 # The name of an attribute on the class where we store the Field
 #  objects. Also used to check if a class is a Data Class.
 _MARKER = '__dataclass_fields__'
@@ -62,9 +67,10 @@ class Field:
                  'hash',
                  'init',
                  'cmp',
+                 'metadata',
                  )
 
-    def __init__(self, default, default_factory, init, repr, hash, cmp):
+    def __init__(self, default, default_factory, init, repr, hash, cmp, metadata):
         self.name = None
         self.type = None
         self.default = default
@@ -73,6 +79,9 @@ class Field:
         self.repr = repr
         self.hash = hash
         self.cmp = cmp
+        self.metadata = (_EMPTY_METADATA
+                         if metadata is None or len(metadata) == 0 else
+                         types.MappingProxyType(metadata))
 
     def __repr__(self):
         return ('Field('
@@ -83,7 +92,8 @@ class Field:
                 f'init={self.init},'
                 f'repr={self.repr},'
                 f'hash={self.hash},'
-                f'cmp={self.cmp}'
+                f'cmp={self.cmp},'
+                f'metadata={self.metadata}'
                 ')')
 
 
@@ -91,7 +101,7 @@ class Field:
 #  so that a type checker can be told (via overloads) that this is a
 #  function whose type depends on its parameters.
 def field(*, default=_MISSING, default_factory=_MISSING, init=True, repr=True,
-          hash=None, cmp=True):
+          hash=None, cmp=True, metadata=None):
     """Return an object to identify dataclass fields.
 
     default is the default value of the field. default_factory is a
@@ -100,14 +110,15 @@ def field(*, default=_MISSING, default_factory=_MISSING, init=True, repr=True,
     __init__() function. If repr is True, the field will be included
     in the object's repr(). If hash is True, the field will be
     included in the object's hash(). If cmp is True, the field will be
-    used in comparison functions.
+    used in comparison functions. metadata, if specified, must be a
+    mapping which is stored but not otherwise examined by dataclass.
 
     It is an error to specify both default and default_factory."
     """
 
     if default is not _MISSING and default_factory is not _MISSING:
         raise ValueError('cannot specify both default and default_factory')
-    return Field(default, default_factory, init, repr, hash, cmp)
+    return Field(default, default_factory, init, repr, hash, cmp, metadata)
 
 
 def _tuple_str(obj_name, fields):
