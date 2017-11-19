@@ -243,7 +243,7 @@ information, you can replace the default field value with a call to
 the provided ``field()`` function.  The signature of ``field()`` is::
 
   def field(*, default=_MISSING, default_factory=_MISSING, repr=True,
-            hash=None, init=True, cmp=True)
+            hash=None, init=True, cmp=True, metadata=None)
 
 The ``_MISSING`` value is a sentinel object used to detect if the
 ``default`` and ``default_factory`` parameters are provided.  Users
@@ -278,6 +278,13 @@ The parameters to ``field()`` are:
   it's used for comparisons.  Setting this value to anything other
   than ``None`` is discouraged.
 
+- ``metadata``: This can be a mapping or None. None is treated as an
+  empty dict.  This value is wrapped in ``types.MappingProxyType`` to
+  make it read-only, and exposed on the Field object. It is not used
+  at all by Data Classes, and is provided as a third-party extension
+  mechanism.  Multiple third-parties can each have their own key, to
+  use as a namespace in the metadata.
+
 ``Field`` objects
 -----------------
 
@@ -290,9 +297,9 @@ object directly.  Its attributes are:
 
  - ``type``: The type of the field.
 
- - ``default``, ``default_factory``, ``init``, ``repr``, ``hash``, and
-   ``cmp`` have the identical meaning as they do in the ``field()``
-   declaration.
+ - ``default``, ``default_factory``, ``init``, ``repr``, ``hash``,
+   ``cmp``, and ``metadata`` have the identical meaning as they do in
+   the ``field()`` declaration.
 
 post-init processing
 --------------------

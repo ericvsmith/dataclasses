@@ -1423,6 +1423,77 @@ class TestCase(unittest.TestCase):
 
         self.assertEqual(C.from_file('filename').x, 20)
 
+    def test_field_metadata_default(self):
+        # Make sure the default metadata is read-only and of
+        #  zero length.
+        @dataclass
+        class C:
+            i: int
+
+        self.assertFalse(fields(C)['i'].metadata)
+        self.assertEqual(len(fields(C)['i'].metadata), 0)
+        with self.assertRaisesRegex(TypeError,
+                                    'does not support item assignment'):
+            fields(C)['i'].metadata['test'] = 3
+
+    def test_field_metadata_mapping(self):
+        # Make sure only a mapping can be passed as metadata
+        #  zero length.
+        with self.assertRaises(TypeError):
+            @dataclass
+            class C:
+                i: int = field(metadata=0)
+
+        # Make sure an empty dict works
+        @dataclass
+        class C:
+            i: int = field(metadata={})
+        self.assertFalse(fields(C)['i'].metadata)
+        self.assertEqual(len(fields(C)['i'].metadata), 0)
+        with self.assertRaisesRegex(TypeError,
+                                    'does not support item assignment'):
+            fields(C)['i'].metadata['test'] = 3
+
+        # Make sure a non-empty dict works.
+        @dataclass
+        class C:
+            i: int = field(metadata={'test': 10, 'bar': '42', 3: 'three'})
+        self.assertEqual(len(fields(C)['i'].metadata), 3)
+        self.assertEqual(fields(C)['i'].metadata['test'], 10)
+        self.assertEqual(fields(C)['i'].metadata['bar'], '42')
+        self.assertEqual(fields(C)['i'].metadata[3], 'three')
+        with self.assertRaises(KeyError):
+            # Non-existent key.
+            fields(C)['i'].metadata['baz']
+        with self.assertRaisesRegex(TypeError,
+                                    'does not support item assignment'):
+            fields(C)['i'].metadata['test'] = 3
+
+    def test_field_metadata_custom_mapping(self):
+        # Try a custom mapping.
+        class SimpleNameSpace:
+            def __init__(self, **kw):
+                self.__dict__.update(kw)
+
+            def __getitem__(self, item):
+                if item == 'xyzzy':
+                    return 'plugh'
+                return getattr(self, item)
+
+            def __len__(self):
+                return self.__dict__.__len__()
+
+        @dataclass
+        class C:
+            i: int = field(metadata=SimpleNameSpace(a=10))
+
+        self.assertEqual(len(fields(C)['i'].metadata), 1)
+        self.assertEqual(fields(C)['i'].metadata['a'], 10)
+        with self.assertRaises(AttributeError):
+            fields(C)['i'].metadata['b']
+        # Make sure we're still talking to our custom mapping.
+        self.assertEqual(fields(C)['i'].metadata['xyzzy'], 'plugh')
+
     def test_helper_replace(self):
         @dataclass(frozen=True)
         class C:
