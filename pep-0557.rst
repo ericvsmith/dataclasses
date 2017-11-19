@@ -583,28 +583,6 @@ Why not just use attrs
 
 For more discussion, see [#]_.
 
-Dynamic creation of classes
----------------------------
-
-An earlier version of this PEP and the sample implementation provided
-a ``make_class`` function that dynamically created Data Classes.  This
-functionality was later dropped, although it might be added at a later
-time as a helper function.  The ``@dataclass`` decorator does not care
-how classes are created, so they could be either statically defined or
-dynamically defined.  For this Data Class::
-
-  @dataclass
-  class C:
-      x: int
-      y: int = field(init=False, default=0)
-
-Here is one way of dynamically creating the same Data Class::
-
-  cls_dict = {'__annotations__': OrderedDict(x=int, y=int),
-              'y': field(init=False, default=0),
-              }
-  C = dataclass(type('C', (object,), cls_dict))
-
 How should replace() work, with regards to init=False fields?
 -------------------------------------------------------------
 
