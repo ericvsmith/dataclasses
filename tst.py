@@ -817,7 +817,7 @@ class TestCase(unittest.TestCase):
         # Just make sure it gets called
         @dataclass
         class C:
-            def __dataclass_post_init__(self):
+            def __post_init__(self):
                 raise CustomError()
         with self.assertRaises(CustomError):
             C()
@@ -825,7 +825,7 @@ class TestCase(unittest.TestCase):
         @dataclass
         class C:
             i: int = 10
-            def __dataclass_post_init__(self):
+            def __post_init__(self):
                 if self.i == 10:
                     raise CustomError()
         with self.assertRaises(CustomError):
@@ -837,7 +837,7 @@ class TestCase(unittest.TestCase):
         # If there's not an __init__, then post-init won't get called.
         @dataclass(init=False)
         class C:
-            def __dataclass_post_init__(self):
+            def __post_init__(self):
                 raise CustomError()
         # Creating the class won't raise
         C()
@@ -845,7 +845,7 @@ class TestCase(unittest.TestCase):
         @dataclass
         class C:
             x: int = 0
-            def __dataclass_post_init__(self):
+            def __post_init__(self):
                 self.x *= 2
         self.assertEqual(C().x, 0)
         self.assertEqual(C(2).x, 4)
@@ -855,7 +855,7 @@ class TestCase(unittest.TestCase):
         @dataclass(frozen=True)
         class C:
             x: int = 0
-            def __dataclass_post_init__(self):
+            def __post_init__(self):
                 self.x *= 2
         with self.assertRaises(FrozenInstanceError):
             C()
@@ -863,12 +863,12 @@ class TestCase(unittest.TestCase):
     def test_post_init_super(self):
         # Make sure super() post-init isn't called by default.
         class B:
-            def __dataclass_post_init__(self):
+            def __post_init__(self):
                 raise CustomError()
 
         @dataclass
         class C(B):
-            def __dataclass_post_init__(self):
+            def __post_init__(self):
                 self.x = 5
 
         self.assertEqual(C().x, 5)
@@ -876,8 +876,8 @@ class TestCase(unittest.TestCase):
         # Now call super(), and it will raise
         @dataclass
         class C(B):
-            def __dataclass_post_init__(self):
-                super().__dataclass_post_init__()
+            def __post_init__(self):
+                super().__post_init__()
 
         with self.assertRaises(CustomError):
             C()
@@ -898,7 +898,7 @@ class TestCase(unittest.TestCase):
             x: int
             y: int
             @staticmethod
-            def __dataclass_post_init__():
+            def __post_init__():
                 nonlocal flag
                 flag = True
 
@@ -914,7 +914,7 @@ class TestCase(unittest.TestCase):
             x: int
             y: int
             @classmethod
-            def __dataclass_post_init__(cls):
+            def __post_init__(cls):
                 cls.flag = True
 
         self.assertFalse(C.flag)
@@ -1408,9 +1408,9 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c.e, 0)
 
     def test_alternate_classmethod_constructor(self):
-        # Since __dataclass_post_init__ can't take params, use a
-        #  classmethod alternate constructor. This is mostly an
-        #  example to show how to use this technique.
+        # Since __post_init__ can't take params, use a classmethod
+        # alternate constructor. This is mostly an example to show how
+        # to use this technique.
         @dataclass
         class C:
             x: int

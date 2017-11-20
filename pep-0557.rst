@@ -495,7 +495,7 @@ Module level helper functions
 
   The newly returned object is created by calling the ``__init__``
   method of the Data Class.  This ensures that
-  ``__dataclass_post_init__()``, if present, is also called.
+  ``__post_init__()``, if present, is also called.
 
   Any fields that are specified as ``init=False`` are copied from
   ``instance`` to the new object, after the new object has been fully
@@ -610,10 +610,9 @@ Rejected ideas
 post-init takes parameters
 --------------------------
 
-The post-init function ``__dataclass_post_init__`` takes no
-parameters.  This was deemed to be simpler than trying to find a
-mechanism to optionally pass a parameter to the
-``__dataclass_post_init__`` function.
+The post-init function ``__post_init__`` takes no parameters.  This
+was deemed to be simpler than trying to find a mechanism to optionally
+pass a parameter to the ``__post_init__`` function.
 
 The normal way of doing such parameterized initialization (and not
 just with Data Classes) is to provide an alternate classmethod
@@ -631,11 +630,11 @@ constructor.  For example::
 
   c = C.from_file('file.txt')
 
-Because ``__dataclass_post_init__`` function is the last thing called
-in the generated ``__init__``, having a classmethod constructor (which
-can also execute code immmediately after constructing the object), is
+Because the ``__post_init__`` function is the last thing called in the
+generated ``__init__``, having a classmethod constructor (which can
+also execute code immmediately after constructing the object), is
 functionally equivalent to being able to pass parameters to a
-`__dataclass_post_init__`` function.
+`__post_init__`` function.
 
 
 Automatically support mutable default values
