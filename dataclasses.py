@@ -48,7 +48,7 @@ _MARKER = '__dataclass_fields__'
 
 # The name of the function, that if it exists, is called at the end of
 # __init__.
-_POST_INIT_NAME = '__dataclass_post_init__'
+_POST_INIT_NAME = '__post_init__'
 
 # Instances of Field are only ever created from within this module,
 #  and only from the field() function, although Field instances are
@@ -729,9 +729,9 @@ def replace(obj, **changes):
                 #  value of the field from obj.
                 non_init_fields[f.name] = getattr(obj, f.name)
 
-    # Create the new object, which calls __init__() and
-    #  __dataclass_post_init__ (if defined), using all of the init
-    #  fields we've added and/or left in 'changes'.
+    # Create the new object, which calls __init__() and __post_init__
+    #  (if defined), using all of the init fields we've added and/or
+    #  left in 'changes'.
     # If there are values supplied in changes that aren't fields, this
     #  will correctly raise a TypeError.
     new_obj = obj.__class__(**changes)
