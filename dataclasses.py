@@ -7,6 +7,7 @@ import inspect
 __all__ = ['dataclass',
            'field',
            'FrozenInstanceError',
+           'InitVar',
 
            # Helper functions.
            'fields',
@@ -49,6 +50,230 @@ _MARKER = '__dataclass_fields__'
 # The name of the function, that if it exists, is called at the end of
 # __init__.
 _POST_INIT_NAME = '__post_init__'
+
+
+def _qualname(x):
+    if sys.version_info[:2] >= (3, 3):
+        return x.__qualname__
+    else:
+        # Fall back to just name.
+        return x.__name__
+
+
+def _trim_name(nm):
+    whitelist = ('_TypeAlias', '_ForwardRef', '_TypingBase', '_FinalTypingBase')
+    if nm.startswith('_') and nm not in whitelist:
+        nm = nm[1:]
+    return nm
+
+
+def _type_repr(obj):
+    """Return the repr() of an object, special-casing types (internal helper).
+
+    If obj is a type, we return a shorter version than the default
+    type.__repr__, based on the module and qualified name, which is
+    typically enough to uniquely identify a type.  For everything
+    else, we fall back on repr(obj).
+    """
+    if isinstance(obj, type) and not isinstance(obj, TypingMeta):
+        if obj.__module__ == 'builtins':
+            return _qualname(obj)
+        return '%s.%s' % (obj.__module__, _qualname(obj))
+    if obj is ...:
+        return('...')
+    if isinstance(obj, types.FunctionType):
+        return obj.__name__
+    return repr(obj)
+
+
+class TypingMeta(type):
+    """Metaclass for most types defined in typing module
+    (not a part of public API).
+
+    This overrides __new__() to require an extra keyword parameter
+    '_root', which serves as a guard against naive subclassing of the
+    typing classes.  Any legitimate class defined using a metaclass
+    derived from TypingMeta must pass _root=True.
+
+    This also defines a dummy constructor (all the work for most typing
+    constructs is done in __new__) and a nicer repr().
+    """
+
+    _is_protocol = False
+
+    def __new__(cls, name, bases, namespace, *, _root=False):
+        if not _root:
+            raise TypeError("Cannot subclass %s" %
+                            (', '.join(map(_type_repr, bases)) or '()'))
+        return super().__new__(cls, name, bases, namespace)
+
+    def __init__(self, *args, **kwds):
+        pass
+
+    def _eval_type(self, globalns, localns):
+        """Override this in subclasses to interpret forward references.
+
+        For example, List['C'] is internally stored as
+        List[_ForwardRef('C')], which should evaluate to List[C],
+        where C is an object found in globalns or localns (searching
+        localns first, of course).
+        """
+        return self
+
+    def _get_type_vars(self, tvars):
+        pass
+
+    def __repr__(self):
+        qname = _trim_name(_qualname(self))
+        return '%s.%s' % (self.__module__, qname)
+
+
+class _TypingBase(metaclass=TypingMeta, _root=True):
+    """Internal indicator of special typing constructs."""
+
+    __slots__ = ('__weakref__',)
+
+    def __init__(self, *args, **kwds):
+        pass
+
+    def __new__(cls, *args, **kwds):
+        """Constructor.
+
+        This only exists to give a better error message in case
+        someone tries to subclass a special typing object (not a good idea).
+        """
+        if (len(args) == 3 and
+                isinstance(args[0], str) and
+                isinstance(args[1], tuple)):
+            # Close enough.
+            raise TypeError("Cannot subclass %r" % cls)
+        return super().__new__(cls)
+
+    # Things that are not classes also need these.
+    def _eval_type(self, globalns, localns):
+        return self
+
+    def _get_type_vars(self, tvars):
+        pass
+
+    def __repr__(self):
+        cls = type(self)
+        qname = _trim_name(_qualname(cls))
+        return '%s.%s' % (cls.__module__, qname)
+
+    def __call__(self, *args, **kwds):
+        raise TypeError("Cannot instantiate %r" % type(self))
+
+
+class _FinalTypingBase(_TypingBase, _root=True):
+    """Internal mix-in class to prevent instantiation.
+
+    Prevents instantiation unless _root=True is given in class call.
+    It is used to create pseudo-singleton instances Any, Union, Optional, etc.
+    """
+
+    __slots__ = ()
+
+    def __new__(cls, *args, _root=False, **kwds):
+        self = super().__new__(cls, *args, **kwds)
+        if _root is True:
+            return self
+        raise TypeError("Cannot instantiate %r" % cls)
+
+    def __reduce__(self):
+        return _trim_name(type(self).__name__)
+
+
+def _type_check(arg, msg):
+    """Check that the argument is a type, and return it (internal helper).
+
+    As a special case, accept None and return type(None) instead.
+    Also, _TypeAlias instances (e.g. Match, Pattern) are acceptable.
+
+    The msg argument is a human-readable error message, e.g.
+
+        "Union[arg, ...]: arg should be a type."
+
+    We append the repr() of the actual value (truncated to 100 chars).
+    """
+    if arg is None:
+        return type(None)
+    if isinstance(arg, str):
+        arg = _ForwardRef(arg)
+    if (
+        isinstance(arg, _TypingBase) and type(arg).__name__ == '_ClassVar' or
+        not isinstance(arg, (type, _TypingBase)) and not callable(arg)
+    ):
+        raise TypeError(msg + " Got %.100r." % (arg,))
+    # Bare Union etc. are not valid as type arguments
+    if (
+        type(arg).__name__ in ('_Union', '_Optional') and
+        not getattr(arg, '__origin__', None) or
+        isinstance(arg, TypingMeta) and _gorg(arg) in (Generic, _Protocol)
+    ):
+        raise TypeError("Plain %s is not valid as type argument" % arg)
+    return arg
+
+
+class _InitVar(_FinalTypingBase, _root=True):
+    """Special type construct to mark init-only variables.
+
+    An annotation wrapped in InitVar indicates that a given attribute
+    is intended to be used as a parameter to __init__() and
+    __post_init(), but is not a field.  Usage::
+
+      @dataclass
+      class C:
+          id: int
+          name: str=None
+          database: InitVar[DatabaseType]
+
+          def __post_init__(self, database):
+              if self.name is None:
+                  self.name = database.lookup_name(self.id)
+
+      c = C(10, database_connection)
+
+    InitVar accepts only types and cannot be further subscribed.
+    """
+
+    __slots__ = ('__type__',)
+
+    def __init__(self, tp=None, **kwds):
+        self.__type__ = tp
+
+    def __getitem__(self, item):
+        cls = type(self)
+        if self.__type__ is None:
+            return cls(_type_check(item,
+                       '{} accepts only single type.'.format(cls.__name__[1:])),
+                       _root=True)
+        raise TypeError('{} cannot be further subscripted'
+                        .format(cls.__name__[1:]))
+
+    def _eval_type(self, globalns, localns):
+        new_tp = _eval_type(self.__type__, globalns, localns)
+        if new_tp == self.__type__:
+            return self
+        return type(self)(new_tp, _root=True)
+
+    def __repr__(self):
+        r = super().__repr__()
+        if self.__type__ is not None:
+            r += '[{}]'.format(_type_repr(self.__type__))
+        return r
+
+    def __hash__(self):
+        return hash((type(self).__name__, self.__type__))
+
+    def __eq__(self, other):
+        if not isinstance(other, _InitVar):
+            return NotImplemented
+        if self.__type__ is not None:
+            return self.__type__ == other.__type__
+        return self is other
+
+InitVar = _InitVar(_root=True)
 
 # Instances of Field are only ever created from within this module,
 #  and only from the field() function, although Field instances are
@@ -234,13 +459,14 @@ def _init_param(f):
     return f'{f.name}:_type_{f.name}{default}'
 
 
-def _init_fn(fields, frozen, has_post_init, self_name):
+def _init_fn(fields, initvars, frozen, has_post_init, self_name):
     # Make sure we don't have fields without defaults following fields
     #  with defaults.  This actually would be caught when exec-ing the
     #  function source code, but catching it here gives a better error
     #  message, and future-proofs us in case we build up function using
     #  ast.
     seen_default = False
+    print(fields)
     for f in fields:
         # Only consider fields in the __init__ call.
         if f.init:
@@ -342,6 +568,7 @@ def _hash_fn(fields):
 
 
 def _find_fields(cls):
+    # XXX document return value
     # Return a list tuples of of (name, type, Field()), in order, for
     #  this class (and no super-classes).  Fields are found from
     #  __annotations__ (which is guaranteed to be ordered).  Default
@@ -351,6 +578,7 @@ def _find_fields(cls):
     #  Fields which are ClassVars are ignored.
 
     annotations = getattr(cls, '__annotations__', {})
+    initvars = []
 
     results = []
     for a_name, a_type in annotations.items():
@@ -368,6 +596,11 @@ def _find_fields(cls):
                 # This field is a ClassVar. Ignore it.
                 continue
 
+        if type(a_type) is _InitVar:
+            # InitVars are not fields, either.
+            initvars.append(a_name)
+            continue
+
         # If the default value isn't derived from field, then it's
         #  only a normal default value.  Convert it to a Field().
         default = getattr(cls, a_name, _MISSING)
@@ -376,7 +609,7 @@ def _find_fields(cls):
         else:
             f = field(default=default)
         results.append((a_name, a_type, f))
-    return results
+    return results, initvars
 
 
 def _set_attribute(cls, name, value):
@@ -408,7 +641,8 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
     # Now find fields in our class.  While doing so, validate some
     #  things, and set the default values (as class attributes)
     #  where we can.
-    for name, type_, f in _find_fields(cls):
+    found_fields, initvars = _find_fields(cls)
+    for name, type_, f in found_fields:
         fields[name] = f
 
         # The name and type must not be filled in before hand: we
@@ -471,6 +705,7 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
         has_post_init = hasattr(cls, _POST_INIT_NAME)
         _set_attribute(cls, '__init__',
                        _init_fn(field_list,
+                                initvars,
                                 is_frozen,
                                 has_post_init,
 
