@@ -43,6 +43,11 @@ _MISSING = _MISSING_FACTORY()
 #  read-only proxy that can be shared among all fields.
 _EMPTY_METADATA = types.MappingProxyType({})
 
+# Markers for the various kinds of fields and pseudo-fields.
+_FIELD = object()                 # An actual field.
+_FIELD_CLASSVAR = object()        # Not a field, but a ClassVar.
+_FIELD_INITVAR = object()         # Not a field, but an InitVar.
+
 # The name of an attribute on the class where we store the Field
 #  objects. Also used to check if a class is a Data Class.
 _MARKER = '__dataclass_fields__'
@@ -459,14 +464,13 @@ def _init_param(f):
     return f'{f.name}:_type_{f.name}{default}'
 
 
-def _init_fn(fields, initvars, frozen, has_post_init, self_name):
+def _init_fn(fields, frozen, has_post_init, self_name):
     # Make sure we don't have fields without defaults following fields
     #  with defaults.  This actually would be caught when exec-ing the
     #  function source code, but catching it here gives a better error
     #  message, and future-proofs us in case we build up function using
     #  ast.
     seen_default = False
-    print(fields)
     for f in fields:
         # Only consider fields in the __init__ call.
         if f.init:
@@ -578,12 +582,21 @@ def _find_fields(cls):
     #  Fields which are ClassVars are ignored.
 
     annotations = getattr(cls, '__annotations__', {})
-    initvars = []
 
-    results = []
     for a_name, a_type in annotations.items():
-        # If this is a ClassVar, ignore it. It makes no sense for a
-        #  ClassVar to be a field.
+        field_type = _FIELD
+
+        # If the default value isn't derived from field, then it's
+        #  only a normal default value.  Convert it to a Field().
+        default = getattr(cls, a_name, _MISSING)
+        if isinstance(default, Field):
+            f = default
+        else:
+            f = field(default=default)
+
+        # Only at this point do we know the name and the type. Set them.
+        f.name = a_name
+        f.type = a_type
 
         # If typing has not been imported, then it's impossible for
         #  any annotation to be a ClassVar. So, only look for ClassVar
@@ -593,23 +606,18 @@ def _find_fields(cls):
             # This test uses a typing internal class, but it's the best
             #  way to test if this is a ClassVar.
             if type(a_type) is typing._ClassVar:
-                # This field is a ClassVar. Ignore it.
+                # This field is a ClassVar, so it's not a normal field.
+                yield _FIELD_CLASSVAR, f
                 continue
 
+        # Check if this is an InitVar.
         if type(a_type) is _InitVar:
             # InitVars are not fields, either.
-            initvars.append(a_name)
+            yield _FIELD_INITVAR, f
             continue
 
-        # If the default value isn't derived from field, then it's
-        #  only a normal default value.  Convert it to a Field().
-        default = getattr(cls, a_name, _MISSING)
-        if isinstance(default, Field):
-            f = default
-        else:
-            f = field(default=default)
-        results.append((a_name, a_type, f))
-    return results, initvars
+        # It's a normal field.
+        yield _FIELD, f
 
 
 def _set_attribute(cls, name, value):
@@ -641,17 +649,43 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
     # Now find fields in our class.  While doing so, validate some
     #  things, and set the default values (as class attributes)
     #  where we can.
-    found_fields, initvars = _find_fields(cls)
-    for name, type_, f in found_fields:
-        fields[name] = f
+    for field_type, f in _find_fields(cls):
+        # If the class attribute (which is the default value for
+        #  this field) exists and is of type 'Field', replace it
+        #  with the real default.  This is so that normal class
+        #  introspection sees a real default value.
+        if isinstance(getattr(cls, f.name, None), Field):
+            if f.default is _MISSING:
+                # If there's no default, delete the class attribute.
+                #  This happens if we specify field(repr=False), for
+                #  example (that is, we specified a field object, but
+                #  no default value).  The class attribute should not
+                #  be set at all in the post-processed class.
+                delattr(cls, f.name)
+            else:
+                setattr(cls, f.name, f.default)
 
-        # The name and type must not be filled in before hand: we
-        #  grabbed them from the annotations.
-        assert f.name is None and f.type is None
+        # TODO: move all of these per-field tests in to
+        #  _find_fields. There's no logical reason to not have them
+        #  there.
 
-        # Set the field name and type, which we don't know until now.
-        f.name = name
-        f.type = type_
+        # Special restrictions for ClassVar and InitVar.
+        if field_type in (_FIELD_CLASSVAR, _FIELD_INITVAR):
+            if f.default_factory is not _MISSING:
+                raise TypeError(f'field {f.name} cannot have a '
+                                'default factory')
+            # Should I check for other field settings? default_factory
+            #  seems the most serious to check for. Maybe add others.
+
+        # If this is a ClassVar, we're done with it, and it can be
+        #  completely ignored.
+        if field_type is _FIELD_CLASSVAR:
+            continue
+
+        # At this point, the field is either a normal field or an
+        #  InitVar pseudo-field.
+
+        fields[f.name] = f
 
         # Validations for fields directly on our class.  This is
         #  delayed until now, instead of in the Field() constructor,
@@ -662,30 +696,17 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
         # how would it get initialized?
         if (not f.init and f.default is _MISSING and
                            f.default_factory is _MISSING):
-            raise TypeError(f'field {name} has init=False, but '
+            raise TypeError(f'field {f.name} has init=False, but '
                             'has no default value or factory function')
 
-        # If the class attribute (which is the default value for
-        #  this field) exists and is of type 'Field', replace it
-        #  with the real default.  This is so that normal class
-        #  introspection sees a real default value.
-        if isinstance(getattr(cls, name, None), Field):
-            if f.default is _MISSING:
-                # If there's no default, delete the class attribute.
-                #  This happens if we specify field(repr=False), for
-                #  example.  The class attribute should not be set at
-                #  all in the post-processed class.
-                delattr(cls, name)
-            else:
-                setattr(cls, name, f.default)
 
-        # Disallow mutable defaults for known types.
+        # For true fields, disallow mutable defaults for known types.
         if isinstance(f.default, (list, dict, set)):
-            # XXX: include a statement about using a factory in the error message
             raise ValueError(f'mutable default {type(f.default)} for field '
-                             f'{name} is not allowed')
+                             f'{f.name} is not allowed: use default_factory')
 
-    # Just to save some typing in the code below, get the fields as a list.
+    # Get the fields as a list. This is used everywhere except __init__, where
+    #  we have to take in to account the InitVar pseudo-fields.
     field_list = list(fields.values())
 
     # Remember all of the fields on our class (including bases).  This
@@ -705,7 +726,6 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
         has_post_init = hasattr(cls, _POST_INIT_NAME)
         _set_attribute(cls, '__init__',
                        _init_fn(field_list,
-                                initvars,
                                 is_frozen,
                                 has_post_init,
 
