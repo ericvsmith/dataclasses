@@ -1137,7 +1137,7 @@ class TestCase(unittest.TestCase):
             x: int
             y: float
 
-        self.assertIs(fields(C), fields(C(0, 0.0)))
+        self.assertEqual(fields(C), fields(C(0, 0.0)))
 
     def test_helper_fields_exception(self):
         # Check that TypeError is raised if not passed a dataclass or
