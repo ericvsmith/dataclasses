@@ -339,7 +339,7 @@ def field(*, default=_MISSING, default_factory=_MISSING, init=True, repr=True,
 
     default is the default value of the field. default_factory is a
     0-argument function called to initialize a field's value. If init
-    is True, the field is will be a parameter to the class's
+    is True, the field will be a parameter to the class's
     __init__() function. If repr is True, the field will be included
     in the object's repr(). If hash is True, the field will be
     included in the object's hash(). If cmp is True, the field will be
@@ -445,6 +445,12 @@ def _field_init(f, frozen, globals, self_name):
             #  the caller by returning None.
             return None
 
+    # Only test this now, so that we can create variables for the
+    #  default.  However, return None to signify that we're not going
+    #  to actually do the assignment statement for InitVars.
+    if f._field_type == _FIELD_INITVAR:
+        return None
+
     # Now, actually generate the field assignment.
     return _field_assign(frozen, f.name, value, self_name)
 
@@ -468,11 +474,13 @@ def _init_param(f):
 
 
 def _init_fn(fields, frozen, has_post_init, self_name):
+    # fields contains both real fields and InitVar pseudo-fields.
+
     # Make sure we don't have fields without defaults following fields
     #  with defaults.  This actually would be caught when exec-ing the
     #  function source code, but catching it here gives a better error
-    #  message, and future-proofs us in case we build up function using
-    #  ast.
+    #  message, and future-proofs us in case we build up the function
+    #  using ast.
     seen_default = False
     for f in fields:
         # Only consider fields in the __init__ call.
@@ -488,6 +496,7 @@ def _init_fn(fields, frozen, has_post_init, self_name):
 
     body_lines = []
     for f in fields:
+        # Do not initialize the pseudo-fields, only the real ones.
         line = _field_init(f, frozen, globals, self_name)
         if line is not None:
             # line is None means that this field doesn't require
@@ -496,7 +505,7 @@ def _init_fn(fields, frozen, has_post_init, self_name):
 
     # Does this class have an post-init function?
     if has_post_init:
-        body_lines += [f'{self_name}.{_POST_INIT_NAME}()']
+        body_lines += [f'{self_name}.{_POST_INIT_NAME}({",".join(f.name for f in fields if f._field_type is _FIELD_INITVAR)})']
 
     # If no body lines, add 'pass'.
     if len(body_lines) == 0:
@@ -724,6 +733,8 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
     if init:
         # Does this class have a post-init function?
         has_post_init = hasattr(cls, _POST_INIT_NAME)
+
+        # TODO: Shouldn't it be an error to have InitVar fields but no post-init function?
         _set_attribute(cls, '__init__',
                        _init_fn([f for f in fields.values() if f._field_type in (_FIELD, _FIELD_INITVAR)],
                                 is_frozen,

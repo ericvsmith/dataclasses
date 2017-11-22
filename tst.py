@@ -1,6 +1,6 @@
 from dataclasses import (
     dataclass, field, FrozenInstanceError, fields, asdict, astuple,
-    isdataclass, make_dataclass, replace,
+    isdataclass, make_dataclass, replace, InitVar
 )
 
 import pickle
@@ -1005,22 +1005,67 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c.w, 2000)
         self.assertEqual(c.t, 3000)
 
-    ## def test_init_var_no_default(self):
-        # Copy from classvar version
-    ##     # If an InitVar has no default value, it should not be set on the class.
-    ##     @dataclass
-    ##     class C:
-    ##         x: InitVar[int]
+    def test_init_var_no_default(self):
+        # If an InitVar has no default value, it should not be set on the class.
+        @dataclass
+        class C:
+            x: InitVar[int]
 
-    ##     self.assertNotIn('x', C.__dict__)
+        self.assertNotIn('x', C.__dict__)
 
-    ## def test_init_var_with_default(self):
-    ##     # If an InitVar has a default value, it should be set on the class.
-    ##     @dataclass
-    ##     class C:
-    ##         x: InitVar[int] = 10
+    def test_init_var_default_factory(self):
+        # It makes no sense for an InitVar to have a default factory. When
+        #  would it be called? Call it yourself, since it's class-wide.
+        with self.assertRaisesRegex(TypeError,
+                                    'cannot have a default factory'):
+            @dataclass
+            class C:
+                x: InitVar[int] = field(default_factory=int)
 
-    ##     self.assertEqual(C.x, 10)
+            self.assertNotIn('x', C.__dict__)
+
+    def test_init_var_with_default(self):
+        # If an InitVar has a default value, it should be set on the class.
+        @dataclass
+        class C:
+            x: InitVar[int] = 10
+        self.assertEqual(C.x, 10)
+
+        @dataclass
+        class C:
+            x: InitVar[int] = field(default=10)
+        self.assertEqual(C.x, 10)
+
+    def test_init_var(self):
+        @dataclass
+        class C:
+            x: int = None
+            init_param: InitVar[int] = None
+
+            def __post_init__(self, init_param):
+                if self.x is None:
+                    self.x = init_param*2
+
+        c = C(init_param=10)
+        self.assertEqual(c.x, 20)
+
+    def test_init_var_inheritance(self):
+        @dataclass
+        class Base:
+            x: int
+            init_base: InitVar[int]
+
+        @dataclass
+        class C(Base):
+            y: int
+            init_derived: InitVar[int]
+
+            def __post_init__(self, init_base, init_derived):
+                self.x = self.x + init_base
+                self.y = self.y + init_derived
+
+        c = C(10, 11, 50, 51)
+        self.assertEqual(vars(c), {'x': 21, 'y': 101})
 
     def test_default_factory(self):
         # Test a factory that returns a new list.
