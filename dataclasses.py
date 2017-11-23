@@ -57,40 +57,6 @@ _MARKER = '__dataclass_fields__'
 _POST_INIT_NAME = '__post_init__'
 
 
-def _qualname(x):
-    if sys.version_info[:2] >= (3, 3):
-        return x.__qualname__
-    else:
-        # Fall back to just name.
-        return x.__name__
-
-
-def _trim_name(nm):
-    whitelist = ('_TypeAlias', '_ForwardRef', '_TypingBase', '_FinalTypingBase')
-    if nm.startswith('_') and nm not in whitelist:
-        nm = nm[1:]
-    return nm
-
-
-def _type_repr(obj):
-    """Return the repr() of an object, special-casing types (internal helper).
-
-    If obj is a type, we return a shorter version than the default
-    type.__repr__, based on the module and qualified name, which is
-    typically enough to uniquely identify a type.  For everything
-    else, we fall back on repr(obj).
-    """
-    if isinstance(obj, type) and not isinstance(obj, TypingMeta):
-        if obj.__module__ == 'builtins':
-            return _qualname(obj)
-        return '%s.%s' % (obj.__module__, _qualname(obj))
-    if obj is ...:
-        return('...')
-    if isinstance(obj, types.FunctionType):
-        return obj.__name__
-    return repr(obj)
-
-
 class TypingMeta(type):
     """Metaclass for most types defined in typing module
     (not a part of public API).
@@ -109,7 +75,7 @@ class TypingMeta(type):
     def __new__(cls, name, bases, namespace, *, _root=False):
         if not _root:
             raise TypeError("Cannot subclass %s" %
-                            (', '.join(map(_type_repr, bases)) or '()'))
+                            (', '.join(map(repr, bases)) or '()'))
         return super().__new__(cls, name, bases, namespace)
 
     def __init__(self, *args, **kwds):
@@ -129,8 +95,7 @@ class TypingMeta(type):
         pass
 
     def __repr__(self):
-        qname = _trim_name(_qualname(self))
-        return '%s.%s' % (self.__module__, qname)
+        return f'{self.__module__}.{self.__qualname__}'
 
 
 class _TypingBase(metaclass=TypingMeta, _root=True):
@@ -151,7 +116,7 @@ class _TypingBase(metaclass=TypingMeta, _root=True):
                 isinstance(args[0], str) and
                 isinstance(args[1], tuple)):
             # Close enough.
-            raise TypeError("Cannot subclass %r" % cls)
+            raise TypeError(f"Cannot subclass {cls}")
         return super().__new__(cls)
 
     # Things that are not classes also need these.
@@ -163,11 +128,10 @@ class _TypingBase(metaclass=TypingMeta, _root=True):
 
     def __repr__(self):
         cls = type(self)
-        qname = _trim_name(_qualname(cls))
-        return '%s.%s' % (cls.__module__, qname)
+        return f'{cls.__module__}.{cls.__qualname__}'
 
     def __call__(self, *args, **kwds):
-        raise TypeError("Cannot instantiate %r" % type(self))
+        raise TypeError(f"Cannot instantiate {type(self)!r}")
 
 
 class _FinalTypingBase(_TypingBase, _root=True):
@@ -183,10 +147,7 @@ class _FinalTypingBase(_TypingBase, _root=True):
         self = super().__new__(cls, *args, **kwds)
         if _root is True:
             return self
-        raise TypeError("Cannot instantiate %r" % cls)
-
-    def __reduce__(self):
-        return _trim_name(type(self).__name__)
+        raise TypeError("Cannot instantiate {cls!r}")
 
 
 def _type_check(arg, msg):
@@ -209,7 +170,7 @@ def _type_check(arg, msg):
         isinstance(arg, _TypingBase) and type(arg).__name__ == '_ClassVar' or
         not isinstance(arg, (type, _TypingBase)) and not callable(arg)
     ):
-        raise TypeError(msg + " Got %.100r." % (arg,))
+        raise TypeError(f'{msg} Got {arg!r:.100}.')
     # Bare Union etc. are not valid as type arguments
     if (
         type(arg).__name__ in ('_Union', '_Optional') and
@@ -251,7 +212,7 @@ class _InitVar(_FinalTypingBase, _root=True):
         cls = type(self)
         if self.__type__ is None:
             return cls(_type_check(item,
-                       '{} accepts only single type.'.format(cls.__name__[1:])),
+                       f'{cls.__name__[1:]} accepts only single type.'),
                        _root=True)
         raise TypeError('{} cannot be further subscripted'
                         .format(cls.__name__[1:]))
@@ -265,7 +226,7 @@ class _InitVar(_FinalTypingBase, _root=True):
     def __repr__(self):
         r = super().__repr__()
         if self.__type__ is not None:
-            r += '[{}]'.format(_type_repr(self.__type__))
+            r += f'[{repr(self.__type__)}]'
         return r
 
     def __hash__(self):
