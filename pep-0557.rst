@@ -497,10 +497,9 @@ Module level helper functions
   method of the Data Class.  This ensures that
   ``__post_init__()``, if present, is also called.
 
-  Any fields that are specified as ``init=False`` are copied from
-  ``instance`` to the new object, after the new object has been fully
-  created.  There is no other way for these fields to be initialized
-  to the values that were present in ``instance``.
+  It is an error for ``changes`` to contain any fields that are
+  defined as having ``init=False``.  A ``ValueError`` will be raised
+  in this case.
 
 .. _discussion:
 
@@ -597,12 +596,10 @@ Fields that are ``init=False`` are by definition not passed to
 ``__init__``, but instead are initialized with a default value or by
 calling a default factory function.
 
-When creating a new object in ``replace()``, such fields would
-normally be given this default value.  However, because the instance
-on which ``replace()`` is being called will have a value for these
-``init=False`` fields (which might be different from the default), it
-was decided to copy all ``init=False`` fields from the existing
-instance to the new object, after the new object has been created.
+A previous version of this PEP specified that ``init=False`` fields
+would be copied from the source object, but that was deemed to be
+inconsistent with using ``__init__`` and ``__post_init__`` to
+initialize the new object.
 
 Rejected ideas
 ==============

@@ -1518,13 +1518,12 @@ class TestCase(unittest.TestCase):
         self.assertEqual((c.x, c.y, c.z, c.t), (1, 2, 10, 100))
         self.assertEqual((c1.x, c1.y, c1.z, c1.t), (3, 2, 10, 100))
 
-        c1 = replace(c, x=3, z=20, t=50)
-        self.assertEqual((c.x, c.y, c.z, c.t), (1, 2, 10, 100))
-        self.assertEqual((c1.x, c1.y, c1.z, c1.t), (3, 2, 20, 50))
 
-        c1 = replace(c, z=20)
-        self.assertEqual((c.x, c.y, c.z, c.t), (1, 2, 10, 100))
-        self.assertEqual((c1.x, c1.y, c1.z, c1.t), (1, 2, 20, 100))
+        with self.assertRaisesRegex(ValueError, 'init=False'):
+            replace(c, x=3, z=20, t=50)
+        with self.assertRaisesRegex(ValueError, 'init=False'):
+             replace(c, z=20)
+             replace(c, x=3, z=20, t=50)
 
         # Make sure the result is still frozen.
         with self.assertRaisesRegex(FrozenInstanceError, "cannot assign to field 'x'"):
@@ -1570,16 +1569,15 @@ class TestCase(unittest.TestCase):
       c = C(1)
       c.y = 20
 
-      # Make sure y gets what c contained, not the default value.
+      # Make sure y gets the default value.
       c1 = replace(c, x=5)
-      self.assertEqual((c1.x, c1.y), (5, 20))
+      self.assertEqual((c1.x, c1.y), (5, 10))
 
-      # Make sure we can replace y, even though it's a non-init field.
-      c1 = replace(c, x=2, y=30)
-      self.assertEqual((c1.x, c1.y), (2, 30))
-
-      c1 = replace(c, y=30)
-      self.assertEqual((c1.x, c1.y), (1, 30))
+      # Trying to replace y is an error.
+      with self.assertRaisesRegex(ValueError, 'init=False'):
+          replace(c, x=2, y=30)
+      with self.assertRaisesRegex(ValueError, 'init=False'):
+          replace(c, y=30)
 
     def test_dataclassses_pickleable(self):
         global P, Q, R
