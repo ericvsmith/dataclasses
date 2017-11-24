@@ -589,35 +589,6 @@ Why not just use attrs
 
 For more discussion, see [#]_.
 
-How should replace() work, with regards to init=False fields?
--------------------------------------------------------------
-
-Fields that are ``init=False`` are by definition not passed to
-``__init__``, but instead are initialized with a default value or by
-calling a default factory function.
-
-A previous version of this PEP specified that ``init=False`` fields
-would be copied from the source object to the newly created object
-after ``__init__`` returned, but that was deemed to be inconsistent
-with using ``__init__`` and ``__post_init__`` to initialize the new
-object.  For example, consider this case::
-
-  @dataclass
-  class Square:
-      length: float
-      area: float = field(init=False, default=0.0)
-
-      def __post_init__(self):
-          self.area = self.length * self.length
-
-  s1 = Square(1.0)
-  s2 = replace(s1, length=2.0)
-
-If ``init=False`` fields were copied from the source to the
-destination object after ``__post_init__`` is run, then s2 would end
-up begin ``Square(length=2.0, area=1.0)``, instead of the correct
-``Square(length=2.0, area=4.0)``.
-
 Rejected ideas
 ==============
 
@@ -650,6 +621,36 @@ also execute code immmediately after constructing the object), is
 functionally equivalent to being able to pass parameters to a
 `__post_init__`` function.
 
+
+Copying ``init=False`` fields after new object creation in replace()
+--------------------------------------------------------------------
+
+Fields that are ``init=False`` are by definition not passed to
+``__init__``, but instead are initialized with a default value, or by
+calling a default factory function in ``__init__``, or by code in
+``__post_init__``.
+
+A previous version of this PEP specified that ``init=False`` fields
+would be copied from the source object to the newly created object
+after ``__init__`` returned, but that was deemed to be inconsistent
+with using ``__init__`` and ``__post_init__`` to initialize the new
+object.  For example, consider this case::
+
+  @dataclass
+  class Square:
+      length: float
+      area: float = field(init=False, default=0.0)
+
+      def __post_init__(self):
+          self.area = self.length * self.length
+
+  s1 = Square(1.0)
+  s2 = replace(s1, length=2.0)
+
+If ``init=False`` fields were copied from the source to the
+destination object after ``__post_init__`` is run, then s2 would end
+up begin ``Square(length=2.0, area=1.0)``, instead of the correct
+``Square(length=2.0, area=4.0)``.
 
 Automatically support mutable default values
 --------------------------------------------
