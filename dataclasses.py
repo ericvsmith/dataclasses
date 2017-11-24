@@ -70,8 +70,6 @@ class TypingMeta(type):
     constructs is done in __new__) and a nicer repr().
     """
 
-    _is_protocol = False
-
     def __new__(cls, name, bases, namespace, *, _root=False):
         if not _root:
             raise TypeError("Cannot subclass %s" %
@@ -79,19 +77,6 @@ class TypingMeta(type):
         return super().__new__(cls, name, bases, namespace)
 
     def __init__(self, *args, **kwds):
-        pass
-
-    def _eval_type(self, globalns, localns):
-        """Override this in subclasses to interpret forward references.
-
-        For example, List['C'] is internally stored as
-        List[_ForwardRef('C')], which should evaluate to List[C],
-        where C is an object found in globalns or localns (searching
-        localns first, of course).
-        """
-        return self
-
-    def _get_type_vars(self, tvars):
         pass
 
     def __repr__(self):
@@ -118,13 +103,6 @@ class _TypingBase(metaclass=TypingMeta, _root=True):
             # Close enough.
             raise TypeError(f"Cannot subclass {cls}")
         return super().__new__(cls)
-
-    # Things that are not classes also need these.
-    def _eval_type(self, globalns, localns):
-        return self
-
-    def _get_type_vars(self, tvars):
-        pass
 
     def __repr__(self):
         cls = type(self)
@@ -216,12 +194,6 @@ class _InitVar(_FinalTypingBase, _root=True):
                        _root=True)
         raise TypeError('{} cannot be further subscripted'
                         .format(cls.__name__[1:]))
-
-    def _eval_type(self, globalns, localns):
-        new_tp = _eval_type(self.__type__, globalns, localns)
-        if new_tp == self.__type__:
-            return self
-        return type(self)(new_tp, _root=True)
 
     def __repr__(self):
         r = super().__repr__()
