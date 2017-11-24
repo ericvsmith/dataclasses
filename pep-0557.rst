@@ -597,9 +597,26 @@ Fields that are ``init=False`` are by definition not passed to
 calling a default factory function.
 
 A previous version of this PEP specified that ``init=False`` fields
-would be copied from the source object, but that was deemed to be
-inconsistent with using ``__init__`` and ``__post_init__`` to
-initialize the new object.
+would be copied from the source object to the newly created object
+after ``__init__`` returned, but that was deemed to be inconsistent
+with using ``__init__`` and ``__post_init__`` to initialize the new
+object.  For example, consider this case::
+
+  @dataclass
+  class Square:
+      length: float
+      area: float = field(init=False, default=0.0)
+
+      def __post_init__(self):
+          self.area = self.length * self.length
+
+  s1 = Square(1.0)
+  s2 = replace(s1, length=2.0)
+
+If ``init=False`` fields were copied from the source to the
+destination object after ``__post_init__`` is run, then s2 would end
+up begin ``Square(length=2.0, area=1.0)``, instead of the correct
+``Square(length=2.0, area=4.0)``.
 
 Rejected ideas
 ==============
