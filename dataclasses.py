@@ -933,60 +933,30 @@ def replace(obj, **changes):
       assert c1.x == 3 and c1.y == 2
       """
 
+    # We're going to mutate 'changes', but that's okay because it's a new
+    #  dict, even if called with 'replace(obj, **my_changes)'.
+
     if not isdataclass(obj):
         raise TypeError("replace() should be called on dataclass instances")
 
-    # Keep track of the non-init fields to fix up later.
-    non_init_fields = {}
+    # It's an error to have init=False fields in 'changes'.
+    # If a field is not in 'changes', read its value from the provided obj.
 
-    # For each field:
-    # Is init=True?  In 'changes'?  Action
-    #     yes             yes       Do nothing (leave value in `changes')
-    #     yes             no        Get value from 'obj'.
-    #     no              yes       Get value from 'changes', and
-    #                                remove from 'changes'.
-    #     no              no        Get value from 'obj'.
-    for f in fields(obj).values():
-        if f.init:
-            if f.name not in changes:
-                changes[f.name] = getattr(obj, f.name)
-        else:
-            try:
-                # If this field is in changes, remember its value and
-                #  remove it from changes (since it can't be specified
-                #  when creating the new object).
-                non_init_fields[f.name] = changes.pop(f.name)
-            except KeyError:
-                # This field wasn't in changes: use the current
-                #  value of the field from obj.
-                non_init_fields[f.name] = getattr(obj, f.name)
+    for f in getattr(obj, _MARKER).values():
+        if not f.init:
+            # Error if this field is specified in changes.
+            if f.name in changes:
+                raise ValueError(f'field {f.name} is declared with '
+                                 'init=False, it cannot be specified with '
+                                 'replace()')
+            continue
+
+        if f.name not in changes:
+            changes[f.name] = getattr(obj, f.name)
 
     # Create the new object, which calls __init__() and __post_init__
     #  (if defined), using all of the init fields we've added and/or
     #  left in 'changes'.
     # If there are values supplied in changes that aren't fields, this
     #  will correctly raise a TypeError.
-    new_obj = obj.__class__(**changes)
-
-    # Now, set fields that aren't init=True params to values from the
-    #  instance we're copying from.
-    # For frozen objects, we have to call object.__setattr__. But we
-    #  don't know if an object is frozen or not.
-    # So the first time through, try to set the attribute, catch the
-    #  exception if one is raised, and remember if it's frozen.
-    first = True
-    for idx, (name, value) in enumerate(non_init_fields.items()):
-        if first:
-            try:
-                setattr(new_obj, name, value)
-                setter = setattr
-                # setattr succeeded, move to the next field.
-                continue
-            except FrozenInstanceError:
-                setter = object.__setattr__
-                # Fall through to set the attribute.
-        else:
-            first = False
-        setter(new_obj, name, value)
-
-    return new_obj
+    return obj.__class__(**changes)
