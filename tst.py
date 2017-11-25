@@ -1750,6 +1750,32 @@ class TestCase(unittest.TestCase):
 
         self.assertEqual((c.x, c.y), (1, 2))
 
+    def test_helper_make_dataclass_init_var(self):
+        def post_init(self, y):
+            self.x *= y
+
+        C = make_dataclass('C',
+                           [('x', int),
+                            ('y', InitVar[int]),
+                            ],
+                           namespace={'__post_init__': post_init},
+                           )
+        c = C(2, 3)
+        self.assertEqual(vars(c), {'x': 6})
+        self.assertEqual(len(fields(c)), 1)
+
+    def test_helper_make_dataclass_class_var(self):
+        C = make_dataclass('C',
+                           [('x', int),
+                            ('y', ClassVar[int], 10),
+                            ('z', ClassVar[int], field(default=20)),
+                            ])
+        c = C(1)
+        self.assertEqual(vars(c), {'x': 1})
+        self.assertEqual(len(fields(c)), 1)
+        self.assertEqual(C.y, 10)
+        self.assertEqual(C.z, 20)
+
 
 class TestDocString(unittest.TestCase):
     def assertDocStrEqual(self, a, b):
