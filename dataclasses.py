@@ -229,12 +229,12 @@ class Field:
                  'repr',
                  'hash',
                  'init',
-                 'cmp',
+                 'compare',
                  'metadata',
                  '_field_type',  # Private: not to be used by user code.
                  )
 
-    def __init__(self, default, default_factory, init, repr, hash, cmp,
+    def __init__(self, default, default_factory, init, repr, hash, compare,
                  metadata):
         self.name = None
         self.type = None
@@ -243,7 +243,7 @@ class Field:
         self.init = init
         self.repr = repr
         self.hash = hash
-        self.cmp = cmp
+        self.compare = compare
         self.metadata = (_EMPTY_METADATA
                          if metadata is None or len(metadata) == 0 else
                          types.MappingProxyType(metadata))
@@ -258,7 +258,7 @@ class Field:
                 f'init={self.init},'
                 f'repr={self.repr},'
                 f'hash={self.hash},'
-                f'cmp={self.cmp},'
+                f'compare={self.compare},'
                 f'metadata={self.metadata}'
                 ')')
 
@@ -267,24 +267,25 @@ class Field:
 #  so that a type checker can be told (via overloads) that this is a
 #  function whose type depends on its parameters.
 def field(*, default=_MISSING, default_factory=_MISSING, init=True, repr=True,
-          hash=None, cmp=True, metadata=None):
+          hash=None, compare=True, metadata=None):
     """Return an object to identify dataclass fields.
 
     default is the default value of the field. default_factory is a
     0-argument function called to initialize a field's value. If init
-    is True, the field will be a parameter to the class's
-    __init__() function. If repr is True, the field will be included
-    in the object's repr(). If hash is True, the field will be
-    included in the object's hash(). If cmp is True, the field will be
-    used in comparison functions. metadata, if specified, must be a
-    mapping which is stored but not otherwise examined by dataclass.
+    is True, the field will be a parameter to the class's __init__()
+    function. If repr is True, the field will be included in the
+    object's repr(). If hash is True, the field will be included in
+    the object's hash(). If compare is True, the field will be used in
+    comparison functions. metadata, if specified, must be a mapping
+    which is stored but not otherwise examined by dataclass.
 
-    It is an error to specify both default and default_factory."
+    It is an error to specify both default and default_factory.
     """
 
     if default is not _MISSING and default_factory is not _MISSING:
         raise ValueError('cannot specify both default and default_factory')
-    return Field(default, default_factory, init, repr, hash, cmp, metadata)
+    return Field(default, default_factory, init, repr, hash, compare,
+                 metadata)
 
 
 def _tuple_str(obj_name, fields):
@@ -295,7 +296,7 @@ def _tuple_str(obj_name, fields):
     # Special case for the 0-tuple.
     if len(fields) == 0:
         return '()'
-    # Note the trailing comma, needed for 1-tuple.
+    # Note the trailing comma, needed if this turns out to be a 1-tuple.
     return f'({",".join([f"{obj_name}.{f.name}" for f in fields])},)'
 
 
@@ -700,19 +701,19 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
         generate_hash = hash
     if generate_hash:
         _set_attribute(cls, '__hash__',
-                       _hash_fn(list(filter(lambda f: f.cmp
+                       _hash_fn(list(filter(lambda f: f.compare
                                                       if f.hash is None
                                                       else f.hash,
                                             field_list))))
 
     if eq:
         # Create and __eq__ and __ne__ methods.
-        _set_eq_fns(cls, list(filter(lambda f: f.cmp, field_list)))
+        _set_eq_fns(cls, list(filter(lambda f: f.compare, field_list)))
 
     if compare:
         # Create and __lt__, __le__, __gt__, and __ge__ methods.
         # Create and set the comparison functions.
-        _set_compare_fns(cls, list(filter(lambda f: f.cmp, field_list)))
+        _set_compare_fns(cls, list(filter(lambda f: f.compare, field_list)))
 
     if not getattr(cls, '__doc__'):
         # Create a class doc-string
@@ -725,8 +726,8 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
 # _cls should never be specified by keyword, so start it with an
 #  underscore. The presense of _cls is used to detect if this
 #  decorator is being called with parameters or not.
-def dataclass(_cls=None, *, init=True, repr=True, hash=None, eq=True,
-              compare=True, frozen=False):
+def dataclass(_cls=None, *, init=True, repr=True, eq=True, compare=True,
+              hash=None, frozen=False):
     """Returns the same class as was passed in, with dunder methods
     added based on the fields defined in the class.
 

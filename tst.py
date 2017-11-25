@@ -94,7 +94,7 @@ class TestCase(unittest.TestCase):
         with self.assertRaisesRegex(AttributeError,
                                     'Cannot overwrite attribute __eq__ '
                                     'in C'):
-            # This will generate the cmp functions, make sure we can't
+            # This will generate the compare functions, make sure we can't
             #  overwrite them.
             @dataclass(hash=False, frozen=False)
             class C:
@@ -215,7 +215,7 @@ class TestCase(unittest.TestCase):
             x: int = 20
         self.assertEqual(repr(D()), 'D(x=20, y=10)')
 
-    def test_0_field_cmp(self):
+    def test_0_field_compare(self):
         @dataclass
         class C:
             pass
@@ -223,7 +223,7 @@ class TestCase(unittest.TestCase):
         self.assertLessEqual(C(), C())
         self.assertGreaterEqual(C(), C())
 
-    def test_1_field_cmp(self):
+    def test_1_field_compare(self):
         @dataclass
         class C:
             x: int
@@ -236,7 +236,7 @@ class TestCase(unittest.TestCase):
         self.assertGreaterEqual(C(1), C(0))
         self.assertGreaterEqual(C(1), C(1))
 
-    def test_simple_cmp(self):
+    def test_simple_compare(self):
         @dataclass
         class C:
             x: int
@@ -302,7 +302,7 @@ class TestCase(unittest.TestCase):
         # Test all 24cases of:
         #  hash=True/False/None
         #  eq=True/False
-        #  cmp=True/False
+        #  compare=True/False
         #  frozen=True/False
         for (hash,  eq,    compare, frozen, result  ) in [
             (False, False, False,   False,  'absent'),
@@ -432,11 +432,11 @@ class TestCase(unittest.TestCase):
         c = C(10, 20)
         self.assertEqual(repr(c), 'C(y=20)')
 
-    def test_not_in_cmp(self):
+    def test_not_in_compare(self):
         @dataclass
         class C:
             x: int = 0
-            y: int = field(cmp=False, default=4)
+            y: int = field(compare=False, default=4)
 
         self.assertEqual(C(), C(0, 20))
         self.assertEqual(C(1, 10), C(1, 20))
@@ -446,19 +446,19 @@ class TestCase(unittest.TestCase):
     def test_hash_field_rules(self):
         # Test all 6 cases of:
         #  hash=True/False/None
-        #  cmp=True/False
-        for (hash_val, cmp,   result  ) in [
-            (True,     False, 'field' ),
-            (True,     True,  'field' ),
-            (False,    False, 'absent'),
-            (False,    True,  'absent'),
-            (None,     False, 'absent'),
-            (None,     True,  'field' ),
+        #  compare=True/False
+        for (hash_val, compare, result  ) in [
+            (True,     False,   'field' ),
+            (True,     True,    'field' ),
+            (False,    False,   'absent'),
+            (False,    True,    'absent'),
+            (None,     False,   'absent'),
+            (None,     True,    'field' ),
         ]:
-            with self.subTest(hash_val=hash_val, cmp=cmp):
+            with self.subTest(hash_val=hash_val, compare=compare):
                 @dataclass(hash=True)
                 class C:
-                    x: int = field(cmp=cmp, hash=hash_val, default=5)
+                    x: int = field(compare=compare, hash=hash_val, default=5)
 
                 if result == 'field':
                     # __hash__ contains the field.
@@ -1117,10 +1117,10 @@ class TestCase(unittest.TestCase):
             x: list = field(default_factory=list, init=False)
         self.assertEqual(repr(C()), 'C(x=[])')
 
-        # cmp
+        # compare
         @dataclass
         class C:
-            x: list = field(default_factory=list, cmp=False)
+            x: list = field(default_factory=list, compare=False)
         self.assertEqual(C(), C([1]))
 
     def test_default_factory_with_no_init(self):
