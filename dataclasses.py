@@ -279,7 +279,7 @@ def field(*, default=_MISSING, default_factory=_MISSING, init=True, repr=True,
     comparison functions. metadata, if specified, must be a mapping
     which is stored but not otherwise examined by dataclass.
 
-    It is an error to specify both default and default_factory."
+    It is an error to specify both default and default_factory.
     """
 
     if default is not _MISSING and default_factory is not _MISSING:
@@ -296,7 +296,7 @@ def _tuple_str(obj_name, fields):
     # Special case for the 0-tuple.
     if len(fields) == 0:
         return '()'
-    # Note the trailing comma, needed for 1-tuple.
+    # Note the trailing comma, needed if this turns out to be a 1-tuple.
     return f'({",".join([f"{obj_name}.{f.name}" for f in fields])},)'
 
 
