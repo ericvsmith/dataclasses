@@ -272,7 +272,8 @@ The parameters to ``field()`` are:
   string returned by the generated ``__repr__`` function.
 
 - ``compare``: If True (the default), this field is included in the
-  generated comparison methods (``__eq__`` et al).
+  generated equality and comparison methods (``__eq__``, ``__gt__``,
+  et al.).
 
 - ``hash``: This can be a bool or ``None``.  If True, this field is
   included in the generated ``__hash__`` method.  If ``None`` (the
