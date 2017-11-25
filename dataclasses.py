@@ -568,13 +568,6 @@ def _get_field(cls, a_name, a_type):
         #  init=<not-the-default-init-value>)? It makes no sense for
         #  ClassVar and InitVar to specify init=<anything>.
 
-    # If init=False, we must have a default value.  Otherwise,
-    # how would it get initialized?
-    if (not f.init and f.default is _MISSING and
-            f.default_factory is _MISSING):
-        raise TypeError(f'field {f.name} has init=False, but '
-                        'has no default value or factory function')
-
     # For real fields, disallow mutable defaults for known types.
     if f._field_type is _FIELD and isinstance(f.default, (list, dict, set)):
         raise ValueError(f'mutable default {type(f.default)} for field '

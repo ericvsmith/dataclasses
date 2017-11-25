@@ -469,25 +469,24 @@ class TestCase(unittest.TestCase):
                 else:
                     assert False, f'unknown result {result!r}'
 
-    def test_not_in_init(self):
-        # If init=False, we must have a default value.
-        # Otherwise, how would it get initialized?
-        with self.assertRaisesRegex(TypeError,
-                                    'field x has init=False, but has no '
-                                    'default value or factory function'):
-            @dataclass
-            class C:
-                x: int = field(init=False)
+    def test_init_false_no_default(self):
+        # If init=False and no default value, then the field won't be
+        #  present in the instance.
+        @dataclass
+        class C:
+            x: int = field(init=False)
 
-        with self.assertRaisesRegex(TypeError,
-                                    'field z has init=False, but has no '
-                                    'default value or factory function'):
-            @dataclass
-            class C:
-                x: int
-                y: int = 0
-                z: int = field(init=False)
-                t: int
+        self.assertNotIn('x', C().__dict__)
+
+        @dataclass
+        class C:
+            x: int
+            y: int = 0
+            z: int = field(init=False)
+            t: int = 10
+
+        self.assertNotIn('z', C(0).__dict__)
+        self.assertEqual(vars(C(5)), {'t': 10, 'x': 5, 'y': 0})
 
     def test_class_marker(self):
         @dataclass
