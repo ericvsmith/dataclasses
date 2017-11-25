@@ -424,13 +424,6 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
         #  since only here do we know the field name, which allows
         #  better error reporting.
 
-        # If init=False, we must have a default value.  Otherwise,
-        # how would it get initialized?
-        if (not f.init and f.default is _MISSING and
-                           f.default_factory is _MISSING):
-            raise TypeError(f'field {name} has init=False, but '
-                            'has no default value or factory function')
-
         # If the class attribute (which is the default value for
         #  this field) exists and is of type 'Field', replace it
         #  with the real default.  This is so that normal class
