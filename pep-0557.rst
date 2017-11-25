@@ -426,19 +426,47 @@ field an initial value.
 Mutable default values
 ----------------------
 
-Python stores the default field values in class attributes.
+Python stores default member variable values in class attributes.
 Consider this example, not using Data Classes::
 
   class C:
-      def __init__(self, x=[]):
+      x = []
+      def add(self, element):
+          self.x += element
+
+  o1 = C()
+  o2 = C()
+  o1.add(1)
+  o2.add(2)
+  assert o1.x == [1, 2]
+  assert o1.x is o2.x
+
+Note that the two instances of class ``C`` share the same class
+variable ``x``, as expected.
+
+Using Data Classes, *if* this code was valid::
+
+  @dataclass
+  class D:
+      x: List = []
+      def add(self, element):
+          self.x += element
+
+it would generate code similar to::
+
+  class D:
+      x = []
+      def __init__(self, x=x):
           self.x = x
+      def add(self, element):
+          self.x += element
 
-  assert C().x is C().x
-  assert C().x is not C([]).x
+  assert D().x is D().x
 
-That is, two instances of class ``C`` that do not not specify a value
-for ``x`` when creating a class instance will share the same copy of
-the list.  Because Data Classes just use normal Python class creation,
+This has the same issue as the original example using class ``C``.
+That is, two instances of class ``D`` that do not specify a value for
+``x`` when creating a class instance will share the same copy of
+``x``.  Because Data Classes just use normal Python class creation
 they also share this problem.  There is no general way for Data
 Classes to detect this condition.  Instead, Data Classes will raise a
 ``TypeError`` if it detects a default parameter of type ``list``,
@@ -450,10 +478,10 @@ Using default factory functions is a way to create new instances of
 mutable types as default values for fields::
 
   @dataclass
-  class C:
+  class D:
       x: list = field(default_factory=list)
 
-  assert C().x is not C().x
+  assert D().x is not D().x
 
 Module level helper functions
 -----------------------------
