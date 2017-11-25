@@ -335,8 +335,8 @@ def _field_assign(frozen, name, value, self_name):
 
 
 def _field_init(f, frozen, globals, self_name):
-    # Return the text of the line in the body of __init__ that will initialize
-    #  this field.
+    # Return the text of the line in the body of __init__ that will
+    #  initialize this field.
 
     default_name = f'_dflt_{f.name}'
     if f.default_factory is not _MISSING:
@@ -438,7 +438,9 @@ def _init_fn(fields, frozen, has_post_init, self_name):
 
     # Does this class have an post-init function?
     if has_post_init:
-        body_lines += [f'{self_name}.{_POST_INIT_NAME}({",".join(f.name for f in fields if f._field_type is _FIELD_INITVAR)})']
+        params_str = ','.join(f.name for f in fields
+                              if f._field_type is _FIELD_INITVAR)
+        body_lines += [f'{self_name}.{_POST_INIT_NAME}({params_str})']
 
     # If no body lines, add 'pass'.
     if len(body_lines) == 0:
@@ -660,9 +662,11 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
         # Does this class have a post-init function?
         has_post_init = hasattr(cls, _POST_INIT_NAME)
 
-        # TODO: Shouldn't it be an error to have InitVar fields but no post-init function?
+        # TODO: Shouldn't it be an error to have InitVar fields but no
+        #  post-init function?
         _set_attribute(cls, '__init__',
-                       _init_fn([f for f in fields.values() if f._field_type in (_FIELD, _FIELD_INITVAR)],
+                       _init_fn([f for f in fields.values()
+                                 if f._field_type in (_FIELD, _FIELD_INITVAR)],
                                 is_frozen,
                                 has_post_init,
                                 # The name to use for the "self" param
