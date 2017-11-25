@@ -321,7 +321,8 @@ depend on one or more other fields.  For example::
             self.c = self.a + self.b
 
 See the section below on init-only variables for ways to pass
-parameters to ``__post_init__()``.
+parameters to ``__post_init__()``.  Also see the warning about how
+``replace()`` handles ``init=False`` fields.
 
 Class variables
 ---------------
@@ -532,9 +533,22 @@ Module level helper functions
   method of the Data Class.  This ensures that
   ``__post_init__()``, if present, is also called.
 
+  Init-only variables without default values, if any exist, must be
+  specified on the call to ``replace()`` so that they can be passed to
+  ``__init__()`` and ``__post_init__()``.
+
   It is an error for ``changes`` to contain any fields that are
   defined as having ``init=False``.  A ``ValueError`` will be raised
   in this case.
+
+  Be forewarned about how ``init=False`` fields work during a call to
+  ``replace()``.  They are not copied from the source object, but
+  rather are initialized in ``__post_init__()``, if they're
+  initialized at all.  It is expected that ``init=False`` fields will
+  be rarely and judiciously used.  If they are used, it might be wise
+  to have alternate class constructors, or perhaps a custom
+  ``replace()`` (or similarly named) method which handles instance
+  copying.
 
 .. _discussion:
 
