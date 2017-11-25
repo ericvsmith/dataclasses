@@ -438,13 +438,13 @@ Consider this example, not using Data Classes::
   o2 = C()
   o1.add(1)
   o2.add(2)
-  assert o1.add == [1, 2]
+  assert o1.x == [1, 2]
   assert o1.x is o2.x
 
 Note that the two instances of class ``C`` share the same class
 variable ``x``, as expected.
 
-Using Data Classes, if this code was valid::
+Using Data Classes, *if* this code was valid::
 
   @dataclass
   class D:
@@ -464,8 +464,8 @@ it would generate code similar to::
   assert D().x is D().x
 
 This has the same issue as the original example using class ``C``.
-That is, two instances of class ``D`` that do not not specify a value
-for ``x`` when creating a class instance will share the same copy of
+That is, two instances of class ``D`` that do not specify a value for
+``x`` when creating a class instance will share the same copy of
 ``x``.  Because Data Classes just use normal Python class creation
 they also share this problem.  There is no general way for Data
 Classes to detect this condition.  Instead, Data Classes will raise a
