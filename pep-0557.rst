@@ -666,19 +666,15 @@ Why not just use attrs
 
 For more discussion, see [#]_.
 
-Rejected ideas
-==============
+post-init parameters
+--------------------
 
-post-init takes parameters
---------------------------
+In an earlier version of this PEP before ``InitVar`` was added, the
+post-init function ``__post_init__`` never took any parameters.
 
-The post-init function ``__post_init__`` takes no parameters.  This
-was deemed to be simpler than trying to find a mechanism to optionally
-pass a parameter to the ``__post_init__`` function.
-
-The normal way of doing such parameterized initialization (and not
-just with Data Classes) is to provide an alternate classmethod
-constructor.  For example::
+The normal way of doing parameterized initialization (and not just
+with Data Classes) is to provide an alternate classmethod constructor.
+For example::
 
   @dataclass
   class C:
@@ -694,10 +690,24 @@ constructor.  For example::
 
 Because the ``__post_init__`` function is the last thing called in the
 generated ``__init__``, having a classmethod constructor (which can
-also execute code immmediately after constructing the object), is
+also execute code immmediately after constructing the object) is
 functionally equivalent to being able to pass parameters to a
-`__post_init__`` function.
+``__post_init__`` function.
 
+With ``InitVar``'s, ``__post_init__`` functions can now take
+parameters.  They are passed first to ``__init__`` which passes them
+to ``__post_init__`` where user code can use them as needed.
+
+The only real difference between alternate classmethod constructors
+and ``InitVar`` pseudo-fields is in object creation.  With
+``InitVar``s, using ``__init__`` and the module-level ``replace()``
+function ``InitVar``'s must always be specified.  With alternate
+classmethod constructors the additional initialization parameters are
+always optional.  Which approach is more appropriate will be
+application-specific, but both approaches are supported.
+
+Rejected ideas
+==============
 
 Copying ``init=False`` fields after new object creation in replace()
 --------------------------------------------------------------------
