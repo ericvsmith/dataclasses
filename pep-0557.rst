@@ -755,8 +755,8 @@ of this PEP and code: Ivan Levkivskyi, Guido van Rossum, Hynek
 Schlawack, Raymond Hettinger, and Lisa Roach.  I thank them for their
 time and expertise.
 
-A special mention must be made about the attrs project.  It was a true
-inspiration for this PEP, and I respect the design decisions they
+A special mention must be made about the ``attrs`` project.  It was a
+true inspiration for this PEP, and I respect the design decisions they
 made.
 
 References
