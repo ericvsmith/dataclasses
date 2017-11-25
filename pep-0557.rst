@@ -105,7 +105,7 @@ So, why is this PEP needed?
 
 With the addition of PEP 526, Python has a concise way to specify the
 type of class members.  This PEP leverages that syntax to provide a
-simple, unobtrusive way to describe Data Classes.  With one exception,
+simple, unobtrusive way to describe Data Classes.  With two exceptions,
 the specified attribute type annotation is completely ignored by Data
 Classes.
 
@@ -305,8 +305,8 @@ post-init processing
 --------------------
 
 The generated ``__init__`` code will call a method named
-``__dataclass_post_init__``, if it is defined on the class.  It will
-be called as ``self.__dataclass_post_init__()``.
+``__post_init__``, if it is defined on the class.  It will
+be called as ``self.__post_init__()``.
 
 Among other uses, this allows for initializing field values that
 depend on one or more other fields.  For example::
@@ -317,18 +317,54 @@ depend on one or more other fields.  For example::
         b: float
         c: float = field(init=False)
 
-        def __dataclass_post_init__(self):
+        def __post_init__(self):
             self.c = self.a + self.b
+
+See the section below on init-only variables for ways to pass
+parameters to ``__post_init__()``.  Also see the warning about how
+``replace()`` handles ``init=False`` fields.
 
 Class variables
 ---------------
 
-The one place where ``dataclass`` actually inspects the type of a
-field is to determine if a field is a class variable.  It does this by
-seeing if the type of the field is given as of type
-``typing.ClassVar``.  If a field is a ``ClassVar``, it is excluded
-from consideration as a field and is ignored by the Data Class
-mechanisms. For more discussion, see [#]_.
+One place where ``dataclass`` actually inspects the type of a field is
+to determine if a field is a class variable.  It does this by seeing
+if the type of the field is given as of type ``typing.ClassVar``.  If
+a field is a ``ClassVar``, it is excluded from consideration as a
+field and is ignored by the Data Class mechanisms. For more
+discussion, see [#]_.  Such ``ClassVar`` pseudo-fields are not
+returned by the module-level ``fields()`` function.
+
+Init-only variables
+-------------------
+
+The other place where ``dataclass`` inspects a type annotation is to
+determine if a field is an init-only variable.  It does this by seeing
+if the type of a field is of type ``dataclasses.InitVar``.  If a field
+is an ``InitVar``, it is considered a pseudo-field called an init-only
+field.  As it is not a true field, it is not returned by the
+module-level ``fields()`` function.  Init-only fields are added as
+parameters to the generated ``__init__()`` method, and are passed to
+the optional ``__post_init__`` function.  They are not otherwise used
+by Data Classes.
+
+For example, suppose a field will be initialzed from a database, if a
+value is not provided when creating the class::
+
+  @dataclass
+  class C:
+      i: int
+      j: int = None
+      database: InitVar[DatabaseType] = None
+
+      def __post_init__(self, database):
+          if self.j is None and database is not None:
+              self.j = database.lookup('j')
+
+  c = C(10, database=my_database)
+
+In this case, ``fields()`` will return ``Field`` objects for ``i`` and
+``j``, but not for ``database``.
 
 Frozen instances
 ----------------
@@ -497,9 +533,22 @@ Module level helper functions
   method of the Data Class.  This ensures that
   ``__post_init__()``, if present, is also called.
 
+  Init-only variables without default values, if any exist, must be
+  specified on the call to ``replace()`` so that they can be passed to
+  ``__init__()`` and ``__post_init__()``.
+
   It is an error for ``changes`` to contain any fields that are
   defined as having ``init=False``.  A ``ValueError`` will be raised
   in this case.
+
+  Be forewarned about how ``init=False`` fields work during a call to
+  ``replace()``.  They are not copied from the source object, but
+  rather are initialized in ``__post_init__()``, if they're
+  initialized at all.  It is expected that ``init=False`` fields will
+  be rarely and judiciously used.  If they are used, it might be wise
+  to have alternate class constructors, or perhaps a custom
+  ``replace()`` (or similarly named) method which handles instance
+  copying.
 
 .. _discussion:
 

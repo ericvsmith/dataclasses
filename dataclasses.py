@@ -7,6 +7,7 @@ import inspect
 __all__ = ['dataclass',
            'field',
            'FrozenInstanceError',
+           'InitVar',
 
            # Helper functions.
            'fields',
@@ -42,6 +43,11 @@ _MISSING = _MISSING_FACTORY()
 #  read-only proxy that can be shared among all fields.
 _EMPTY_METADATA = types.MappingProxyType({})
 
+# Markers for the various kinds of fields and pseudo-fields.
+_FIELD = object()                 # An actual field.
+_FIELD_CLASSVAR = object()        # Not a field, but a ClassVar.
+_FIELD_INITVAR = object()         # Not a field, but an InitVar.
+
 # The name of an attribute on the class where we store the Field
 #  objects. Also used to check if a class is a Data Class.
 _MARKER = '__dataclass_fields__'
@@ -49,6 +55,163 @@ _MARKER = '__dataclass_fields__'
 # The name of the function, that if it exists, is called at the end of
 # __init__.
 _POST_INIT_NAME = '__post_init__'
+
+
+class TypingMeta(type):
+    """Metaclass for most types defined in typing module
+    (not a part of public API).
+
+    This overrides __new__() to require an extra keyword parameter
+    '_root', which serves as a guard against naive subclassing of the
+    typing classes.  Any legitimate class defined using a metaclass
+    derived from TypingMeta must pass _root=True.
+
+    This also defines a dummy constructor (all the work for most typing
+    constructs is done in __new__) and a nicer repr().
+    """
+
+    def __new__(cls, name, bases, namespace, *, _root=False):
+        if not _root:
+            raise TypeError("Cannot subclass %s" %
+                            (', '.join(map(repr, bases)) or '()'))
+        return super().__new__(cls, name, bases, namespace)
+
+    def __init__(self, *args, **kwds):
+        pass
+
+    def __repr__(self):
+        return f'{self.__module__}.{self.__qualname__}'
+
+
+class _TypingBase(metaclass=TypingMeta, _root=True):
+    """Internal indicator of special typing constructs."""
+
+    __slots__ = ('__weakref__',)
+
+    def __init__(self, *args, **kwds):
+        pass
+
+    def __new__(cls, *args, **kwds):
+        """Constructor.
+
+        This only exists to give a better error message in case
+        someone tries to subclass a special typing object (not a good idea).
+        """
+        if (len(args) == 3 and
+                isinstance(args[0], str) and
+                isinstance(args[1], tuple)):
+            # Close enough.
+            raise TypeError(f"Cannot subclass {cls}")
+        return super().__new__(cls)
+
+    def __repr__(self):
+        cls = type(self)
+        return f'{cls.__module__}.{cls.__qualname__}'
+
+    def __call__(self, *args, **kwds):
+        raise TypeError(f"Cannot instantiate {type(self)!r}")
+
+
+class _FinalTypingBase(_TypingBase, _root=True):
+    """Internal mix-in class to prevent instantiation.
+
+    Prevents instantiation unless _root=True is given in class call.
+    It is used to create pseudo-singleton instances Any, Union, Optional, etc.
+    """
+
+    __slots__ = ()
+
+    def __new__(cls, *args, _root=False, **kwds):
+        self = super().__new__(cls, *args, **kwds)
+        if _root is True:
+            return self
+        raise TypeError("Cannot instantiate {cls!r}")
+
+
+def _type_check(arg, msg):
+    """Check that the argument is a type, and return it (internal helper).
+
+    As a special case, accept None and return type(None) instead.
+    Also, _TypeAlias instances (e.g. Match, Pattern) are acceptable.
+
+    The msg argument is a human-readable error message, e.g.
+
+        "Union[arg, ...]: arg should be a type."
+
+    We append the repr() of the actual value (truncated to 100 chars).
+    """
+    if arg is None:
+        return type(None)
+    if isinstance(arg, str):
+        arg = _ForwardRef(arg)
+    if (
+        isinstance(arg, _TypingBase) and type(arg).__name__ == '_ClassVar' or
+        not isinstance(arg, (type, _TypingBase)) and not callable(arg)
+    ):
+        raise TypeError(f'{msg} Got {arg!r:.100}.')
+    # Bare Union etc. are not valid as type arguments
+    if (
+        type(arg).__name__ in ('_Union', '_Optional') and
+        not getattr(arg, '__origin__', None) or
+        isinstance(arg, TypingMeta) and _gorg(arg) in (Generic, _Protocol)
+    ):
+        raise TypeError("Plain %s is not valid as type argument" % arg)
+    return arg
+
+
+class _InitVar(_FinalTypingBase, _root=True):
+    """Special type construct to mark init-only variables.
+
+    An annotation wrapped in InitVar indicates that a given attribute
+    is intended to be used as a parameter to __init__() and
+    __post_init(), but is not a field.  Usage::
+
+      @dataclass
+      class C:
+          id: int
+          name: str=None
+          database: InitVar[DatabaseType]
+
+          def __post_init__(self, database):
+              if self.name is None:
+                  self.name = database.lookup_name(self.id)
+
+      c = C(10, database_connection)
+
+    InitVar accepts only types and cannot be further subscribed.
+    """
+
+    __slots__ = ('__type__',)
+
+    def __init__(self, tp=None, **kwds):
+        self.__type__ = tp
+
+    def __getitem__(self, item):
+        cls = type(self)
+        if self.__type__ is None:
+            return cls(_type_check(item,
+                       f'{cls.__name__[1:]} accepts only single type.'),
+                       _root=True)
+        raise TypeError('{} cannot be further subscripted'
+                        .format(cls.__name__[1:]))
+
+    def __repr__(self):
+        r = super().__repr__()
+        if self.__type__ is not None:
+            r += f'[{repr(self.__type__)}]'
+        return r
+
+    def __hash__(self):
+        return hash((type(self).__name__, self.__type__))
+
+    def __eq__(self, other):
+        if not isinstance(other, _InitVar):
+            return NotImplemented
+        if self.__type__ is not None:
+            return self.__type__ == other.__type__
+        return self is other
+
+InitVar = _InitVar(_root=True)
 
 # Instances of Field are only ever created from within this module,
 #  and only from the field() function, although Field instances are
@@ -68,9 +231,11 @@ class Field:
                  'init',
                  'cmp',
                  'metadata',
+                 '_field_type',  # Private: not to be used by user code.
                  )
 
-    def __init__(self, default, default_factory, init, repr, hash, cmp, metadata):
+    def __init__(self, default, default_factory, init, repr, hash, cmp,
+                 metadata):
         self.name = None
         self.type = None
         self.default = default
@@ -82,6 +247,7 @@ class Field:
         self.metadata = (_EMPTY_METADATA
                          if metadata is None or len(metadata) == 0 else
                          types.MappingProxyType(metadata))
+        self._field_type = None
 
     def __repr__(self):
         return ('Field('
@@ -106,7 +272,7 @@ def field(*, default=_MISSING, default_factory=_MISSING, init=True, repr=True,
 
     default is the default value of the field. default_factory is a
     0-argument function called to initialize a field's value. If init
-    is True, the field is will be a parameter to the class's
+    is True, the field will be a parameter to the class's
     __init__() function. If repr is True, the field will be included
     in the object's repr(). If hash is True, the field will be
     included in the object's hash(). If cmp is True, the field will be
@@ -212,6 +378,12 @@ def _field_init(f, frozen, globals, self_name):
             #  the caller by returning None.
             return None
 
+    # Only test this now, so that we can create variables for the
+    #  default.  However, return None to signify that we're not going
+    #  to actually do the assignment statement for InitVars.
+    if f._field_type == _FIELD_INITVAR:
+        return None
+
     # Now, actually generate the field assignment.
     return _field_assign(frozen, f.name, value, self_name)
 
@@ -235,11 +407,13 @@ def _init_param(f):
 
 
 def _init_fn(fields, frozen, has_post_init, self_name):
+    # fields contains both real fields and InitVar pseudo-fields.
+
     # Make sure we don't have fields without defaults following fields
     #  with defaults.  This actually would be caught when exec-ing the
     #  function source code, but catching it here gives a better error
-    #  message, and future-proofs us in case we build up function using
-    #  ast.
+    #  message, and future-proofs us in case we build up the function
+    #  using ast.
     seen_default = False
     for f in fields:
         # Only consider fields in the __init__ call.
@@ -255,6 +429,7 @@ def _init_fn(fields, frozen, has_post_init, self_name):
 
     body_lines = []
     for f in fields:
+        # Do not initialize the pseudo-fields, only the real ones.
         line = _field_init(f, frozen, globals, self_name)
         if line is not None:
             # line is None means that this field doesn't require
@@ -263,7 +438,7 @@ def _init_fn(fields, frozen, has_post_init, self_name):
 
     # Does this class have an post-init function?
     if has_post_init:
-        body_lines += [f'{self_name}.{_POST_INIT_NAME}()']
+        body_lines += [f'{self_name}.{_POST_INIT_NAME}({",".join(f.name for f in fields if f._field_type is _FIELD_INITVAR)})']
 
     # If no body lines, add 'pass'.
     if len(body_lines) == 0:
@@ -341,42 +516,80 @@ def _hash_fn(fields):
                       [f'return hash({self_tuple})'])
 
 
+def _get_field(cls, a_name, a_type):
+    # Return a Field object, for this field name and type.  ClassVars
+    #  and InitVars are also returned, but marked as such (see
+    #  f._field_type).
+
+    # If the default value isn't derived from field, then it's
+    #  only a normal default value.  Convert it to a Field().
+    default = getattr(cls, a_name, _MISSING)
+    if isinstance(default, Field):
+        f = default
+    else:
+        f = field(default=default)
+
+    # Assume it's a normal field until proven otherwise.
+    f._field_type = _FIELD
+
+    # Only at this point do we know the name and the type. Set them.
+    f.name = a_name
+    f.type = a_type
+
+    # If typing has not been imported, then it's impossible for
+    #  any annotation to be a ClassVar. So, only look for ClassVar
+    #  if typing has been imported.
+    typing = sys.modules.get('typing')
+    if typing is not None:
+        # This test uses a typing internal class, but it's the best
+        #  way to test if this is a ClassVar.
+        if type(a_type) is typing._ClassVar:
+            # This field is a ClassVar, so it's not a field.
+            f._field_type = _FIELD_CLASSVAR
+
+    if f._field_type is _FIELD:
+        # Check if this is an InitVar.
+        if type(a_type) is _InitVar:
+            # InitVars are not fields, either.
+            f._field_type = _FIELD_INITVAR
+
+    # Validations for fields.  This is delayed until now, instead of
+    # in the Field() constructor, since only here do we know the field
+    # name, which allows better error reporting.
+
+    # Special restrictions for ClassVar and InitVar.
+    if f._field_type in (_FIELD_CLASSVAR, _FIELD_INITVAR):
+        if f.default_factory is not _MISSING:
+            raise TypeError(f'field {f.name} cannot have a '
+                            'default factory')
+        # Should I check for other field settings? default_factory
+        #  seems the most serious to check for. Maybe add others.  For
+        #  example, how about init=False (or really,
+        #  init=<not-the-default-init-value>)? It makes no sense for
+        #  ClassVar and InitVar to specify init=<anything>.
+
+    # For real fields, disallow mutable defaults for known types.
+    if f._field_type is _FIELD and isinstance(f.default, (list, dict, set)):
+        raise ValueError(f'mutable default {type(f.default)} for field '
+                         f'{f.name} is not allowed: use default_factory')
+
+    return f
+
+
 def _find_fields(cls):
-    # Return a list tuples of of (name, type, Field()), in order, for
-    #  this class (and no super-classes).  Fields are found from
-    #  __annotations__ (which is guaranteed to be ordered).  Default
-    #  values are from class attributes, if a field has a default.  If
-    #  the default value is a Field(), then it contains additional
-    #  info beyond (and possibly including) the actual default value.
-    #  Fields which are ClassVars are ignored.
+    # Return a list of Field objects, in order, for this class (and no
+    #  base classes).  Fields are found from __annotations__ (which is
+    #  guaranteed to be ordered).  Default values are from class
+    #  attributes, if a field has a default.  If the default value is
+    #  a Field(), then it contains additional info beyond (and
+    #  possibly including) the actual default value.  Psueudo-fields
+    #  ClassVars and InitVars are included, despite the fact that
+    #  they're not real fields.  That's deal with later.
 
     annotations = getattr(cls, '__annotations__', {})
 
-    results = []
-    for a_name, a_type in annotations.items():
-        # If this is a ClassVar, ignore it. It makes no sense for a
-        #  ClassVar to be a field.
-
-        # If typing has not been imported, then it's impossible for
-        #  any annotation to be a ClassVar. So, only look for ClassVar
-        #  if typing has been imported.
-        typing = sys.modules.get('typing')
-        if typing is not None:
-            # This test uses a typing internal class, but it's the best
-            #  way to test if this is a ClassVar.
-            if type(a_type) is typing._ClassVar:
-                # This field is a ClassVar. Ignore it.
-                continue
-
-        # If the default value isn't derived from field, then it's
-        #  only a normal default value.  Convert it to a Field().
-        default = getattr(cls, a_name, _MISSING)
-        if isinstance(default, Field):
-            f = default
-        else:
-            f = field(default=default)
-        results.append((a_name, a_type, f))
-    return results
+    return [_get_field(cls, a_name, a_type)
+            for a_name, a_type in annotations.items()]
 
 
 def _set_attribute(cls, name, value):
@@ -408,44 +621,28 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
     # Now find fields in our class.  While doing so, validate some
     #  things, and set the default values (as class attributes)
     #  where we can.
-    for name, type_, f in _find_fields(cls):
-        fields[name] = f
-
-        # The name and type must not be filled in before hand: we
-        #  grabbed them from the annotations.
-        assert f.name is None and f.type is None
-
-        # Set the field name and type, which we don't know until now.
-        f.name = name
-        f.type = type_
-
-        # Validations for fields directly on our class.  This is
-        #  delayed until now, instead of in the Field() constructor,
-        #  since only here do we know the field name, which allows
-        #  better error reporting.
+    for f in _find_fields(cls):
+        fields[f.name] = f
 
         # If the class attribute (which is the default value for
         #  this field) exists and is of type 'Field', replace it
         #  with the real default.  This is so that normal class
         #  introspection sees a real default value.
-        if isinstance(getattr(cls, name, None), Field):
+        if isinstance(getattr(cls, f.name, None), Field):
             if f.default is _MISSING:
                 # If there's no default, delete the class attribute.
                 #  This happens if we specify field(repr=False), for
-                #  example.  The class attribute should not be set at
-                #  all in the post-processed class.
-                delattr(cls, name)
+                #  example (that is, we specified a field object, but
+                #  no default value).  The class attribute should not
+                #  be set at all in the post-processed class.
+                delattr(cls, f.name)
             else:
-                setattr(cls, name, f.default)
+                setattr(cls, f.name, f.default)
 
-        # Disallow mutable defaults for known types.
-        if isinstance(f.default, (list, dict, set)):
-            # XXX: include a statement about using a factory in the error message
-            raise ValueError(f'mutable default {type(f.default)} for field '
-                             f'{name} is not allowed')
-
-    # Just to save some typing in the code below, get the fields as a list.
-    field_list = list(fields.values())
+    # Get the fields as a list, and include only real fields.  This is
+    #  used everywhere here except __init__, where we have to take in to
+    #  account the InitVar pseudo-fields.
+    field_list = [f for f in fields.values() if f._field_type is _FIELD]
 
     # Remember all of the fields on our class (including bases).  This
     #  marks this class as being a dataclass.
@@ -462,11 +659,12 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
     if init:
         # Does this class have a post-init function?
         has_post_init = hasattr(cls, _POST_INIT_NAME)
+
+        # TODO: Shouldn't it be an error to have InitVar fields but no post-init function?
         _set_attribute(cls, '__init__',
-                       _init_fn(field_list,
+                       _init_fn([f for f in fields.values() if f._field_type in (_FIELD, _FIELD_INITVAR)],
                                 is_frozen,
                                 has_post_init,
-
                                 # The name to use for the "self" param
                                 #  in __init__.  Use "self" if possible.
                                 '__dataclass_self__' if 'self' in fields
@@ -555,10 +753,16 @@ def fields(class_or_instance):
     Accepts a dataclass or an instance of one. List elements are of
     type Field.
     """
+
+    # Might it be worth caching this, per class?
     try:
-        return getattr(class_or_instance, _MARKER)
+        # Exclude pseudo-fields.
+        fields =  getattr(class_or_instance, _MARKER)
     except AttributeError:
         raise TypeError('must be called with a dataclass type or instance')
+
+    return collections.OrderedDict((n, f) for n, f in fields.items()
+                                   if f._field_type is _FIELD)
 
 
 def isdataclass(obj):
