@@ -441,6 +441,9 @@ Consider this example, not using Data Classes::
   assert o1.add == [1, 2]
   assert o1.x is o2.x
 
+Note that the two instances of class ``C`` share the same class
+variable ``x``, as expected.
+
 Using Data Classes, if this code was valid::
 
   @dataclass
