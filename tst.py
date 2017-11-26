@@ -94,7 +94,7 @@ class TestCase(unittest.TestCase):
         with self.assertRaisesRegex(AttributeError,
                                     'Cannot overwrite attribute __eq__ '
                                     'in C'):
-            # This will generate the compare functions, make sure we can't
+            # This will generate the comparison functions, make sure we can't
             #  overwrite them.
             @dataclass(hash=False, frozen=False)
             class C:
@@ -102,7 +102,7 @@ class TestCase(unittest.TestCase):
                 def __eq__(self):
                     pass
 
-        @dataclass(compare=False, eq=False)
+        @dataclass(order=False, eq=False)
         class C:
             x: int
             def __eq__(self, other):
@@ -302,42 +302,42 @@ class TestCase(unittest.TestCase):
         # There are 24 cases of:
         #  hash=True/False/None
         #  eq=True/False
-        #  compare=True/False
+        #  order=True/False
         #  frozen=True/False
-        for (hash,  eq,    compare, frozen, result  ) in [
-            (False, False, False,   False,  'absent'),
-            (False, False, False,   True,   'absent'),
-            (False, False, True,    False,  'exception'),
-            (False, False, True,    True,   'exception'),
-            (False, True,  False,   False,  'absent'),
-            (False, True,  False,   True,   'absent'),
-            (False, True,  True,    False,  'absent'),
-            (False, True,  True,    True,   'absent'),
-            (True,  False, False,   False,  'fn'),
-            (True,  False, False,   True,   'fn'),
-            (True,  False, True,    False,  'exception'),
-            (True,  False, True,    True,   'exception'),
-            (True,  True,  False,   False,  'fn'),
-            (True,  True,  False,   True,   'fn'),
-            (True,  True,  True,    False,  'fn'),
-            (True,  True,  True,    True,   'fn'),
-            (None,  False, False,   False,  'absent'),
-            (None,  False, False,   True,   'absent'),
-            (None,  False, True,    False,  'exception'),
-            (None,  False, True,    True,   'exception'),
-            (None,  True,  False,   False,  'none'),
-            (None,  True,  False,   True,   'fn'),
-            (None,  True,  True,    False,  'none'),
-            (None,  True,  True,    True,   'fn'),
+        for (hash,  eq,    order, frozen, result  ) in [
+            (False, False, False, False,  'absent'),
+            (False, False, False, True,   'absent'),
+            (False, False, True,  False,  'exception'),
+            (False, False, True,  True,   'exception'),
+            (False, True,  False, False,  'absent'),
+            (False, True,  False, True,   'absent'),
+            (False, True,  True,  False,  'absent'),
+            (False, True,  True,  True,   'absent'),
+            (True,  False, False, False,  'fn'),
+            (True,  False, False, True,   'fn'),
+            (True,  False, True,  False,  'exception'),
+            (True,  False, True,  True,   'exception'),
+            (True,  True,  False, False,  'fn'),
+            (True,  True,  False, True,   'fn'),
+            (True,  True,  True,  False,  'fn'),
+            (True,  True,  True,  True,   'fn'),
+            (None,  False, False, False,  'absent'),
+            (None,  False, False, True,   'absent'),
+            (None,  False, True,  False,  'exception'),
+            (None,  False, True,  True,   'exception'),
+            (None,  True,  False, False,  'none'),
+            (None,  True,  False, True,   'fn'),
+            (None,  True,  True,  False,  'none'),
+            (None,  True,  True,  True,   'fn'),
         ]:
-            with self.subTest(hash=hash, eq=eq, compare=compare, frozen=frozen):
+            with self.subTest(hash=hash, eq=eq, order=order, frozen=frozen):
                 if result == 'exception':
-                    with self.assertRaisesRegex(ValueError, 'eq must be true if compare is true'):
-                        @dataclass(hash=hash, eq=eq, compare=compare, frozen=frozen)
+                    with self.assertRaisesRegex(ValueError, 'eq must be true if order is true'):
+                        @dataclass(hash=hash, eq=eq, order=order, frozen=frozen)
                         class C:
                             pass
                 else:
-                    @dataclass(hash=hash, eq=eq, compare=compare, frozen=frozen)
+                    @dataclass(hash=hash, eq=eq, order=order, frozen=frozen)
                     class C:
                         pass
 
@@ -356,21 +356,21 @@ class TestCase(unittest.TestCase):
                     else:
                         assert False, f'unknown result {result!r}'
 
-    def test_eq_compare(self):
-        for (eq,    compare, result   ) in [
-            (False, False,   'neither'),
-            (False, True,    'exception'),
-            (True,  False,   'eq_only'),
-            (True,  True,    'both'),
+    def test_eq_order(self):
+        for (eq,    order, result   ) in [
+            (False, False, 'neither'),
+            (False, True,  'exception'),
+            (True,  False, 'eq_only'),
+            (True,  True,  'both'),
         ]:
-            with self.subTest(eq=eq, compare=compare):
+            with self.subTest(eq=eq, order=order):
                 if result == 'exception':
-                    with self.assertRaisesRegex(ValueError, 'eq must be true if compare is true'):
-                        @dataclass(eq=False, compare=True)
+                    with self.assertRaisesRegex(ValueError, 'eq must be true if order is true'):
+                        @dataclass(eq=eq, order=order)
                         class C:
                             pass
                 else:
-                    @dataclass(eq=eq, compare=compare)
+                    @dataclass(eq=eq, order=order)
                     class C:
                         pass
 
