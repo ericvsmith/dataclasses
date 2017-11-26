@@ -498,8 +498,8 @@ def _set_eq_fns(cls, fields):
         _set_attribute(cls, name, _cmp_fn(name, op, self_tuple, other_tuple))
 
 
-def _set_compare_fns(cls, fields):
-    # Create and set the comparison methods on cls.
+def _set_order_fns(cls, fields):
+    # Create and set the ordering methods on cls.
     # Pre-compute self_tuple and other_tuple, then re-use them for
     #  each function.
     self_tuple = _tuple_str('self', fields)
@@ -604,7 +604,7 @@ def _set_attribute(cls, name, value):
     setattr(cls, name, value)
 
 
-def _process_class(cls, repr, eq, compare, hash, init, frozen):
+def _process_class(cls, repr, eq, order, hash, init, frozen):
     # Use an OrderedDict because:
     #  - Order matters!
     #  - Derived class fields overwrite base class fields.
@@ -656,10 +656,10 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
     #  be inherited down.
     is_frozen = frozen or cls.__setattr__ is _frozen_setattr
 
-    # If we're generating comparison methods, we must be generating
+    # If we're generating ordering methods, we must be generating
     #  the eq methods.
-    if compare and not eq:
-        raise ValueError('eq must be true if compare is true')
+    if order and not eq:
+        raise ValueError('eq must be true if order is true')
 
     if init:
         # Does this class have a post-init function?
@@ -713,10 +713,10 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
         # Create and __eq__ and __ne__ methods.
         _set_eq_fns(cls, list(filter(lambda f: f.compare, field_list)))
 
-    if compare:
+    if order:
         # Create and __lt__, __le__, __gt__, and __ge__ methods.
         # Create and set the comparison functions.
-        _set_compare_fns(cls, list(filter(lambda f: f.compare, field_list)))
+        _set_order_fns(cls, list(filter(lambda f: f.compare, field_list)))
 
     if not getattr(cls, '__doc__'):
         # Create a class doc-string
@@ -729,7 +729,7 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
 # _cls should never be specified by keyword, so start it with an
 #  underscore. The presense of _cls is used to detect if this
 #  decorator is being called with parameters or not.
-def dataclass(_cls=None, *, init=True, repr=True, eq=True, compare=True,
+def dataclass(_cls=None, *, init=True, repr=True, eq=True, order=True,
               hash=None, frozen=False):
     """Returns the same class as was passed in, with dunder methods
     added based on the fields defined in the class.
@@ -738,13 +738,13 @@ def dataclass(_cls=None, *, init=True, repr=True, eq=True, compare=True,
 
     If init is True, an __init__() method is added to the class. If
     repr is True, a __repr__() method is added.  If hash is True, a
-    __hash__() method function is added. If compare is True, rich
+    __hash__() method function is added. If order is True, rich
     comparison dunder methods are added. If frozen is True, fields may
     not be assigned to after instance creation.
     """
 
     def wrap(cls):
-        return _process_class(cls, repr, eq, compare, hash, init, frozen)
+        return _process_class(cls, repr, eq, order, hash, init, frozen)
 
     # See if we're being called as @dataclass or @dataclass().
     if _cls is None:
