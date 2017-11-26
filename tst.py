@@ -299,7 +299,7 @@ class TestCase(unittest.TestCase):
             hash(C(1))
 
     def test_hash_rules(self):
-        # Test all 24cases of:
+        # There are 24 cases of:
         #  hash=True/False/None
         #  eq=True/False
         #  compare=True/False
@@ -307,85 +307,96 @@ class TestCase(unittest.TestCase):
         for (hash,  eq,    compare, frozen, result  ) in [
             (False, False, False,   False,  'absent'),
             (False, False, False,   True,   'absent'),
-            (False, False, True,    False,  'absent'),
-            (False, False, True,    True,   'absent'),
+            (False, False, True,    False,  'exception'),
+            (False, False, True,    True,   'exception'),
             (False, True,  False,   False,  'absent'),
             (False, True,  False,   True,   'absent'),
             (False, True,  True,    False,  'absent'),
             (False, True,  True,    True,   'absent'),
-            (True,  False, False,   False,  'fn'    ),
-            (True,  False, False,   True,   'fn'    ),
-            (True,  False, True,    False,  'fn'    ),
-            (True,  False, True,    True,   'fn'    ),
-            (True,  True,  False,   False,  'fn'    ),
-            (True,  True,  False,   True,   'fn'    ),
-            (True,  True,  True,    False,  'fn'    ),
-            (True,  True,  True,    True,   'fn'    ),
+            (True,  False, False,   False,  'fn'),
+            (True,  False, False,   True,   'fn'),
+            (True,  False, True,    False,  'exception'),
+            (True,  False, True,    True,   'exception'),
+            (True,  True,  False,   False,  'fn'),
+            (True,  True,  False,   True,   'fn'),
+            (True,  True,  True,    False,  'fn'),
+            (True,  True,  True,    True,   'fn'),
             (None,  False, False,   False,  'absent'),
             (None,  False, False,   True,   'absent'),
-            (None,  False, True,    False,  'none'  ),
-            (None,  False, True,    True,   'fn'    ),
-            (None,  True,  False,   False,  'none'  ),
-            (None,  True,  False,   True,   'fn'    ),
-            (None,  True,  True,    False,  'none'  ),
-            (None,  True,  True,    True,   'fn'    ),
+            (None,  False, True,    False,  'exception'),
+            (None,  False, True,    True,   'exception'),
+            (None,  True,  False,   False,  'none'),
+            (None,  True,  False,   True,   'fn'),
+            (None,  True,  True,    False,  'none'),
+            (None,  True,  True,    True,   'fn'),
         ]:
             with self.subTest(hash=hash, eq=eq, compare=compare, frozen=frozen):
-                @dataclass(hash=hash, eq=eq, compare=compare, frozen=frozen)
-                class C:
-                    pass
-
-                # See if the result matches what's expected.
-                if result == 'fn':
-                    # __hash__ contains the function we generated.
-                    self.assertIn('__hash__', C.__dict__)
-                    self.assertIsNotNone(C.__dict__['__hash__'])
-                elif result == 'absent':
-                    # __hash__ is not present in our class.
-                    self.assertNotIn('__hash__', C.__dict__)
-                elif result == 'none':
-                    # __hash__ is set to None.
-                    self.assertIn('__hash__', C.__dict__)
-                    self.assertIsNone(C.__dict__['__hash__'])
+                if result == 'exception':
+                    with self.assertRaisesRegex(ValueError, 'eq must be true if compare is true'):
+                        @dataclass(hash=hash, eq=eq, compare=compare, frozen=frozen)
+                        class C:
+                            pass
                 else:
-                    assert False, f'unknown result {result!r}'
+                    @dataclass(hash=hash, eq=eq, compare=compare, frozen=frozen)
+                    class C:
+                        pass
+
+                    # See if the result matches what's expected.
+                    if result == 'fn':
+                        # __hash__ contains the function we generated.
+                        self.assertIn('__hash__', C.__dict__)
+                        self.assertIsNotNone(C.__dict__['__hash__'])
+                    elif result == 'absent':
+                        # __hash__ is not present in our class.
+                        self.assertNotIn('__hash__', C.__dict__)
+                    elif result == 'none':
+                        # __hash__ is set to None.
+                        self.assertIn('__hash__', C.__dict__)
+                        self.assertIsNone(C.__dict__['__hash__'])
+                    else:
+                        assert False, f'unknown result {result!r}'
 
     def test_eq_compare(self):
-        # Check that if compare is True, then eq is forced to True, too.
         for (eq,    compare, result   ) in [
             (False, False,   'neither'),
-            (False, True,    'both'   ),
+            (False, True,    'exception'),
             (True,  False,   'eq_only'),
-            (True,  True,    'both'   ),
+            (True,  True,    'both'),
         ]:
             with self.subTest(eq=eq, compare=compare):
-                @dataclass(eq=eq, compare=compare)
-                class C:
-                    pass
-
-                if result == 'neither':
-                    self.assertNotIn('__eq__', C.__dict__)
-                    self.assertNotIn('__ne__', C.__dict__)
-                    self.assertNotIn('__lt__', C.__dict__)
-                    self.assertNotIn('__le__', C.__dict__)
-                    self.assertNotIn('__gt__', C.__dict__)
-                    self.assertNotIn('__ge__', C.__dict__)
-                elif result == 'both':
-                    self.assertIn('__eq__', C.__dict__)
-                    self.assertIn('__ne__', C.__dict__)
-                    self.assertIn('__lt__', C.__dict__)
-                    self.assertIn('__le__', C.__dict__)
-                    self.assertIn('__gt__', C.__dict__)
-                    self.assertIn('__ge__', C.__dict__)
-                elif result == 'eq_only':
-                    self.assertIn('__eq__', C.__dict__)
-                    self.assertIn('__ne__', C.__dict__)
-                    self.assertNotIn('__lt__', C.__dict__)
-                    self.assertNotIn('__le__', C.__dict__)
-                    self.assertNotIn('__gt__', C.__dict__)
-                    self.assertNotIn('__ge__', C.__dict__)
+                if result == 'exception':
+                    with self.assertRaisesRegex(ValueError, 'eq must be true if compare is true'):
+                        @dataclass(eq=False, compare=True)
+                        class C:
+                            pass
                 else:
-                    assert False, f'unknown result {result!r}'
+                    @dataclass(eq=eq, compare=compare)
+                    class C:
+                        pass
+
+                    if result == 'neither':
+                        self.assertNotIn('__eq__', C.__dict__)
+                        self.assertNotIn('__ne__', C.__dict__)
+                        self.assertNotIn('__lt__', C.__dict__)
+                        self.assertNotIn('__le__', C.__dict__)
+                        self.assertNotIn('__gt__', C.__dict__)
+                        self.assertNotIn('__ge__', C.__dict__)
+                    elif result == 'both':
+                        self.assertIn('__eq__', C.__dict__)
+                        self.assertIn('__ne__', C.__dict__)
+                        self.assertIn('__lt__', C.__dict__)
+                        self.assertIn('__le__', C.__dict__)
+                        self.assertIn('__gt__', C.__dict__)
+                        self.assertIn('__ge__', C.__dict__)
+                    elif result == 'eq_only':
+                        self.assertIn('__eq__', C.__dict__)
+                        self.assertIn('__ne__', C.__dict__)
+                        self.assertNotIn('__lt__', C.__dict__)
+                        self.assertNotIn('__le__', C.__dict__)
+                        self.assertNotIn('__gt__', C.__dict__)
+                        self.assertNotIn('__ge__', C.__dict__)
+                    else:
+                        assert False, f'unknown result {result!r}'
 
     def test_field_no_default(self):
         @dataclass

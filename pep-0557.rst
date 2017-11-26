@@ -200,8 +200,7 @@ The parameters to ``dataclass`` are:
   ``__gt__``, and ``__ge__`` methods will be generated.  These compare
   the class as if it were a tuple of its fields, in order.  Both
   instances in the comparison must be of the identical type.  If
-  ``compare`` is True, then ``eq`` is ignored, and ``__eq__`` and
-  ``__ne__`` will be automatically generated.
+  ``compare`` is true and ``eq`` is false, a ``ValueError`` is raised.
 
 - ``hash``: Either a bool or ``None``.  If ``None`` (the default), the
   ``__hash__`` method is generated according to how ``eq`` and
