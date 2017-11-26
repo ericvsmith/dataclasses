@@ -645,7 +645,8 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
     # Get the fields as a list, and include only real fields.  This is
     #  used everywhere here except __init__, where we have to take in to
     #  account the InitVar pseudo-fields.
-    field_list = [f for f in fields.values() if f._field_type is _FIELD]
+    field_list = list(filter(lambda f: f._field_type is _FIELD,
+                             fields.values()))
 
     # Remember all of the fields on our class (including bases).  This
     #  marks this class as being a dataclass.
@@ -667,8 +668,9 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
         # TODO: Shouldn't it be an error to have InitVar fields but no
         #  post-init function?
         _set_attribute(cls, '__init__',
-                       _init_fn([f for f in fields.values()
-                                 if f._field_type in (_FIELD, _FIELD_INITVAR)],
+                       _init_fn(list(filter(lambda f: f._field_type
+                                              in (_FIELD, _FIELD_INITVAR),
+                                            fields.values())),
                                 is_frozen,
                                 has_post_init,
                                 # The name to use for the "self" param
