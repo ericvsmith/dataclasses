@@ -655,9 +655,10 @@ def _process_class(cls, repr, eq, compare, hash, init, frozen):
     #  be inherited down.
     is_frozen = frozen or cls.__setattr__ is _frozen_setattr
 
-    # If we're generating comparison methods, also generate the eq methods.
-    if compare:
-        eq = True
+    # If we're generating comparison methods, we must be generating
+    #  the eq methods.
+    if compare and not eq:
+        raise ValueError('eq must be true if compare is true')
 
     if init:
         # Does this class have a post-init function?
