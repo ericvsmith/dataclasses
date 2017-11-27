@@ -19,7 +19,7 @@ __all__ = ['dataclass',
            ]
 
 # Just for development, I'll remove this before shipping.
-_debug = False
+_debug = True
 
 # Raised when an attempt is made to modify a frozen class.
 class FrozenInstanceError(AttributeError): pass
@@ -72,8 +72,8 @@ class TypingMeta(type):
 
     def __new__(cls, name, bases, namespace, *, _root=False):
         if not _root:
-            raise TypeError("Cannot subclass %s" %
-                            (', '.join(map(repr, bases)) or '()'))
+            bases = ', '.join(map(repr, bases)) or '()'
+            raise TypeError(f'Cannot subclass {bases}')
         return super().__new__(cls, name, bases, namespace)
 
     def __init__(self, *args, **kwds):
@@ -155,7 +155,7 @@ def _type_check(arg, msg):
         not getattr(arg, '__origin__', None) or
         isinstance(arg, TypingMeta) and _gorg(arg) in (Generic, _Protocol)
     ):
-        raise TypeError("Plain %s is not valid as type argument" % arg)
+        raise TypeError(f'Plain {arg} is not valid as type argument')
     return arg
 
 
@@ -473,7 +473,7 @@ def _frozen_delattr(self, name):
     raise FrozenInstanceError(f'cannot delete field {name!r}')
 
 
-def _cmp_fn(name, op, self_tuple, other_tuple):
+def _cmp_fn(name, op, num_fields, self_tuple, other_tuple):
     # Create a comparison function.  If the fields in the object are
     #  named 'x' and 'y', then self_tuple is the string
     #  '(self.x,self.y)' and other_tuple is the string
@@ -481,7 +481,7 @@ def _cmp_fn(name, op, self_tuple, other_tuple):
 
     return _create_fn(name,
                       ['self', 'other'],
-                      [ 'if other.__class__ is self.__class__:',
+                      [f'if other.__class__ is self.__class__ or (isinstance(other, self.__class__) and ({num_fields} == len(other.__dataclass_fields__))):',
                        f' return {self_tuple}{op}{other_tuple}',
                         'return NotImplemented'])
 
@@ -492,10 +492,12 @@ def _set_eq_fns(cls, fields):
     #  each function.
     self_tuple = _tuple_str('self', fields)
     other_tuple = _tuple_str('other', fields)
+    num_fields = len(getattr(cls, _MARKER))
     for name, op in [('__eq__', '=='),
                      ('__ne__', '!='),
                      ]:
-        _set_attribute(cls, name, _cmp_fn(name, op, self_tuple, other_tuple))
+        _set_attribute(cls, name, _cmp_fn(name, op, num_fields,
+                                          self_tuple, other_tuple))
 
 
 def _set_order_fns(cls, fields):
@@ -504,12 +506,14 @@ def _set_order_fns(cls, fields):
     #  each function.
     self_tuple = _tuple_str('self', fields)
     other_tuple = _tuple_str('other', fields)
+    num_fields = len(getattr(cls, _MARKER))
     for name, op in [('__lt__', '<'),
                      ('__le__', '<='),
                      ('__gt__', '>'),
                      ('__ge__', '>='),
                      ]:
-        _set_attribute(cls, name, _cmp_fn(name, op, self_tuple, other_tuple))
+        _set_attribute(cls, name, _cmp_fn(name, op, num_fields,
+                                          self_tuple, other_tuple))
 
 
 def _hash_fn(fields):
