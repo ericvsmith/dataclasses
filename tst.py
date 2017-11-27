@@ -56,6 +56,32 @@ class TestCase(unittest.TestCase):
                 x: int = 0
                 y: int
 
+        # A derived class adds a non-default field after a default one.
+        with self.assertRaisesRegex(TypeError,
+                                    "non-default argument 'y' follows "
+                                    "default argument"):
+            @dataclass
+            class B:
+                x: int = 0
+
+            @dataclass
+            class C(B):
+                y: int
+
+        # Override a base class field and add a default to
+        #  a field which didn't use to have a default.
+        with self.assertRaisesRegex(TypeError,
+                                    "non-default argument 'y' follows "
+                                    "default argument"):
+            @dataclass
+            class B:
+                x: int
+                y: int
+
+            @dataclass
+            class C(B):
+                x: int = 0
+
     def test_overwriting_init(self):
         with self.assertRaisesRegex(AttributeError,
                                     'Cannot overwrite attribute __init__ '
