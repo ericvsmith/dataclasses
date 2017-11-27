@@ -238,6 +238,10 @@ In this example, both ``a`` and ``b`` will be included in the added
 
   def __init__(self, a: int, b: int = 0):
 
+``TypeError`` will be raised if a field without a default value
+follows a field with a default value.  This is true either when this
+occurs in a single class, or as a result of class inheritance.
+
 If any generated method already exists on the class, an
 ``AttributeError`` will be raised.
 
