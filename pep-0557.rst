@@ -238,6 +238,9 @@ In this example, both ``a`` and ``b`` will be included in the added
 
   def __init__(self, a: int, b: int = 0):
 
+If any generated method already exists on the class, an
+``AttributeError`` will be raised.
+
 For common and simple use cases, no other functionality is required.
 There are, however, some Data Class features that require additional
 per-field information.  To satisfy this need for additional
