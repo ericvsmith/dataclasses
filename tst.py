@@ -6,6 +6,7 @@ from dataclasses import (
 import pickle
 import inspect
 import unittest
+import itertools
 from unittest.mock import Mock
 from typing import ClassVar, Any, List, Union, Tuple, Dict
 from collections import deque, OrderedDict, namedtuple
@@ -295,6 +296,80 @@ class TestCase(unittest.TestCase):
         self.assertFalse(C(0, 0) >= C(0, 1))
         self.assertFalse(C(0, 0) >= C(0, 1))
         self.assertFalse(C(0, 0) >= C(1, 0))
+
+    def test_compare_derived_classes(self):
+        @dataclass
+        class B:
+            i: int
+            j: int
+
+        # C1: add no new fields
+        @dataclass
+        class C1(B):
+            pass
+
+        # C2: add a new InitVar
+        @dataclass
+        class C2(B):
+            k: InitVar[int]
+
+        # C3: add a new ClassVar
+        @dataclass
+        class C3(B):
+            k: ClassVar[int]
+
+        # C4: add a field
+        @dataclass
+        class C4(B):
+            k: int
+
+        c4 = C4(1, 2, 3)
+
+        # Things we can compare for equality.
+        b = B(1, 2)
+        for c in [C1(1, 2), C2(1, 2, 3), C3(1, 2)]:
+            with self.subTest(c=c):
+                self.assertEqual(b, c)
+                self.assertEqual(c, b)
+                self.assertLessEqual(c, b)
+                self.assertLessEqual(b, c)
+                self.assertGreaterEqual(c, b)
+                self.assertGreaterEqual(b, c)
+        # But not C4, since it has an additional field.
+        self.assertNotEqual(b, c4)
+        for tst in [self.assertLess, self.assertLessEqual,
+                    self.assertGreater, self.assertGreaterEqual]:
+            with self.subTest(tst=tst):
+                with self.assertRaisesRegex(TypeError,
+                                            "not supported between instances "
+                                            "of 'B' and 'C4'"):
+                    tst(b, c4)
+                with self.assertRaisesRegex(TypeError,
+                                            "not supported between instances "
+                                            "of 'C4' and 'B'"):
+                    tst(c4, b)
+
+        b = B(2, 2)
+        for c in [C1(1, 2), C2(1, 2, 3), C3(1, 2)]:
+            with self.subTest(c=c):
+                self.assertNotEqual(b, c)
+                self.assertNotEqual(c, b)
+                self.assertLess(c, b)
+                self.assertLessEqual(c, b)
+                self.assertGreater(b, c)
+                self.assertGreaterEqual(b, c)
+        self.assertNotEqual(b, c4)
+
+        b = B(1, 1)
+        for c in [C1(1, 2), C2(1, 2, 3), C3(1, 2)]:
+            with self.subTest(c=c):
+                self.assertNotEqual(b, c)
+                self.assertNotEqual(c, b)
+                self.assertGreater(c, b)
+                self.assertGreaterEqual(c, b)
+                self.assertLess(b, c)
+                self.assertLessEqual(b, c)
+        self.assertNotEqual(b, c4)
 
     def test_0_field_hash(self):
         @dataclass(hash=True)

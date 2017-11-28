@@ -19,7 +19,7 @@ __all__ = ['dataclass',
            ]
 
 # Just for development, I'll remove this before shipping.
-_debug = True
+_debug = False
 
 # Raised when an attempt is made to modify a frozen class.
 class FrozenInstanceError(AttributeError): pass
@@ -477,13 +477,19 @@ def _cmp_fn(name, op, num_fields, self_tuple, other_tuple):
     # Create a comparison function.  If the fields in the object are
     #  named 'x' and 'y', then self_tuple is the string
     #  '(self.x,self.y)' and other_tuple is the string
-    #  '(other.x,other.y)'.
+    #  '(other.x,other.y)'. num_fields is the number of fields
+    #  in self.  Calculate the number of fields in other by
+    #  calling fields().
 
+    globals = {'fields': fields}
     return _create_fn(name,
                       ['self', 'other'],
-                      [f'if other.__class__ is self.__class__ or (isinstance(other, self.__class__) and ({num_fields} == len(other.__dataclass_fields__))):',
+                      [ 'if (other.__class__ is self.__class__ or '
+                        '(isinstance(other, self.__class__) and'
+                       f'({num_fields} == len(fields(other))))):',
                        f' return {self_tuple}{op}{other_tuple}',
-                        'return NotImplemented'])
+                        'return NotImplemented'],
+                      globals=globals)
 
 
 def _set_eq_fns(cls, fields):
