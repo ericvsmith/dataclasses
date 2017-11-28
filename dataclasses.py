@@ -484,7 +484,7 @@ def _cmp_fn(name, op, num_fields, self_tuple, other_tuple):
     globals = {'fields': fields}
     return _create_fn(name,
                       ['self', 'other'],
-                      [ 'if (other.__class__ is self.__class__ or '
+                      ['if (other.__class__ is self.__class__ or '
                         '(isinstance(other, self.__class__) and'
                        f'({num_fields} == len(fields(other))))):',
                        f' return {self_tuple}{op}{other_tuple}',
@@ -498,7 +498,7 @@ def _set_eq_fns(cls, fields):
     #  each function.
     self_tuple = _tuple_str('self', fields)
     other_tuple = _tuple_str('other', fields)
-    num_fields = len(getattr(cls, _MARKER))
+    num_fields = sum(1 for f in fields if f._field_type == _FIELD)
     for name, op in [('__eq__', '=='),
                      ('__ne__', '!='),
                      ]:
@@ -512,7 +512,7 @@ def _set_order_fns(cls, fields):
     #  each function.
     self_tuple = _tuple_str('self', fields)
     other_tuple = _tuple_str('other', fields)
-    num_fields = len(getattr(cls, _MARKER))
+    num_fields = sum(1 for f in fields if f._field_type == _FIELD)
     for name, op in [('__lt__', '<'),
                      ('__le__', '<='),
                      ('__gt__', '>'),

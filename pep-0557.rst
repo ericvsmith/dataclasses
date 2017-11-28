@@ -194,13 +194,16 @@ The parameters to ``dataclass`` are:
 - ``eq``: If true (the default), ``__eq__`` and ``__ne__`` methods
   will be generated.  These compare the class as if it were a tuple of
   its fields, in order.  Both instances in the comparison must be of
-  the identical type.
+  the identical type, or one must be a subtype of the other and have
+  no additional fields defined.
 
 - ``order``: If true (the default), ``__lt__``, ``__le__``,
   ``__gt__``, and ``__ge__`` methods will be generated.  These compare
   the class as if it were a tuple of its fields, in order.  Both
-  instances in the comparison must be of the identical type.  If
-  ``order`` is true and ``eq`` is false, a ``ValueError`` is raised.
+  instances in the comparison must be of the identical type, or one
+  must be a subtype of the other and have no additional fields
+  defined.  If ``order`` is true and ``eq`` is false, a ``ValueError``
+  is raised.
 
 - ``hash``: Either a bool or ``None``.  If ``None`` (the default), the
   ``__hash__`` method is generated according to how ``eq`` and
@@ -746,6 +749,32 @@ or ``database`` parameters are always optional, because you could
 still create the object by going through ``__init__``.  Which approach
 is more appropriate will be application-specific, but both approaches
 are supported.
+
+Instance comparison
+-------------------
+
+The goal of the instance comparison logic "both instances in the
+comparison must be of the identical type, or one must be a subtype of
+the other and have no additional fields defined" is that the following
+case will work::
+
+  @dataclass
+  class B:
+      x: int
+      y: int
+
+
+  @dataclass
+  class C(B):
+      def method(self): pass
+
+  assert(B(0, 2) == C(0, 2))
+
+That is, you can compare an instance of a class and an instance of a
+subclass, as long as no fields have been added to the subclass.  Note
+that this only applies to real fields: the subclass can add
+``ClassVar`` and ``InitVar`` pseudo-fields and comparisons will still
+work.
 
 Rejected ideas
 ==============

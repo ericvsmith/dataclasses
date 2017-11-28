@@ -318,16 +318,21 @@ class TestCase(unittest.TestCase):
         class C3(B):
             k: ClassVar[int]
 
-        # C4: add a field
+        # C4: add a method
         @dataclass
         class C4(B):
+            def method(self): pass
+
+        # C5: add a field
+        @dataclass
+        class C5(B):
             k: int
 
-        c4 = C4(1, 2, 3)
+        c5 = C5(1, 2, 3)
 
         # Things we can compare for equality.
         b = B(1, 2)
-        for c in [C1(1, 2), C2(1, 2, 3), C3(1, 2)]:
+        for c in [C1(1, 2), C2(1, 2, 3), C3(1, 2), C4(1, 2)]:
             with self.subTest(c=c):
                 self.assertEqual(b, c)
                 self.assertEqual(c, b)
@@ -335,22 +340,22 @@ class TestCase(unittest.TestCase):
                 self.assertLessEqual(b, c)
                 self.assertGreaterEqual(c, b)
                 self.assertGreaterEqual(b, c)
-        # But not C4, since it has an additional field.
-        self.assertNotEqual(b, c4)
+        # But not C5, since it has an additional field.
+        self.assertNotEqual(b, c5)
         for tst in [self.assertLess, self.assertLessEqual,
                     self.assertGreater, self.assertGreaterEqual]:
             with self.subTest(tst=tst):
                 with self.assertRaisesRegex(TypeError,
                                             "not supported between instances "
-                                            "of 'B' and 'C4'"):
-                    tst(b, c4)
+                                            "of 'B' and 'C5'"):
+                    tst(b, c5)
                 with self.assertRaisesRegex(TypeError,
                                             "not supported between instances "
-                                            "of 'C4' and 'B'"):
-                    tst(c4, b)
+                                            "of 'C5' and 'B'"):
+                    tst(c5, b)
 
         b = B(2, 2)
-        for c in [C1(1, 2), C2(1, 2, 3), C3(1, 2)]:
+        for c in [C1(1, 2), C2(1, 2, 3), C3(1, 2), C4(1, 2)]:
             with self.subTest(c=c):
                 self.assertNotEqual(b, c)
                 self.assertNotEqual(c, b)
@@ -358,10 +363,10 @@ class TestCase(unittest.TestCase):
                 self.assertLessEqual(c, b)
                 self.assertGreater(b, c)
                 self.assertGreaterEqual(b, c)
-        self.assertNotEqual(b, c4)
+        self.assertNotEqual(b, c5)
 
         b = B(1, 1)
-        for c in [C1(1, 2), C2(1, 2, 3), C3(1, 2)]:
+        for c in [C1(1, 2), C2(1, 2, 3), C3(1, 2), C4(1, 2)]:
             with self.subTest(c=c):
                 self.assertNotEqual(b, c)
                 self.assertNotEqual(c, b)
@@ -369,7 +374,7 @@ class TestCase(unittest.TestCase):
                 self.assertGreaterEqual(c, b)
                 self.assertLess(b, c)
                 self.assertLessEqual(b, c)
-        self.assertNotEqual(b, c4)
+        self.assertNotEqual(b, c5)
 
     def test_0_field_hash(self):
         @dataclass(hash=True)
