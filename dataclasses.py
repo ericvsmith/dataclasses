@@ -596,11 +596,10 @@ def _find_fields(cls):
 
 
 def _set_attribute(cls, name, value):
-    # Raise AttributeError if an attribute by this name already
-    #  exists.
+    # Raise TypeError if an attribute by this name already exists.
     if name in cls.__dict__:
-        raise AttributeError(f'Cannot overwrite attribute {name} '
-                             f'in {cls.__name__}')
+        raise TypeError(f'Cannot overwrite attribute {name} '
+                        f'in {cls.__name__}')
     setattr(cls, name, value)
 
 
