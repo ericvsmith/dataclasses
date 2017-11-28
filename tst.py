@@ -56,8 +56,34 @@ class TestCase(unittest.TestCase):
                 x: int = 0
                 y: int
 
+        # A derived class adds a non-default field after a default one.
+        with self.assertRaisesRegex(TypeError,
+                                    "non-default argument 'y' follows "
+                                    "default argument"):
+            @dataclass
+            class B:
+                x: int = 0
+
+            @dataclass
+            class C(B):
+                y: int
+
+        # Override a base class field and add a default to
+        #  a field which didn't use to have a default.
+        with self.assertRaisesRegex(TypeError,
+                                    "non-default argument 'y' follows "
+                                    "default argument"):
+            @dataclass
+            class B:
+                x: int
+                y: int
+
+            @dataclass
+            class C(B):
+                x: int = 0
+
     def test_overwriting_init(self):
-        with self.assertRaisesRegex(AttributeError,
+        with self.assertRaisesRegex(TypeError,
                                     'Cannot overwrite attribute __init__ '
                                     'in C'):
             @dataclass
@@ -74,7 +100,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(C(5).x, 10)
 
     def test_overwriting_repr(self):
-        with self.assertRaisesRegex(AttributeError,
+        with self.assertRaisesRegex(TypeError,
                                     'Cannot overwrite attribute __repr__ '
                                     'in C'):
             @dataclass
@@ -91,7 +117,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(repr(C(0)), 'x')
 
     def test_overwriting_cmp(self):
-        with self.assertRaisesRegex(AttributeError,
+        with self.assertRaisesRegex(TypeError,
                                     'Cannot overwrite attribute __eq__ '
                                     'in C'):
             # This will generate the comparison functions, make sure we can't
@@ -110,7 +136,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(C(0), 'x')
 
     def test_overwriting_hash(self):
-        with self.assertRaisesRegex(AttributeError,
+        with self.assertRaisesRegex(TypeError,
                                     'Cannot overwrite attribute __hash__ '
                                     'in C'):
             @dataclass(frozen=True)
@@ -126,7 +152,7 @@ class TestCase(unittest.TestCase):
                 return 600
         self.assertEqual(hash(C(0)), 600)
 
-        with self.assertRaisesRegex(AttributeError,
+        with self.assertRaisesRegex(TypeError,
                                     'Cannot overwrite attribute __hash__ '
                                     'in C'):
             @dataclass(frozen=True)
@@ -144,7 +170,7 @@ class TestCase(unittest.TestCase):
 
     def test_overwriting_frozen(self):
         # frozen uses __setattr__ and __delattr__
-        with self.assertRaisesRegex(AttributeError,
+        with self.assertRaisesRegex(TypeError,
                                     'Cannot overwrite attribute __setattr__ '
                                     'in C'):
             @dataclass(frozen=True)
@@ -153,7 +179,7 @@ class TestCase(unittest.TestCase):
                 def __setattr__(self):
                     pass
 
-        with self.assertRaisesRegex(AttributeError,
+        with self.assertRaisesRegex(TypeError,
                                     'Cannot overwrite attribute __delattr__ '
                                     'in C'):
             @dataclass(frozen=True)
