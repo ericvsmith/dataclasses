@@ -72,8 +72,8 @@ class TypingMeta(type):
 
     def __new__(cls, name, bases, namespace, *, _root=False):
         if not _root:
-            bases = ', '.join(map(repr, bases)) or '()'
-            raise TypeError(f'Cannot subclass {bases}')
+            raise TypeError("Cannot subclass %s" %
+                            (', '.join(map(repr, bases)) or '()'))
         return super().__new__(cls, name, bases, namespace)
 
     def __init__(self, *args, **kwds):
@@ -155,7 +155,7 @@ def _type_check(arg, msg):
         not getattr(arg, '__origin__', None) or
         isinstance(arg, TypingMeta) and _gorg(arg) in (Generic, _Protocol)
     ):
-        raise TypeError(f'Plain {arg} is not valid as type argument')
+        raise TypeError("Plain %s is not valid as type argument" % arg)
     return arg
 
 
