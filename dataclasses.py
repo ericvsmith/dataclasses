@@ -473,17 +473,23 @@ def _frozen_delattr(self, name):
     raise FrozenInstanceError(f'cannot delete field {name!r}')
 
 
-def _cmp_fn(name, op, self_tuple, other_tuple):
+def _cmp_fn(name, op, num_fields, self_tuple, other_tuple):
     # Create a comparison function.  If the fields in the object are
     #  named 'x' and 'y', then self_tuple is the string
     #  '(self.x,self.y)' and other_tuple is the string
-    #  '(other.x,other.y)'.
+    #  '(other.x,other.y)'. num_fields is the number of fields
+    #  in self.  Calculate the number of fields in other by
+    #  calling fields().
 
+    globals = {'fields': fields}
     return _create_fn(name,
                       ['self', 'other'],
-                      [ 'if other.__class__ is self.__class__:',
+                      ['if (other.__class__ is self.__class__ or '
+                        '(isinstance(other, self.__class__) and'
+                       f'({num_fields} == len(fields(other))))):',
                        f' return {self_tuple}{op}{other_tuple}',
-                        'return NotImplemented'])
+                        'return NotImplemented'],
+                      globals=globals)
 
 
 def _set_eq_fns(cls, fields):
@@ -492,10 +498,12 @@ def _set_eq_fns(cls, fields):
     #  each function.
     self_tuple = _tuple_str('self', fields)
     other_tuple = _tuple_str('other', fields)
+    num_fields = sum(1 for f in fields if f._field_type == _FIELD)
     for name, op in [('__eq__', '=='),
                      ('__ne__', '!='),
                      ]:
-        _set_attribute(cls, name, _cmp_fn(name, op, self_tuple, other_tuple))
+        _set_attribute(cls, name, _cmp_fn(name, op, num_fields,
+                                          self_tuple, other_tuple))
 
 
 def _set_order_fns(cls, fields):
@@ -504,12 +512,14 @@ def _set_order_fns(cls, fields):
     #  each function.
     self_tuple = _tuple_str('self', fields)
     other_tuple = _tuple_str('other', fields)
+    num_fields = sum(1 for f in fields if f._field_type == _FIELD)
     for name, op in [('__lt__', '<'),
                      ('__le__', '<='),
                      ('__gt__', '>'),
                      ('__ge__', '>='),
                      ]:
-        _set_attribute(cls, name, _cmp_fn(name, op, self_tuple, other_tuple))
+        _set_attribute(cls, name, _cmp_fn(name, op, num_fields,
+                                          self_tuple, other_tuple))
 
 
 def _hash_fn(fields):
