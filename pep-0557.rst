@@ -799,6 +799,24 @@ see [#]_.
 Examples
 ========
 
+Custom __init__ method
+----------------------
+
+Sometimes the generated ``__init__`` method does not suffice. For
+example, suppose you wanted to have an object to store ``*args`` and
+``**kwargs``::
+
+  @dataclass(init=False)
+  class ArgHolder:
+      args: List[Any]
+      kwargs: Mapping[Any, Any]
+
+      def __init__(self, *args, **kwargs):
+          self.args = args
+          self.kwargs = kwargs
+
+  a = ArgHolder(1, 2, three=3)
+
 A complicated example
 ---------------------
 
