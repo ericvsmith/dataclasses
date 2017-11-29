@@ -157,6 +157,11 @@ Note that ``__annotations__`` is guaranteed to be an ordered mapping,
 in class declaration order.  The order of the fields in all of the
 generated methods is the order in which they appear in the class.
 
+The ``dataclass`` decorator will generate various "dunder" methods on
+the class, described below.  If any generated method already exists on
+the class, a ``TypeError`` will be raised.  The decorator returns the
+same class that is called on: no new class is created.
+
 The ``dataclass`` decorator is typically used with no parameters and
 no parentheses.  However, it also supports the following logical
 signature::
@@ -241,9 +246,6 @@ In this example, both ``a`` and ``b`` will be included in the added
 ``TypeError`` will be raised if a field without a default value
 follows a field with a default value.  This is true either when this
 occurs in a single class, or as a result of class inheritance.
-
-If any generated method already exists on the class, an
-``AttributeError`` will be raised.
 
 For common and simple use cases, no other functionality is required.
 There are, however, some Data Class features that require additional
