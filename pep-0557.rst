@@ -289,10 +289,10 @@ The parameters to ``field()`` are:
   than ``None`` is discouraged.
 
   One possible reason to set ``hash=False`` but ``compare=True`` would
-  be if a field is expensive to compute a hash value for, but there
-  are other fields that contribute to the type's hash value.  Even if
-  a field is excluded from the hash, it can still be compared when
-  Python is comparing values.
+  be if a field is expensive to compute a hash value for, that field
+  is needed for equality testing, and there are other fields that
+  contribute to the type's hash value.  Even if a field is excluded
+  from the hash, it will still be used for comparisons.
 
 - ``metadata``: This can be a mapping or None. None is treated as an
   empty dict.  This value is wrapped in ``types.MappingProxyType`` to
