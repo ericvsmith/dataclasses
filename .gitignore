@@ -2,5 +2,6 @@ __pycache__/
 dataclasses.egg-info/
 dist/
 build/
+.mypy_cache/
 i.py
 attrtest.py
