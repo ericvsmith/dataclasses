@@ -288,6 +288,12 @@ The parameters to ``field()`` are:
   it's used for comparisons.  Setting this value to anything other
   than ``None`` is discouraged.
 
+  One possible reason to set ``hash=False`` but ``compare=True`` would
+  be if a field is expensive to compute a hash value for, but there
+  are other fields that contribute to the type's hash value.  Even if
+  a field is excluded from the hash, it can still be compared when
+  Python is comparing values.
+
 - ``metadata``: This can be a mapping or None. None is treated as an
   empty dict.  This value is wrapped in ``types.MappingProxyType`` to
   make it read-only, and exposed on the Field object. It is not used
