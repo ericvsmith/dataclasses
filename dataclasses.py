@@ -481,6 +481,19 @@ def _cmp_fn(name, op, self_tuple, other_tuple):
 
     return _create_fn(name,
                       ['self', 'other'],
+                      [ 'if isinstance(other, self.__class__):',
+                       f' return {self_tuple}{op}{other_tuple}',
+                        'return NotImplemented'])
+
+
+def _eq_fn(name, op, self_tuple, other_tuple):
+    # Create a comparison function.  If the fields in the object are
+    #  named 'x' and 'y', then self_tuple is the string
+    #  '(self.x,self.y)' and other_tuple is the string
+    #  '(other.x,other.y)'.
+
+    return _create_fn(name,
+                      ['self', 'other'],
                       [ 'if other.__class__ is self.__class__:',
                        f' return {self_tuple}{op}{other_tuple}',
                         'return NotImplemented'])
@@ -495,7 +508,7 @@ def _set_eq_fns(cls, fields):
     for name, op in [('__eq__', '=='),
                      ('__ne__', '!='),
                      ]:
-        _set_attribute(cls, name, _cmp_fn(name, op, self_tuple, other_tuple))
+        _set_attribute(cls, name, _eq_fn(name, op, self_tuple, other_tuple))
 
 
 def _set_order_fns(cls, fields):
