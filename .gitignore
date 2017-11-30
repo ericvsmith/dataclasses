@@ -5,3 +5,4 @@ build/
 .mypy_cache/
 i.py
 attrtest.py
+pep-0557.html
