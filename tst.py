@@ -7,7 +7,7 @@ import pickle
 import inspect
 import unittest
 from unittest.mock import Mock
-from typing import ClassVar, Any, List, Union, Tuple, Dict
+from typing import ClassVar, Any, List, Union, Tuple, Dict, Generic, TypeVar
 from collections import deque, OrderedDict, namedtuple
 
 # Just any custom exception we can catch.
@@ -1669,6 +1669,21 @@ class TestCase(unittest.TestCase):
             fields(C)['i'].metadata['b']
         # Make sure we're still talking to our custom mapping.
         self.assertEqual(fields(C)['i'].metadata['xyzzy'], 'plugh')
+
+    def test_generic_dataclasses(self):
+        T = TypeVar('T')
+
+        @dataclass
+        class LabeledBox(Generic[T]):
+            content: T
+            label: str = '<unknown>'
+
+        box = LabeledBox(42)
+        self.assertEqual(box.content, 42)
+        self.assertEqual(box.label, '<unknown>')
+
+        # subscripting the resulting class should work, etc.
+        boxes: List[LabeledBox[int]] = []
 
     def test_helper_replace(self):
         @dataclass(frozen=True)
