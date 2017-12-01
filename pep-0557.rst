@@ -570,9 +570,6 @@ Module level helper functions
 
   Raises ``TypeError`` if ``instance`` is not a Data Class instance.
 
-- ``isdataclass(instance)``: Returns ``True`` if ``instance`` is an
-  instance of a Data Class, otherwise returns ``False``.
-
 - ``make_dataclass(cls_name, fields, *, bases=(), namespace=None)``:
   Creates a new Data Class with name ``cls_name``, fields as defined
   in ``fields``, base classes as given in ``bases``, and initialized

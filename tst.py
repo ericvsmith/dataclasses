@@ -1,6 +1,6 @@
 from dataclasses import (
     dataclass, field, FrozenInstanceError, fields, asdict, astuple,
-    isdataclass, make_dataclass, replace, InitVar
+    make_dataclass, replace, InitVar
 )
 
 import pickle
@@ -1234,17 +1234,6 @@ class TestCase(unittest.TestCase):
             x: ClassVar[int] = field(default_factory=int)
 
         self.assertIs(C().x, int)
-
-    def test_helper_isdataclass(self):
-        self.assertFalse(isdataclass(0))
-        self.assertFalse(isdataclass(int))
-
-        @dataclass
-        class C:
-            x: int
-
-        self.assertFalse(isdataclass(C))
-        self.assertTrue(isdataclass(C(0)))
 
     def test_helper_fields_with_class_instance(self):
         # Check that we can call fields() on either a class or instance,
