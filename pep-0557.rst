@@ -800,8 +800,8 @@ Providing isdataclass()
 
 An earlier version of this PEP defined an ``isdataclass(obj)`` helper
 function.  However, there was no known use case for this, and there
-was debate on whether it should return True for instances or classes
-or both.  In the end, ``isdataclass()`` was removed.
+was debate on whether it should return ``True`` for instances or
+classes or both.  In the end, ``isdataclass()`` was removed.
 
 The supported way of writing a function that checks if an object is a
 dataclass instance or class is::
