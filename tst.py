@@ -253,19 +253,59 @@ class TestCase(unittest.TestCase):
         self.assertEqual(repr(C.E()), 'TestCase.test_repr.<locals>.C.E()')
 
     def test_0_field_compare(self):
+        # Ensure that order=False is the default.
         @dataclass
+        class C0:
+            pass
+
+        @dataclass(order=False)
+        class C1:
+            pass
+
+        for cls in [C0, C1]:
+            with self.subTest(cls=cls):
+                self.assertEqual(cls(), cls())
+                for idx, fn in enumerate([lambda a, b: a < b,
+                                          lambda a, b: a <= b,
+                                          lambda a, b: a > b,
+                                          lambda a, b: a >= b]):
+                    with self.subTest(idx=idx):
+                        with self.assertRaisesRegex(TypeError,
+                                                    f"not supported between instances of '{cls.__name__}' and '{cls.__name__}'"):
+                            fn(cls(), cls())
+
+        @dataclass(order=True)
         class C:
             pass
-        self.assertEqual(C(), C())
         self.assertLessEqual(C(), C())
         self.assertGreaterEqual(C(), C())
 
     def test_1_field_compare(self):
+        # Ensure that order=False is the default.
         @dataclass
+        class C0:
+            x: int
+
+        @dataclass(order=False)
+        class C1:
+            x: int
+
+        for cls in [C0, C1]:
+            with self.subTest(cls=cls):
+                self.assertEqual(cls(1), cls(1))
+                self.assertNotEqual(cls(0), cls(1))
+                for idx, fn in enumerate([lambda a, b: a < b,
+                                          lambda a, b: a <= b,
+                                          lambda a, b: a > b,
+                                          lambda a, b: a >= b]):
+                    with self.subTest(idx=idx):
+                        with self.assertRaisesRegex(TypeError,
+                                                    f"not supported between instances of '{cls.__name__}' and '{cls.__name__}'"):
+                            fn(cls(0), cls(0))
+
+        @dataclass(order=True)
         class C:
             x: int
-        self.assertEqual(C(1), C(1))
-        self.assertNotEqual(C(0), C(1))
         self.assertLess(C(0), C(1))
         self.assertLessEqual(C(0), C(1))
         self.assertLessEqual(C(1), C(1))
@@ -274,38 +314,58 @@ class TestCase(unittest.TestCase):
         self.assertGreaterEqual(C(1), C(1))
 
     def test_simple_compare(self):
+        # Ensure that order=False is the default.
         @dataclass
+        class C0:
+            x: int
+            y: int
+
+        @dataclass(order=False)
+        class C1:
+            x: int
+            y: int
+
+        for cls in [C0, C1]:
+            with self.subTest(cls=cls):
+                self.assertEqual(cls(0, 0), cls(0, 0))
+                self.assertEqual(cls(1, 2), cls(1, 2))
+                self.assertNotEqual(cls(1, 0), cls(0, 0))
+                self.assertNotEqual(cls(1, 0), cls(1, 1))
+                for idx, fn in enumerate([lambda a, b: a < b,
+                                          lambda a, b: a <= b,
+                                          lambda a, b: a > b,
+                                          lambda a, b: a >= b]):
+                    with self.subTest(idx=idx):
+                        with self.assertRaisesRegex(TypeError,
+                                                    f"not supported between instances of '{cls.__name__}' and '{cls.__name__}'"):
+                            fn(cls(0, 0), cls(0, 0))
+
+        @dataclass(order=True)
         class C:
             x: int
             y: int
-        self.assertEqual(C(0, 0), C(0, 0))
-        self.assertEqual(C(1, 2), C(1, 2))
-        self.assertNotEqual(C(1, 0), C(0, 0))
-        self.assertNotEqual(C(1, 0), C(1, 1))
-        self.assertLess(C(0, 0), C(0, 1))
-        self.assertLess(C(0, 0), C(1, 0))
-        self.assertLessEqual(C(0, 0), C(0, 1))
-        self.assertLessEqual(C(0, 1), C(0, 1))
-        self.assertLessEqual(C(0, 0), C(1, 0))
-        self.assertLessEqual(C(1, 0), C(1, 0))
-        self.assertGreater(C(0, 1), C(0, 0))
-        self.assertGreater(C(1, 0), C(0, 0))
-        self.assertGreaterEqual(C(0, 1), C(0, 0))
-        self.assertGreaterEqual(C(0, 1), C(0, 1))
-        self.assertGreaterEqual(C(1, 0), C(0, 0))
-        self.assertGreaterEqual(C(1, 0), C(1, 0))
 
-        # For operators returning False, we have to use assertFalse.
-        self.assertFalse(C(0, 1) < C(0, 0))
-        self.assertFalse(C(1, 0) < C(0, 0))
-        self.assertFalse(C(0, 1) <= C(0, 0))
-        self.assertFalse (C(0, 2) <= C(0, 1))
-        self.assertFalse(C(1, 0) <=  C(0, 0))
-        self.assertFalse(C(0, 0) > C(0, 1))
-        self.assertFalse(C(0, 0) > C(1, 0))
-        self.assertFalse(C(0, 0) >= C(0, 1))
-        self.assertFalse(C(0, 0) >= C(0, 1))
-        self.assertFalse(C(0, 0) >= C(1, 0))
+        for idx, fn in enumerate([lambda a, b: a == b,
+                                  lambda a, b: a <= b,
+                                  lambda a, b: a >= b]):
+            with self.subTest(idx=idx):
+                self.assertTrue(fn(C(0, 0), C(0, 0)))
+
+        for idx, fn in enumerate([lambda a, b: a < b,
+                                  lambda a, b: a <= b,
+                                  lambda a, b: a != b]):
+            with self.subTest(idx=idx):
+                self.assertTrue(fn(C(0, 0), C(0, 1)))
+                self.assertTrue(fn(C(0, 1), C(1, 0)))
+                self.assertTrue(fn(C(1, 0), C(1, 1)))
+
+        for idx, fn in enumerate([lambda a, b: a > b,
+                                  lambda a, b: a >= b,
+                                  lambda a, b: a != b]):
+            with self.subTest(idx=idx):
+                self.assertTrue(fn(C(0, 1), C(0, 0)))
+                self.assertTrue(fn(C(1, 0), C(0, 1)))
+                self.assertTrue(fn(C(1, 1), C(1, 0)))
 
     def test_compare_subclasses(self):
         # Comparisons fail for subclasses, even if no fields
