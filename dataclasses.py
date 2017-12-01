@@ -11,7 +11,6 @@ __all__ = ['dataclass',
 
            # Helper functions.
            'fields',
-           'isdataclass',
            'asdict',
            'astuple',
            'make_dataclass',
@@ -772,7 +771,7 @@ def fields(class_or_instance):
                                    if f._field_type is _FIELD)
 
 
-def isdataclass(obj):
+def _isdataclass(obj):
     """Returns True if obj is an instance of a dataclass."""
     return not isinstance(obj, type) and hasattr(obj, _MARKER)
 
@@ -796,12 +795,12 @@ def asdict(obj, *, dict_factory=dict):
     dataclass instances. This will also look into built-in containers:
     tuples, lists, and dicts.
     """
-    if not isdataclass(obj):
+    if not _isdataclass(obj):
         raise TypeError("asdict() should be called on dataclass instances")
     return _asdict_inner(obj, dict_factory)
 
 def _asdict_inner(obj, dict_factory):
-    if isdataclass(obj):
+    if _isdataclass(obj):
         result = []
         for name in fields(obj):
             value = _asdict_inner(getattr(obj, name), dict_factory)
@@ -835,12 +834,12 @@ def astuple(obj, *, tuple_factory=tuple):
     tuples, lists, and dicts.
     """
 
-    if not isdataclass(obj):
+    if not _isdataclass(obj):
         raise TypeError("astuple() should be called on dataclass instances")
     return _astuple_inner(obj, tuple_factory)
 
 def _astuple_inner(obj, tuple_factory):
-    if isdataclass(obj):
+    if _isdataclass(obj):
         result = []
         for name in fields(obj):
             value = _astuple_inner(getattr(obj, name), tuple_factory)
@@ -908,7 +907,7 @@ def replace(obj, **changes):
     # We're going to mutate 'changes', but that's okay because it's a new
     #  dict, even if called with 'replace(obj, **my_changes)'.
 
-    if not isdataclass(obj):
+    if not _isdataclass(obj):
         raise TypeError("replace() should be called on dataclass instances")
 
     # It's an error to have init=False fields in 'changes'.

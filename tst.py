@@ -1,6 +1,6 @@
 from dataclasses import (
     dataclass, field, FrozenInstanceError, fields, asdict, astuple,
-    isdataclass, make_dataclass, replace, InitVar
+    make_dataclass, replace, InitVar
 )
 
 import pickle
@@ -1235,7 +1235,18 @@ class TestCase(unittest.TestCase):
 
         self.assertIs(C().x, int)
 
-    def test_helper_isdataclass(self):
+    def test_isdataclass(self):
+        # There is no isdataclass() helper any more, but the PEP
+        #  describes how to write it, so make sure that works.  Note
+        #  that this version returns True for both classes and
+        #  instances.
+        def isdataclass(obj):
+            try:
+                fields(obj)
+                return True
+            except TypeError:
+                return False
+
         self.assertFalse(isdataclass(0))
         self.assertFalse(isdataclass(int))
 
@@ -1243,7 +1254,7 @@ class TestCase(unittest.TestCase):
         class C:
             x: int
 
-        self.assertFalse(isdataclass(C))
+        self.assertTrue(isdataclass(C))
         self.assertTrue(isdataclass(C(0)))
 
     def test_helper_fields_with_class_instance(self):
