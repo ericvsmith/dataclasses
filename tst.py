@@ -1235,6 +1235,26 @@ class TestCase(unittest.TestCase):
 
         self.assertIs(C().x, int)
 
+    def test_isdataclass(self):
+        # There is no isdataclass() helper any more, but the PEP
+        #  describes how to write it, so make sure that works.
+        def isdataclass(obj):
+            try:
+                fields(obj)
+                return True
+            except TypeError:
+                return False
+
+        self.assertFalse(isdataclass(0))
+        self.assertFalse(isdataclass(int))
+
+        @dataclass
+        class C:
+            x: int
+
+        self.assertTrue(isdataclass(C))
+        self.assertTrue(isdataclass(C(0)))
+
     def test_helper_fields_with_class_instance(self):
         # Check that we can call fields() on either a class or instance,
         #  and get back the same thing.
