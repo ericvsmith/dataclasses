@@ -20,7 +20,7 @@ class TestCase(unittest.TestCase):
             pass
 
         o = C()
-        self.assertEqual(repr(o), 'C()')
+        self.assertEqual(len(fields(C)), 0)
 
     def test_one_field_no_default(self):
         @dataclass
@@ -209,13 +209,13 @@ class TestCase(unittest.TestCase):
             x: int = 15
 
         o = Base()
-        self.assertEqual(repr(o), 'Base(x=15.0, y=0)')
+        self.assertEqual(repr(o), 'TestCase.test_overwrite_fields_in_derived_class.<locals>.Base(x=15.0, y=0)')
 
         o = C1()
-        self.assertEqual(repr(o), 'C1(x=15, y=0, z=10)')
+        self.assertEqual(repr(o), 'TestCase.test_overwrite_fields_in_derived_class.<locals>.C1(x=15, y=0, z=10)')
 
         o = C1(x=5)
-        self.assertEqual(repr(o), 'C1(x=5, y=0, z=10)')
+        self.assertEqual(repr(o), 'TestCase.test_overwrite_fields_in_derived_class.<locals>.C1(x=5, y=0, z=10)')
 
     def test_field_named_self(self):
         @dataclass
@@ -234,12 +234,23 @@ class TestCase(unittest.TestCase):
             y: int = 10
 
         o = C(4)
-        self.assertEqual(repr(o), 'C(x=4, y=10)')
+        self.assertEqual(repr(o), 'TestCase.test_repr.<locals>.C(x=4, y=10)')
 
         @dataclass
         class D(C):
             x: int = 20
-        self.assertEqual(repr(D()), 'D(x=20, y=10)')
+        self.assertEqual(repr(D()), 'TestCase.test_repr.<locals>.D(x=20, y=10)')
+
+        @dataclass
+        class C:
+            @dataclass
+            class D:
+                i: int
+            @dataclass
+            class E:
+                pass
+        self.assertEqual(repr(C.D(0)), 'TestCase.test_repr.<locals>.C.D(i=0)')
+        self.assertEqual(repr(C.E()), 'TestCase.test_repr.<locals>.C.E()')
 
     def test_0_field_compare(self):
         @dataclass
@@ -454,7 +465,7 @@ class TestCase(unittest.TestCase):
         class C:
             x: int = field()
 
-        self.assertEqual(repr(C(5)), 'C(x=5)')
+        self.assertEqual(C(5).x, 5)
 
         with self.assertRaisesRegex(TypeError,
                                     r"__init__\(\) missing 1 required "
@@ -485,14 +496,14 @@ class TestCase(unittest.TestCase):
         with self.assertRaises(TypeError):
             C()
         c = C(10)
-        self.assertEqual(repr(c), 'C()')
+        self.assertEqual(repr(c), 'TestCase.test_not_in_repr.<locals>.C()')
 
         @dataclass
         class C:
             x: int = field(repr=False)
             y: int
         c = C(10, 20)
-        self.assertEqual(repr(c), 'C(y=20)')
+        self.assertEqual(repr(c), 'TestCase.test_not_in_repr.<locals>.C(y=20)')
 
     def test_not_in_compare(self):
         @dataclass
@@ -707,7 +718,7 @@ class TestCase(unittest.TestCase):
         class C:
             x: int
 
-        self.assertEqual(repr(C(42)), 'C(x=42)')
+        self.assertEqual(C(42).x, 42)
 
     def test_not_tuple(self):
         # Make sure we can't be compared to a tuple.
@@ -994,7 +1005,7 @@ class TestCase(unittest.TestCase):
             t: ClassVar[int] = 3000
 
         c = C(5)
-        self.assertEqual(repr(c), 'C(x=5, y=10)')
+        self.assertEqual(repr(c), 'TestCase.test_class_var.<locals>.C(x=5, y=10)')
         self.assertEqual(len(fields(C)), 2)                 # We have 2 fields
         self.assertEqual(len(C.__annotations__), 5)         # And 3 ClassVars
         self.assertEqual(c.z, 1000)
@@ -1050,7 +1061,7 @@ class TestCase(unittest.TestCase):
             t: ClassVar[int] = 3000
 
         c = C(5)
-        self.assertEqual(repr(C(5)), 'C(x=5, y=10)')
+        self.assertEqual(repr(C(5)), 'TestCase.test_class_var_frozen.<locals>.C(x=5, y=10)')
         self.assertEqual(len(fields(C)), 2)                 # We have 2 fields
         self.assertEqual(len(C.__annotations__), 5)         # And 3 ClassVars
         self.assertEqual(c.z, 1000)
@@ -1141,7 +1152,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c0.y, [])
         self.assertEqual(c0, c1)
         self.assertIsNot(c0.y, c1.y)
-        self.assertEqual(repr(C(5, [1])), 'C(x=5, y=[1])')
+        self.assertEqual(astuple(C(5, [1])), (5, [1]))
 
         # Test a factory that returns a shared list.
         l = []
@@ -1156,28 +1167,28 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c0.y, [])
         self.assertEqual(c0, c1)
         self.assertIs(c0.y, c1.y)
-        self.assertEqual(repr(C(5, [1])), 'C(x=5, y=[1])')
+        self.assertEqual(astuple(C(5, [1])), (5, [1]))
 
         # Test various other field flags.
         # repr
         @dataclass
         class C:
             x: list = field(default_factory=list, repr=False)
-        self.assertEqual(repr(C()), 'C()')
+        self.assertEqual(repr(C()), 'TestCase.test_default_factory.<locals>.C()')
         self.assertEqual(C().x, [])
 
         # hash
         @dataclass(hash=True)
         class C:
             x: list = field(default_factory=list, hash=False)
-        self.assertEqual(repr(C()), 'C(x=[])')
+        self.assertEqual(astuple(C()), ([],))
         self.assertEqual(hash(C()), hash(()))
 
         # init (see also test_default_factory_with_no_init)
         @dataclass
         class C:
             x: list = field(default_factory=list, init=False)
-        self.assertEqual(repr(C()), 'C(x=[])')
+        self.assertEqual(astuple(C()), ([],))
 
         # compare
         @dataclass
