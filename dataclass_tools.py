@@ -1,4 +1,4 @@
-from dataclasses import fields, dataclass, Field
+import dataclasses
 from typing import Iterable, Union, Tuple, Type
 from collections import OrderedDict
 
@@ -12,10 +12,12 @@ def add_slots(cls):
 
     # Create a new dict for our new class.
     cls_dict = dict(cls.__dict__)
-    cls_dict['__slots__'] = tuple(fields(cls))
-    for f in fields(cls).values():
-        # Remove our attributes. They'll still be available in _MARKER.
-        cls_dict.pop(f.name, None)
+    flds = tuple(dataclasses.fields(cls))
+    cls_dict['__slots__'] = flds
+    for field_name in flds:
+        # Remove our attributes, if present. They'll still be
+        #  available in _MARKER.
+        cls_dict.pop(field_name, None)
     # Remove __dict__ itself.
     cls_dict.pop('__dict__', None)
     # And finally create the class.
@@ -26,16 +28,10 @@ def add_slots(cls):
     return cls
 
 
-def make_dataclass(cls_name: str,
-                   fields: Iterable[Union[Tuple[str, Type], Tuple[str, Type, Field]]],
-                   bases=(),
-                   ns=None):
-    anns = OrderedDict((name, tp) for name, tp, *_ in fields)
-    ns = ns or {}
-    ns['__annotations__'] = anns
-    for item in fields:
-        if len(item) == 3:
-            name, tp, spec = item
-            ns[name] = spec
-    cls = type(cls_name, bases, ns)
-    return dataclass(cls)
+def isdataclass(obj):
+    """Returns True for dataclass classes and instances."""
+    try:
+        dataclasses.fields(obj)
+        return True
+    except TypeError:
+        return False
