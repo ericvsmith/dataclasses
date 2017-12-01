@@ -1237,7 +1237,9 @@ class TestCase(unittest.TestCase):
 
     def test_isdataclass(self):
         # There is no isdataclass() helper any more, but the PEP
-        #  describes how to write it, so make sure that works.
+        #  describes how to write it, so make sure that works.  Note
+        #  that this version returns True for both classes and
+        #  instances.
         def isdataclass(obj):
             try:
                 fields(obj)
