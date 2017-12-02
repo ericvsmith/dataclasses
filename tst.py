@@ -1683,7 +1683,30 @@ class TestCase(unittest.TestCase):
         self.assertEqual(box.label, '<unknown>')
 
         # subscripting the resulting class should work, etc.
-        boxes: List[LabeledBox[int]] = []
+        Alias = List[LabeledBox[int]]
+
+    def test_generic_extending(self):
+        S = TypeVar('S')
+        T = TypeVar('T')
+
+        @dataclass
+        class Base(Generic[T, S]):
+            x: T
+            y: S
+
+        @dataclass
+        class DataDerived(Base[int, T]):
+            new_field: str
+        Alias = DataDerived[str]
+        c = Alias(0, 'test1', 'test2')
+        self.assertEqual(astuple(c), (0, 'test1', 'test2'))
+
+        class NonDataDerived(Base[int, T]):
+            def new_method(self):
+                return self.y
+        Alias = NonDataDerived[float]
+        c = Alias(10, 1.0)
+        self.assertEqual(c.new_method(), 1.0)
 
     def test_helper_replace(self):
         @dataclass(frozen=True)
