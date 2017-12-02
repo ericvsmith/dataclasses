@@ -56,161 +56,13 @@ _MARKER = '__dataclass_fields__'
 _POST_INIT_NAME = '__post_init__'
 
 
-class TypingMeta(type):
-    """Metaclass for most types defined in typing module
-    (not a part of public API).
+class _InitVarMeta(type):
+    def __getitem__(self, params):
+        return self
 
-    This overrides __new__() to require an extra keyword parameter
-    '_root', which serves as a guard against naive subclassing of the
-    typing classes.  Any legitimate class defined using a metaclass
-    derived from TypingMeta must pass _root=True.
+class InitVar(metaclass=_InitVarMeta):
+    pass
 
-    This also defines a dummy constructor (all the work for most typing
-    constructs is done in __new__) and a nicer repr().
-    """
-
-    def __new__(cls, name, bases, namespace, *, _root=False):
-        if not _root:
-            raise TypeError("Cannot subclass %s" %
-                            (', '.join(map(repr, bases)) or '()'))
-        return super().__new__(cls, name, bases, namespace)
-
-    def __init__(self, *args, **kwds):
-        pass
-
-    def __repr__(self):
-        return f'{self.__module__}.{self.__qualname__}'
-
-
-class _TypingBase(metaclass=TypingMeta, _root=True):
-    """Internal indicator of special typing constructs."""
-
-    __slots__ = ('__weakref__',)
-
-    def __init__(self, *args, **kwds):
-        pass
-
-    def __new__(cls, *args, **kwds):
-        """Constructor.
-
-        This only exists to give a better error message in case
-        someone tries to subclass a special typing object (not a good idea).
-        """
-        if (len(args) == 3 and
-                isinstance(args[0], str) and
-                isinstance(args[1], tuple)):
-            # Close enough.
-            raise TypeError(f"Cannot subclass {cls}")
-        return super().__new__(cls)
-
-    def __repr__(self):
-        cls = type(self)
-        return f'{cls.__module__}.{cls.__qualname__}'
-
-    def __call__(self, *args, **kwds):
-        raise TypeError(f"Cannot instantiate {type(self)!r}")
-
-
-class _FinalTypingBase(_TypingBase, _root=True):
-    """Internal mix-in class to prevent instantiation.
-
-    Prevents instantiation unless _root=True is given in class call.
-    It is used to create pseudo-singleton instances Any, Union, Optional, etc.
-    """
-
-    __slots__ = ()
-
-    def __new__(cls, *args, _root=False, **kwds):
-        self = super().__new__(cls, *args, **kwds)
-        if _root is True:
-            return self
-        raise TypeError("Cannot instantiate {cls!r}")
-
-
-def _type_check(arg, msg):
-    """Check that the argument is a type, and return it (internal helper).
-
-    As a special case, accept None and return type(None) instead.
-    Also, _TypeAlias instances (e.g. Match, Pattern) are acceptable.
-
-    The msg argument is a human-readable error message, e.g.
-
-        "Union[arg, ...]: arg should be a type."
-
-    We append the repr() of the actual value (truncated to 100 chars).
-    """
-    if arg is None:
-        return type(None)
-    if isinstance(arg, str):
-        arg = _ForwardRef(arg)
-    if (
-        isinstance(arg, _TypingBase) and type(arg).__name__ == '_ClassVar' or
-        not isinstance(arg, (type, _TypingBase)) and not callable(arg)
-    ):
-        raise TypeError(f'{msg} Got {arg!r:.100}.')
-    # Bare Union etc. are not valid as type arguments
-    if (
-        type(arg).__name__ in ('_Union', '_Optional') and
-        not getattr(arg, '__origin__', None) or
-        isinstance(arg, TypingMeta) and _gorg(arg) in (Generic, _Protocol)
-    ):
-        raise TypeError("Plain %s is not valid as type argument" % arg)
-    return arg
-
-
-class _InitVar(_FinalTypingBase, _root=True):
-    """Special type construct to mark init-only variables.
-
-    An annotation wrapped in InitVar indicates that a given attribute
-    is intended to be used as a parameter to __init__() and
-    __post_init(), but is not a field.  Usage::
-
-      @dataclass
-      class C:
-          id: int
-          name: str=None
-          database: InitVar[DatabaseType]
-
-          def __post_init__(self, database):
-              if self.name is None:
-                  self.name = database.lookup_name(self.id)
-
-      c = C(10, database_connection)
-
-    InitVar accepts only types and cannot be further subscribed.
-    """
-
-    __slots__ = ('__type__',)
-
-    def __init__(self, tp=None, **kwds):
-        self.__type__ = tp
-
-    def __getitem__(self, item):
-        cls = type(self)
-        if self.__type__ is None:
-            return cls(_type_check(item,
-                       f'{cls.__name__[1:]} accepts only single type.'),
-                       _root=True)
-        raise TypeError('{} cannot be further subscripted'
-                        .format(cls.__name__[1:]))
-
-    def __repr__(self):
-        r = super().__repr__()
-        if self.__type__ is not None:
-            r += f'[{repr(self.__type__)}]'
-        return r
-
-    def __hash__(self):
-        return hash((type(self).__name__, self.__type__))
-
-    def __eq__(self, other):
-        if not isinstance(other, _InitVar):
-            return NotImplemented
-        if self.__type__ is not None:
-            return self.__type__ == other.__type__
-        return self is other
-
-InitVar = _InitVar(_root=True)
 
 # Instances of Field are only ever created from within this module,
 #  and only from the field() function, although Field instances are
@@ -551,7 +403,7 @@ def _get_field(cls, a_name, a_type):
 
     if f._field_type is _FIELD:
         # Check if this is an InitVar.
-        if type(a_type) is _InitVar:
+        if a_type is InitVar:
             # InitVars are not fields, either.
             f._field_type = _FIELD_INITVAR
 
