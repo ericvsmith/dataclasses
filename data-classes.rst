@@ -104,7 +104,7 @@ Issues
 ------
 
 - If not using a type checker, the type specified in the annotation is
-  completely ignored, correct?  (Except for it's existence, that is.)
+  completely ignored, correct?  (Except for its existence, that is.)
 
 - What happens with fields that do not have annotations? Are they
   ignored?
