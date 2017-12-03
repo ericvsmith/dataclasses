@@ -1,6 +1,6 @@
 from dataclasses import (
     dataclass, field, FrozenInstanceError, fields, asdict, astuple,
-    make_dataclass, replace, InitVar
+    make_dataclass, replace, InitVar, Field
 )
 
 import pickle
@@ -643,30 +643,31 @@ class TestCase(unittest.TestCase):
             y: str = field(init=False, default=None)
             z: str = field(repr=False)
 
-        field_dict = fields(C)
-        # field_dict is an OrderedDict of 3 items, each value
+        the_fields = fields(C)
+        # the_fields is a tuple of 3 items, each value
         #  is in __annotations__.
-        self.assertIsInstance(field_dict, OrderedDict)
-        for f in field_dict.values():
+        self.assertIsInstance(the_fields, tuple)
+        for f in the_fields:
+            self.assertIs(type(f), Field)
             self.assertIn(f.name, C.__annotations__)
 
-        self.assertEqual(len(field_dict), 3)
-        field_list = list(field_dict.values())
-        self.assertEqual(field_list[0].name, 'x')
-        self.assertEqual(field_list[0].type, int)
+        self.assertEqual(len(the_fields), 3)
+
+        self.assertEqual(the_fields[0].name, 'x')
+        self.assertEqual(the_fields[0].type, int)
         self.assertFalse(hasattr(C, 'x'))
-        self.assertTrue (field_list[0].init)
-        self.assertTrue (field_list[0].repr)
-        self.assertEqual(field_list[1].name, 'y')
-        self.assertEqual(field_list[1].type, str)
+        self.assertTrue (the_fields[0].init)
+        self.assertTrue (the_fields[0].repr)
+        self.assertEqual(the_fields[1].name, 'y')
+        self.assertEqual(the_fields[1].type, str)
         self.assertIsNone(getattr(C, 'y'))
-        self.assertFalse(field_list[1].init)
-        self.assertTrue (field_list[1].repr)
-        self.assertEqual(field_list[2].name, 'z')
-        self.assertEqual(field_list[2].type, str)
+        self.assertFalse(the_fields[1].init)
+        self.assertTrue (the_fields[1].repr)
+        self.assertEqual(the_fields[2].name, 'z')
+        self.assertEqual(the_fields[2].type, str)
         self.assertFalse(hasattr(C, 'z'))
-        self.assertTrue (field_list[2].init)
-        self.assertFalse(field_list[2].repr)
+        self.assertTrue (the_fields[2].init)
+        self.assertFalse(the_fields[2].repr)
 
     def test_field_order(self):
         @dataclass
@@ -679,7 +680,7 @@ class TestCase(unittest.TestCase):
         class C(B):
             b: str = 'C:b'
 
-        self.assertEqual([(f.name, f.default) for f in fields(C).values()],
+        self.assertEqual([(f.name, f.default) for f in fields(C)],
                          [('a', 'B:a'),
                           ('b', 'C:b'),
                           ('c', 'B:c')])
@@ -688,7 +689,7 @@ class TestCase(unittest.TestCase):
         class D(B):
             c: str = 'D:c'
 
-        self.assertEqual([(f.name, f.default) for f in fields(D).values()],
+        self.assertEqual([(f.name, f.default) for f in fields(D)],
                          [('a', 'B:a'),
                           ('b', 'B:b'),
                           ('c', 'D:c')])
@@ -698,7 +699,7 @@ class TestCase(unittest.TestCase):
             a: str = 'E:a'
             d: str = 'E:d'
 
-        self.assertEqual([(f.name, f.default) for f in fields(E).values()],
+        self.assertEqual([(f.name, f.default) for f in fields(E)],
                          [('a', 'E:a'),
                           ('b', 'B:b'),
                           ('c', 'D:c'),
@@ -1689,11 +1690,11 @@ class TestCase(unittest.TestCase):
         class C:
             i: int
 
-        self.assertFalse(fields(C)['i'].metadata)
-        self.assertEqual(len(fields(C)['i'].metadata), 0)
+        self.assertFalse(fields(C)[0].metadata)
+        self.assertEqual(len(fields(C)[0].metadata), 0)
         with self.assertRaisesRegex(TypeError,
                                     'does not support item assignment'):
-            fields(C)['i'].metadata['test'] = 3
+            fields(C)[0].metadata['test'] = 3
 
     def test_field_metadata_mapping(self):
         # Make sure only a mapping can be passed as metadata
@@ -1707,26 +1708,26 @@ class TestCase(unittest.TestCase):
         @dataclass
         class C:
             i: int = field(metadata={})
-        self.assertFalse(fields(C)['i'].metadata)
-        self.assertEqual(len(fields(C)['i'].metadata), 0)
+        self.assertFalse(fields(C)[0].metadata)
+        self.assertEqual(len(fields(C)[0].metadata), 0)
         with self.assertRaisesRegex(TypeError,
                                     'does not support item assignment'):
-            fields(C)['i'].metadata['test'] = 3
+            fields(C)[0].metadata['test'] = 3
 
         # Make sure a non-empty dict works.
         @dataclass
         class C:
             i: int = field(metadata={'test': 10, 'bar': '42', 3: 'three'})
-        self.assertEqual(len(fields(C)['i'].metadata), 3)
-        self.assertEqual(fields(C)['i'].metadata['test'], 10)
-        self.assertEqual(fields(C)['i'].metadata['bar'], '42')
-        self.assertEqual(fields(C)['i'].metadata[3], 'three')
+        self.assertEqual(len(fields(C)[0].metadata), 3)
+        self.assertEqual(fields(C)[0].metadata['test'], 10)
+        self.assertEqual(fields(C)[0].metadata['bar'], '42')
+        self.assertEqual(fields(C)[0].metadata[3], 'three')
         with self.assertRaises(KeyError):
             # Non-existent key.
-            fields(C)['i'].metadata['baz']
+            fields(C)[0].metadata['baz']
         with self.assertRaisesRegex(TypeError,
                                     'does not support item assignment'):
-            fields(C)['i'].metadata['test'] = 3
+            fields(C)[0].metadata['test'] = 3
 
     def test_field_metadata_custom_mapping(self):
         # Try a custom mapping.
@@ -1746,12 +1747,12 @@ class TestCase(unittest.TestCase):
         class C:
             i: int = field(metadata=SimpleNameSpace(a=10))
 
-        self.assertEqual(len(fields(C)['i'].metadata), 1)
-        self.assertEqual(fields(C)['i'].metadata['a'], 10)
+        self.assertEqual(len(fields(C)[0].metadata), 1)
+        self.assertEqual(fields(C)[0].metadata['a'], 10)
         with self.assertRaises(AttributeError):
-            fields(C)['i'].metadata['b']
+            fields(C)[0].metadata['b']
         # Make sure we're still talking to our custom mapping.
-        self.assertEqual(fields(C)['i'].metadata['xyzzy'], 'plugh')
+        self.assertEqual(fields(C)[0].metadata['xyzzy'], 'plugh')
 
     def test_generic_dataclasses(self):
         T = TypeVar('T')

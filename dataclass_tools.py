@@ -1,6 +1,4 @@
 import dataclasses
-from typing import Iterable, Union, Tuple, Type
-from collections import OrderedDict
 
 def add_slots(cls):
     # Need to create a new class, since we can't set __slots__
@@ -12,9 +10,9 @@ def add_slots(cls):
 
     # Create a new dict for our new class.
     cls_dict = dict(cls.__dict__)
-    flds = tuple(dataclasses.fields(cls))
-    cls_dict['__slots__'] = flds
-    for field_name in flds:
+    field_names = tuple(f.name for f in dataclasses.fields(cls))
+    cls_dict['__slots__'] = field_names
+    for field_name in field_names:
         # Remove our attributes, if present. They'll still be
         #  available in _MARKER.
         cls_dict.pop(field_name, None)
