@@ -598,9 +598,9 @@ def dataclass(_cls=None, *, init=True, repr=True, eq=True, order=False,
 
 
 def fields(class_or_instance):
-    """Return the list of fields of this dataclass.
+    """Return a tuple describing the fields of this dataclass.
 
-    Accepts a dataclass or an instance of one. List elements are of
+    Accepts a dataclass or an instance of one. Tuple elements are of
     type Field.
     """
 
@@ -611,8 +611,7 @@ def fields(class_or_instance):
         raise TypeError('must be called with a dataclass type or instance')
 
     # Exclude pseudo-fields.
-    return collections.OrderedDict((n, f) for n, f in fields.items()
-                                   if f._field_type is _FIELD)
+    return tuple(f for f in fields.values() if f._field_type is _FIELD)
 
 
 def _isdataclass(obj):
@@ -646,9 +645,9 @@ def asdict(obj, *, dict_factory=dict):
 def _asdict_inner(obj, dict_factory):
     if _isdataclass(obj):
         result = []
-        for name in fields(obj):
-            value = _asdict_inner(getattr(obj, name), dict_factory)
-            result.append((name, value))
+        for f in fields(obj):
+            value = _asdict_inner(getattr(obj, f.name), dict_factory)
+            result.append((f.name, value))
         return dict_factory(result)
     elif isinstance(obj, (list, tuple)):
         return type(obj)(_asdict_inner(v, dict_factory) for v in obj)
@@ -685,8 +684,8 @@ def astuple(obj, *, tuple_factory=tuple):
 def _astuple_inner(obj, tuple_factory):
     if _isdataclass(obj):
         result = []
-        for name in fields(obj):
-            value = _astuple_inner(getattr(obj, name), tuple_factory)
+        for f in fields(obj):
+            value = _astuple_inner(getattr(obj, f.name), tuple_factory)
             result.append(value)
         return tuple_factory(result)
     elif isinstance(obj, (list, tuple)):
