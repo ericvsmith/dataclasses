@@ -224,6 +224,21 @@ class TestCase(unittest.TestCase):
         c=C('foo')
         self.assertEqual(c.self, 'foo')
 
+        # Make sure the first parameter is not named 'self'.
+        sig = inspect.signature(C.__init__)
+        first = next(iter(sig.parameters))
+        self.assertNotEqual('self', first)
+
+        # But we do use 'self' if no field named self.
+        @dataclass
+        class C:
+            selfx: str
+
+        # Make sure the first parameter is named 'self'.
+        sig = inspect.signature(C.__init__)
+        first = next(iter(sig.parameters))
+        self.assertEqual('self', first)
+
     def test_repr(self):
         @dataclass
         class B:
