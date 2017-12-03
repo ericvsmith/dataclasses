@@ -2048,9 +2048,5 @@ class TestDocString(unittest.TestCase):
         self.assertDocStrEqual(C.__doc__, "C(x:collections.deque=<factory>)")
 
 
-def main():
-    unittest.main()
-
-
 if __name__ == '__main__':
-    main()
+    unittest.main()

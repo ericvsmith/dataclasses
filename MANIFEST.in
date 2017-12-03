@@ -1,2 +1,2 @@
-include tst.py
+include test_dataclasses.py
 include dataclass_tools.py

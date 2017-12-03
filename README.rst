@@ -1,8 +1,11 @@
-This is an implementation of PEP 557, Data Classes.
+This is an implementation of PEP 557, Data Classes.  It is a backport
+for Python 3.6.
 
 See https://www.python.org/dev/peps/pep-0557/ for the details.
 
-A test file can be found at https://github.com/ericvsmith/dataclasses/blob/master/tst.py, or in the sdist file.
+A test file can be found at
+https://github.com/ericvsmith/dataclasses/blob/master/test_dataclasses.py,
+or in the sdist file.
 
 Example::
 
@@ -19,4 +22,5 @@ Example::
   item = InventoryItem('hammers', 10.49, 12)
   print(item.total_cost())
 
-Some additional tools can in dataclass_tools.py, included in the sdist.
+Some additional tools can be found in dataclass_tools.py, included in
+the sdist.
