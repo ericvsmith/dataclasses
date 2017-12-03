@@ -17,9 +17,6 @@ __all__ = ['dataclass',
            'replace',
            ]
 
-# Just for development, I'll remove this before shipping.
-_debug = False
-
 # Raised when an attempt is made to modify a frozen class.
 class FrozenInstanceError(AttributeError): pass
 
@@ -165,12 +162,6 @@ def _create_fn(name, args, body, globals=None, locals=None,
 
     txt = f'def {name}({args}){return_annotation}:\n{body}'
 
-    if _debug:
-        print(txt)
-        print('locals:', locals)
-        print('globals:', globals)
-        print()
-
     exec(txt, globals, locals)
     return locals[name]
 
@@ -288,13 +279,13 @@ def _init_fn(fields, frozen, has_post_init, self_name):
             #  initialization. Just skip it.
             body_lines.append(line)
 
-    # Does this class have an post-init function?
+    # Does this class have a post-init function?
     if has_post_init:
         params_str = ','.join(f.name for f in fields
                               if f._field_type is _FIELD_INITVAR)
         body_lines += [f'{self_name}.{_POST_INIT_NAME}({params_str})']
 
-    # If no body lines, add 'pass'.
+    # If no body lines, use 'pass'.
     if len(body_lines) == 0:
         body_lines = ['pass']
 
@@ -436,7 +427,7 @@ def _find_fields(cls):
     #  guaranteed to be ordered).  Default values are from class
     #  attributes, if a field has a default.  If the default value is
     #  a Field(), then it contains additional info beyond (and
-    #  possibly including) the actual default value.  Psueudo-fields
+    #  possibly including) the actual default value.  Pseudo-fields
     #  ClassVars and InitVars are included, despite the fact that
     #  they're not real fields.  That's deal with later.
 
@@ -457,7 +448,8 @@ def _set_attribute(cls, name, value):
 def _process_class(cls, repr, eq, order, hash, init, frozen):
     # Use an OrderedDict because:
     #  - Order matters!
-    #  - Derived class fields overwrite base class fields.
+    #  - Derived class fields overwrite base class fields, but the
+    #    order is defined by the base class, which is found first.
     fields = collections.OrderedDict()
 
     # Find our base classes in reverse MRO order, and exclude
@@ -466,9 +458,9 @@ def _process_class(cls, repr, eq, order, hash, init, frozen):
     for b in cls.__mro__[-1:0:-1]:
         # Only process classes that have been processed by our
         #  decorator.  That is, they have a _MARKER attribute.
-        b_fields = getattr(b, _MARKER, None)
-        if b_fields:
-            for f in b_fields.values():
+        base_fields = getattr(b, _MARKER, None)
+        if base_fields:
+            for f in base_fields.values():
                 fields[f.name] = f
 
     # Now find fields in our class.  While doing so, validate some
@@ -480,23 +472,18 @@ def _process_class(cls, repr, eq, order, hash, init, frozen):
         # If the class attribute (which is the default value for
         #  this field) exists and is of type 'Field', replace it
         #  with the real default.  This is so that normal class
-        #  introspection sees a real default value.
+        #  introspection sees a real default value, not a Field.
         if isinstance(getattr(cls, f.name, None), Field):
             if f.default is _MISSING:
                 # If there's no default, delete the class attribute.
                 #  This happens if we specify field(repr=False), for
                 #  example (that is, we specified a field object, but
-                #  no default value).  The class attribute should not
-                #  be set at all in the post-processed class.
+                #  no default value).  Also if we're using a default
+                #  factory.  The class attribute should not be set at
+                #  all in the post-processed class.
                 delattr(cls, f.name)
             else:
                 setattr(cls, f.name, f.default)
-
-    # Get the fields as a list, and include only real fields.  This is
-    #  used everywhere here except __init__, where we have to take in to
-    #  account the InitVar pseudo-fields.
-    field_list = list(filter(lambda f: f._field_type is _FIELD,
-                             fields.values()))
 
     # Remember all of the fields on our class (including bases).  This
     #  marks this class as being a dataclass.
@@ -515,8 +502,7 @@ def _process_class(cls, repr, eq, order, hash, init, frozen):
         # Does this class have a post-init function?
         has_post_init = hasattr(cls, _POST_INIT_NAME)
 
-        # TODO: Shouldn't it be an error to have InitVar fields but no
-        #  post-init function?
+        # Include InitVars and regular fields (so, not ClassVars).
         _set_attribute(cls, '__init__',
                        _init_fn(list(filter(lambda f: f._field_type
                                               in (_FIELD, _FIELD_INITVAR),
@@ -528,6 +514,12 @@ def _process_class(cls, repr, eq, order, hash, init, frozen):
                                 '__dataclass_self__' if 'self' in fields
                                     else 'self',
                                 ))
+
+    # Get the fields as a list, and include only real fields.  This is
+    #  used in all of the following methods.
+    field_list = list(filter(lambda f: f._field_type is _FIELD,
+                             fields.values()))
+
     if repr:
         _set_attribute(cls, '__repr__',
                        _repr_fn(list(filter(lambda f: f.repr, field_list))))
@@ -569,9 +561,9 @@ def _process_class(cls, repr, eq, order, hash, init, frozen):
         _set_order_fns(cls, list(filter(lambda f: f.compare, field_list)))
 
     if not getattr(cls, '__doc__'):
-        # Create a class doc-string
-        cls.__doc__ = \
-            cls.__name__ + str(inspect.signature(cls)).replace(' -> None', '')
+        # Create a class doc-string.
+        cls.__doc__ = (cls.__name__ +
+                       str(inspect.signature(cls)).replace(' -> None', ''))
 
     return cls
 
@@ -586,11 +578,11 @@ def dataclass(_cls=None, *, init=True, repr=True, eq=True, order=False,
 
     Examines PEP 526 __annotations__ to determine fields.
 
-    If init is True, an __init__() method is added to the class. If
-    repr is True, a __repr__() method is added.  If hash is True, a
-    __hash__() method function is added. If order is True, rich
-    comparison dunder methods are added. If frozen is True, fields may
-    not be assigned to after instance creation.
+    If init is true, an __init__() method is added to the class. If
+    repr is true, a __repr__() method is added. If order is true, rich
+    comparison dunder methods are added. If hash is true, a __hash__()
+    method function is added. If frozen is true, fields may not be
+    assigned to after instance creation.
     """
 
     def wrap(cls):
@@ -598,10 +590,10 @@ def dataclass(_cls=None, *, init=True, repr=True, eq=True, order=False,
 
     # See if we're being called as @dataclass or @dataclass().
     if _cls is None:
-        # We're called as @dataclass().
+        # We're called with parens.
         return wrap
 
-    # We're called as @dataclass, with a class.
+    # We're called as @dataclass without parens.
     return wrap(_cls)
 
 
@@ -614,11 +606,11 @@ def fields(class_or_instance):
 
     # Might it be worth caching this, per class?
     try:
-        # Exclude pseudo-fields.
         fields =  getattr(class_or_instance, _MARKER)
     except AttributeError:
         raise TypeError('must be called with a dataclass type or instance')
 
+    # Exclude pseudo-fields.
     return collections.OrderedDict((n, f) for n, f in fields.items()
                                    if f._field_type is _FIELD)
 
