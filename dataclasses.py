@@ -598,10 +598,10 @@ def dataclass(_cls=None, *, init=True, repr=True, eq=True, order=False,
 
 
 def fields(class_or_instance):
-    """Return a tuple describing the fields of this dataclass.
+    """Return a list describing the fields of this dataclass.
 
-    Accepts a dataclass or an instance of one. Tuple elements are of
-    type Field.
+    Accepts a dataclass or an instance of one. Returned list elements
+    are of type Field.
     """
 
     # Might it be worth caching this, per class?
@@ -611,7 +611,7 @@ def fields(class_or_instance):
         raise TypeError('must be called with a dataclass type or instance')
 
     # Exclude pseudo-fields.
-    return tuple(f for f in fields.values() if f._field_type is _FIELD)
+    return [f for f in fields.values() if f._field_type is _FIELD]
 
 
 def _isdataclass(obj):

@@ -644,9 +644,9 @@ class TestCase(unittest.TestCase):
             z: str = field(repr=False)
 
         the_fields = fields(C)
-        # the_fields is a tuple of 3 items, each value
+        # the_fields is a list of 3 items, each value
         #  is in __annotations__.
-        self.assertIsInstance(the_fields, tuple)
+        self.assertIsInstance(the_fields, list)
         for f in the_fields:
             self.assertIs(type(f), Field)
             self.assertIn(f.name, C.__annotations__)
