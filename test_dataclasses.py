@@ -1197,10 +1197,18 @@ class TestCase(unittest.TestCase):
         self.assertEqual(c.x, 20)
 
     def test_init_var_inheritance(self):
+        # Note that this deliberately tests that a dataclass need not
+        #  have a __post_init__ function if it has an InitVar field.
+        #  It could just be used in a derived class, as shown here.
         @dataclass
         class Base:
             x: int
             init_base: InitVar[int]
+
+        # We can instantiate by passing the InitVar, even though
+        #  it's not used.
+        b = Base(0, 10)
+        self.assertEqual(vars(b), {'x': 0})
 
         @dataclass
         class C(Base):
