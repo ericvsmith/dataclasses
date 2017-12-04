@@ -11,8 +11,8 @@ __all__ = ['dataclass',
 
            # Helper functions.
            'fields',
-           'asdict',
-           'astuple',
+           'as_dict',
+           'as_tuple',
            'make_dataclass',
            'replace',
            ]
@@ -619,7 +619,7 @@ def _isdataclass(obj):
     return not isinstance(obj, type) and hasattr(obj, _MARKER)
 
 
-def asdict(obj, *, dict_factory=dict):
+def as_dict(obj, *, dict_factory=dict):
     """Return the fields of a dataclass instance as a new dictionary mapping
     field names to field values.
 
@@ -631,7 +631,7 @@ def asdict(obj, *, dict_factory=dict):
           y: int
 
       c = C(1, 2)
-      assert asdict(c) == {'x': 1, 'y': 2}
+      assert as_dict(c) == {'x': 1, 'y': 2}
 
     If given, 'dict_factory' will be used instead of built-in dict.
     The function applies recursively to field values that are
@@ -639,26 +639,26 @@ def asdict(obj, *, dict_factory=dict):
     tuples, lists, and dicts.
     """
     if not _isdataclass(obj):
-        raise TypeError("asdict() should be called on dataclass instances")
-    return _asdict_inner(obj, dict_factory)
+        raise TypeError("as_dict() should be called on dataclass instances")
+    return _as_dict_inner(obj, dict_factory)
 
-def _asdict_inner(obj, dict_factory):
+def _as_dict_inner(obj, dict_factory):
     if _isdataclass(obj):
         result = []
         for f in fields(obj):
-            value = _asdict_inner(getattr(obj, f.name), dict_factory)
+            value = _as_dict_inner(getattr(obj, f.name), dict_factory)
             result.append((f.name, value))
         return dict_factory(result)
     elif isinstance(obj, (list, tuple)):
-        return type(obj)(_asdict_inner(v, dict_factory) for v in obj)
+        return type(obj)(_as_dict_inner(v, dict_factory) for v in obj)
     elif isinstance(obj, dict):
-        return type(obj)((_asdict_inner(k, dict_factory), _asdict_inner(v, dict_factory))
+        return type(obj)((_as_dict_inner(k, dict_factory), _as_dict_inner(v, dict_factory))
                           for k, v in obj.items())
     else:
         return deepcopy(obj)
 
 
-def astuple(obj, *, tuple_factory=tuple):
+def as_tuple(obj, *, tuple_factory=tuple):
     """Return the fields of a dataclass instance as a new tuple of field values.
 
     Example usage::
@@ -678,20 +678,21 @@ def astuple(obj, *, tuple_factory=tuple):
     """
 
     if not _isdataclass(obj):
-        raise TypeError("astuple() should be called on dataclass instances")
-    return _astuple_inner(obj, tuple_factory)
+        raise TypeError("as_tuple() should be called on dataclass instances")
+    return _as_tuple_inner(obj, tuple_factory)
 
-def _astuple_inner(obj, tuple_factory):
+def _as_tuple_inner(obj, tuple_factory):
     if _isdataclass(obj):
         result = []
         for f in fields(obj):
-            value = _astuple_inner(getattr(obj, f.name), tuple_factory)
+            value = _as_tuple_inner(getattr(obj, f.name), tuple_factory)
             result.append(value)
         return tuple_factory(result)
     elif isinstance(obj, (list, tuple)):
-        return type(obj)(_astuple_inner(v, tuple_factory) for v in obj)
+        return type(obj)(_as_tuple_inner(v, tuple_factory) for v in obj)
     elif isinstance(obj, dict):
-        return type(obj)((_astuple_inner(k, tuple_factory), _astuple_inner(v, tuple_factory))
+        return type(obj)((_as_tuple_inner(k, tuple_factory),
+                          _as_tuple_inner(v, tuple_factory))
                           for k, v in obj.items())
     else:
         return deepcopy(obj)
