@@ -534,7 +534,7 @@ Module level helper functions
   passed a Data Class or instance of one.  Does not return
   pseudo-fields which are ``ClassVar`` or ``InitVar``.
 
-- ``asdict(instance, *, dict_factory=dict)``: Converts the Data Class
+- ``as_dict(instance, *, dict_factory=dict)``: Converts the Data Class
   ``instance`` to a dict (by using the factory function
   ``dict_factory``).  Each Data Class is converted to a dict of its
   fields, as name:value pairs.  Data Classes, dicts, lists, and tuples
@@ -550,14 +550,14 @@ Module level helper functions
          l: List[Point]
 
     p = Point(10, 20)
-    assert asdict(p) == {'x': 10, 'y': 20}
+    assert as_dict(p) == {'x': 10, 'y': 20}
 
     c = C([Point(0, 0), Point(10, 4)])
-    assert asdict(c) == {'l': [{'x': 0, 'y': 0}, {'x': 10, 'y': 4}]}
+    assert as_dict(c) == {'l': [{'x': 0, 'y': 0}, {'x': 10, 'y': 4}]}
 
   Raises ``TypeError`` if ``instance`` is not a Data Class instance.
 
-- ``astuple(*, tuple_factory=tuple)``: Converts the Data Class
+- ``as_tuple(*, tuple_factory=tuple)``: Converts the Data Class
   ``instance`` to a tuple (by using the factory function
   ``tuple_factory``).  Each Data Class is converted to a tuple of its
   field values.  Data Classes, dicts, lists, and tuples are recursed
@@ -565,8 +565,8 @@ Module level helper functions
 
   Continuing from the previous example::
 
-    assert astuple(p) == (10, 20)
-    assert astuple(c) == ([(0, 0), (10, 4)],)
+    assert as_tuple(p) == (10, 20)
+    assert as_tuple(c) == ([(0, 0), (10, 4)],)
 
   Raises ``TypeError`` if ``instance`` is not a Data Class instance.
 
