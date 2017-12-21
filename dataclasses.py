@@ -700,11 +700,11 @@ def _astuple_inner(obj, tuple_factory):
 def make_dataclass(cls_name, fields, *, bases=(), namespace=None):
     """Return a new dynamically created dataclass.
 
-    The dataclass name will be 'cls_name'.  'fields' is an interable
+    The dataclass name will be 'cls_name'.  'fields' is an iterable
     of either (name, type) or (name, type, Field) objects. Field
     objects are created by calling 'field(name, type [, Field])'.
 
-      C = make_class('C', [('a', int', ('b', int, Field(init=False))], bases=Base)
+      C = make_dataclass('C', [('a', int', ('b', int, Field(init=False))], bases=Base)
 
     is equivalent to:
 
