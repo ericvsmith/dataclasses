@@ -26,10 +26,3 @@ def add_slots(cls):
     return cls
 
 
-def isdataclass(obj):
-    """Returns True for dataclass classes and instances."""
-    try:
-        dataclasses.fields(obj)
-        return True
-    except TypeError:
-        return False

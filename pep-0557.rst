@@ -1,12 +1,13 @@
 PEP: 557
 Title: Data Classes
 Author: Eric V. Smith <eric@trueblade.com>
-Status: Draft
+Status: Accepted
 Type: Standards Track
 Content-Type: text/x-rst
 Created: 02-Jun-2017
 Python-Version: 3.7
 Post-History: 08-Sep-2017, 25-Nov-2017, 30-Nov-2017, 01-Dec-2017, 02-Dec-2017
+Resolution: https://mail.python.org/pipermail/python-dev/2017-December/151034.html
 
 Notice for Reviewers
 ====================
@@ -97,6 +98,9 @@ Some examples include:
 - typing.NamedTuple in the standard library.
 
 - The popular attrs [#]_ project.
+
+- George Sakkis' recordType recipe [#]_, a mutable data type inspired
+  by collections.namedtuple.
 
 - Many example online recipes [#]_, packages [#]_, and questions [#]_.
   David Beazley used a form of data classes as the motivating example
@@ -253,13 +257,12 @@ per-field information.  To satisfy this need for additional
 information, you can replace the default field value with a call to
 the provided ``field()`` function.  The signature of ``field()`` is::
 
-  def field(*, default=_MISSING, default_factory=_MISSING, repr=True,
+  def field(*, default=MISSING, default_factory=MISSING, repr=True,
             hash=None, init=True, compare=True, metadata=None)
 
-The ``_MISSING`` value is a sentinel object used to detect if the
-``default`` and ``default_factory`` parameters are provided.  Users
-should never use ``_MISSING`` or depend on its value.  This sentinel
-is used because ``None`` is a valid value for ``default``.
+The ``MISSING`` value is a sentinel object used to detect if the
+``default`` and ``default_factory`` parameters are provided.  This
+sentinel is used because ``None`` is a valid value for ``default``.
 
 The parameters to ``field()`` are:
 
@@ -346,7 +349,7 @@ post-init processing
 
 The generated ``__init__`` code will call a method named
 ``__post_init__``, if it is defined on the class.  It will be called
-as ``self.__post_init__()``.  If not ``__init__`` method is generated,
+as ``self.__post_init__()``.  If no ``__init__`` method is generated,
 then ``__post_init__`` will not automatically be called.
 
 Among other uses, this allows for initializing field values that
@@ -620,6 +623,16 @@ Module level helper functions
   ``replace()`` (or similarly named) method which handles instance
   copying.
 
+- ``is_dataclass(class_or_instance)``: Returns True if its parameter
+  is a dataclass or an instance of one, otherwise returns False.
+
+  If you need to know if a class is an instance of a dataclass (and
+  not a dataclass itself), then add a further check for ``not
+  isinstance(obj, type)``::
+
+    def is_dataclass_instance(obj):
+        return is_dataclass(obj) and not isinstance(obj, type)
+
 .. _discussion:
 
 Discussion
@@ -752,6 +765,14 @@ through ``__init__`` (unless you suppress its creation).  Which
 approach is more appropriate will be application-specific, but both
 approaches are supported.
 
+Another reason for using ``InitVar`` fields is that the class author
+can control the order of ``__init__`` parameters.  This is especially
+important with regular fields and ``InitVar`` fields that have default
+values, as all fields with defaults must come after all fields without
+defaults.  A previous design had all init-only fields coming after
+regular fields.  This meant that if any field had a default value,
+then all init-only fields would have to have defaults values, too.
+
 asdict and astuple function names
 ---------------------------------
 
@@ -804,27 +825,6 @@ There were undesirable side effects of this decision, so the final
 decision is to disallow the 3 known built-in mutable types: list,
 dict, and set.  For a complete discussion of this and other options,
 see [#]_.
-
-Providing isdataclass()
------------------------
-
-An earlier version of this PEP defined an ``isdataclass(obj)`` helper
-function.  However, there was no known use case for this, and there
-was debate on whether it should return ``True`` for instances or
-classes or both.  In the end, ``isdataclass()`` was removed.
-
-The supported way of writing a function that checks if an object is a
-dataclass instance or class is::
-
-  def isdataclass(obj):
-      try:
-          dataclasses.fields(obj)
-          return True
-      except TypeError:
-          return False
-
-If needed, a further check for ``isinstance(obj, type)`` can be added
-to discern if ``obj`` is a class.
 
 Examples
 ========
@@ -897,6 +897,9 @@ References
 
 .. [#] attrs project on github
        (https://github.com/python-attrs/attrs)
+
+.. [#] George Sakkis' recordType recipe
+       (http://code.activestate.com/recipes/576555-records/)
 
 .. [#] DictDotLookup recipe
        (http://code.activestate.com/recipes/576586-dot-style-nested-lookups-over-dictionary-based-dat/)
