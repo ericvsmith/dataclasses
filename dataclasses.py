@@ -1,7 +1,6 @@
 import sys
 import types
 from copy import deepcopy
-import collections
 import inspect
 
 __all__ = ['dataclass',
@@ -448,11 +447,11 @@ def _set_attribute(cls, name, value):
 
 
 def _process_class(cls, repr, eq, order, hash, init, frozen):
-    # Use an OrderedDict because:
-    #  - Order matters!
-    #  - Derived class fields overwrite base class fields, but the
-    #    order is defined by the base class, which is found first.
-    fields = collections.OrderedDict()
+    # Now that dicts retain insertion order, there's no reason to use
+    #  an ordered dict.  I am leveraging that ordering here, because
+    #  derived class fields overwrite base class fields, but the order
+    #  is defined by the base class, which is found first.
+    fields = {}
 
     # Find our base classes in reverse MRO order, and exclude
     #  ourselves.  In reversed order so that more derived classes
@@ -612,7 +611,8 @@ def fields(class_or_instance):
     except AttributeError:
         raise TypeError('must be called with a dataclass type or instance')
 
-    # Exclude pseudo-fields.
+    # Exclude pseudo-fields.  Note that fields is sorted by insertion
+    #  order, so the order of the tuple is as the fields were defined.
     return tuple(f for f in fields.values() if f._field_type is _FIELD)
 
 
@@ -705,14 +705,16 @@ def _astuple_inner(obj, tuple_factory):
         return deepcopy(obj)
 
 
-def make_dataclass(cls_name, fields, *, bases=(), namespace=None):
+def make_dataclass(cls_name, fields, *, bases=(), namespace=None, init=True,
+                   repr=True, eq=True, order=False, hash=None, frozen=False):
     """Return a new dynamically created dataclass.
 
-    The dataclass name will be 'cls_name'.  'fields' is an interable
-    of either (name, type) or (name, type, Field) objects. Field
-    objects are created by calling 'field(name, type [, Field])'.
+    The dataclass name will be 'cls_name'.  'fields' is an iterable
+    of either (name), (name, type) or (name, type, Field) objects. If type is
+    omitted, use the string 'typing.Any'.  Field objects are created by
+    the equivalent of calling 'field(name, type [, Field-info])'.
 
-      C = make_class('C', [('a', int', ('b', int, Field(init=False))], bases=Base)
+      C = make_class('C', ['x', ('y', int'), ('z', int, Field(init=False))], bases=[Base])
 
     is equivalent to:
 
@@ -722,6 +724,9 @@ def make_dataclass(cls_name, fields, *, bases=(), namespace=None):
           b: int = field(init=False)
 
     For the bases and namespace paremeters, see the builtin type() function.
+
+    The parameters init, repr, eq, order, hash, and frozen are passed to
+    dataclass().
     """
 
     if namespace is None:
@@ -730,15 +735,22 @@ def make_dataclass(cls_name, fields, *, bases=(), namespace=None):
         # Copy namespace since we're going to mutate it.
         namespace = namespace.copy()
 
-    anns = collections.OrderedDict((name, tp) for name, tp, *_ in fields)
-    namespace['__annotations__'] = anns
+    anns = {}
     for item in fields:
-        if len(item) == 3:
+        if isinstance(item, str):
+            name = item
+            tp = 'typing.Any'
+        elif len(item) == 2:
+            name, tp, = item
+        elif len(item) == 3:
             name, tp, spec = item
             namespace[name] = spec
-    cls = type(cls_name, bases, namespace)
-    return dataclass(cls)
+        anns[name] = tp
 
+    namespace['__annotations__'] = anns
+    cls = type(cls_name, bases, namespace)
+    return dataclass(cls, init=init, repr=repr, eq=eq, order=order,
+                     hash=hash, frozen=frozen)
 
 def replace(obj, **changes):
     """Return a new object replacing specified fields with new values.

@@ -24,3 +24,16 @@ Example::
 
 Some additional tools can be found in dataclass_tools.py, included in
 the sdist.
+
+Compatibility
+-------------
+
+This backport assumes that dict objects retain their sort order.  This
+is true in the language spec for Python 3.7 and greater.  Since this
+is a backport to Python 3.6, it raises an interesting question: does
+that guarantee apply to 3.6?  For CPython 3.6 it does.  As of the time
+of this writing, it's also true for all other Python implementations
+that claim to be 3.6 compatible, of which there are none.  See the
+analysis at the end of this email:
+
+https://mail.python.org/pipermail/python-dev/2017-December/151325.html
