@@ -37,3 +37,6 @@ that claim to be 3.6 compatible, of which there are none.  See the
 analysis at the end of this email:
 
 https://mail.python.org/pipermail/python-dev/2017-December/151325.html
+
+As of version 0.4, this code no longer works with Python 3.7. For 3.7,
+use the built-in dataclasses module.
