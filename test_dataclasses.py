@@ -665,7 +665,7 @@ class TestCase(unittest.TestCase):
         self.assertNotEqual(Point3D(1, 2, 3), (1, 2, 3))
 
         # Make sure we can't unpack
-        with self.assertRaisesRegex(TypeError, 'unpack'):
+        with self.assertRaisesRegex(TypeError, 'is not iterable'):
             x, y, z = Point3D(4, 5, 6)
 
         # Maka sure another class with the same field names isn't
@@ -2054,7 +2054,7 @@ class TestRepr(unittest.TestCase):
         @dataclass(repr=False)
         class C:
             x: int
-        self.assertIn('test_dataclasses.TestRepr.test_no_repr.<locals>.C object at',
+        self.assertIn('.TestRepr.test_no_repr.<locals>.C object at',
                       repr(C(3)))
 
         # Test a class with a __repr__ and repr=False.
