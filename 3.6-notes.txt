@@ -1,0 +1,39 @@
+Here's the diff that's needed to go from the 3.7 version to 3.6, and
+from using Python's "-m test" to using "python3.6 test_dataclasses.py".
+
+diff --git a/dataclasses.py b/dataclasses.py
+index fb279cd..993958a 100644
+--- a/dataclasses.py
++++ b/dataclasses.py
+@@ -499,8 +499,7 @@ def _get_field(cls, a_name, a_type):
+     if typing is not None:
+         # This test uses a typing internal class, but it's the best
+         #  way to test if this is a ClassVar.
+-        if (type(a_type) is typing._GenericAlias and
+-                a_type.__origin__ is typing.ClassVar):
++        if type(a_type) is typing._ClassVar:
+             # This field is a ClassVar, so it's not a field.
+             f._field_type = _FIELD_CLASSVAR
+
+diff --git a/test_dataclasses.py b/test_dataclasses.py
+index 53281f9..414d25a 100755
+--- a/test_dataclasses.py
++++ b/test_dataclasses.py
+@@ -665,7 +665,7 @@ class TestCase(unittest.TestCase):
+         self.assertNotEqual(Point3D(1, 2, 3), (1, 2, 3))
+
+         # Make sure we can't unpack
+-        with self.assertRaisesRegex(TypeError, 'unpack'):
++        with self.assertRaisesRegex(TypeError, 'is not iterable'):
+             x, y, z = Point3D(4, 5, 6)
+
+         # Maka sure another class with the same field names isn't
+@@ -2054,7 +2054,7 @@ class TestRepr(unittest.TestCase):
+         @dataclass(repr=False)
+         class C:
+             x: int
+-        self.assertIn('test_dataclasses.TestRepr.test_no_repr.<locals>.C object at',
++        self.assertIn('.TestRepr.test_no_repr.<locals>.C object at',
+                       repr(C(3)))
+
+         # Test a class with a __repr__ and repr=False.
