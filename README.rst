@@ -1,5 +1,5 @@
 This is an implementation of PEP 557, Data Classes.  It is a backport
-for Python 3.6.
+for Python 3.6.  Version 0.4 matches Python 3.7 beta 1.
 
 See https://www.python.org/dev/peps/pep-0557/ for the details.
 
