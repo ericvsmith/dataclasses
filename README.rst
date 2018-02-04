@@ -4,10 +4,10 @@
 This is an implementation of PEP 557, Data Classes.  It is a backport
 for Python 3.6.  Version 0.4 of this repo matches Python 3.7 beta 1.
 Because dataclasses will be included in Python 3.7, any discussion of
-dataclass features should occur in the python-dev mailing list at
+dataclass features should occur on the python-dev mailing list at
 https://mail.python.org/mailman/listinfo/python-dev.  At this point
 this repo should only be used for historical purposes (it's where the
-original dataclasses discussions took place) and for discussion the
+original dataclasses discussions took place) and for discussion of the
 actual backport to Python 3.6.
 
 See https://www.python.org/dev/peps/pep-0557/ for the details of how
