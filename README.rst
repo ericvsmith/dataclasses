@@ -1,3 +1,6 @@
+.. image:: https://img.shields.io/pypi/v/dataclasses.svg
+
+
 This is an implementation of PEP 557, Data Classes.  It is a backport
 for Python 3.6.  Version 0.4 matches Python 3.7 beta 1.
 
@@ -7,9 +10,21 @@ A test file can be found at
 https://github.com/ericvsmith/dataclasses/blob/master/test_dataclasses.py,
 or in the sdist file.
 
-Example::
+Installation
+-------------
+
+.. code-block::
+
+  pip install dataclasses
+
+
+Example Usage
+-------------
+
+.. code-block::
 
   from dataclasses import dataclass, field
+
   @dataclass
   class InventoryItem:
       name: str
