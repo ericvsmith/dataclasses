@@ -2,9 +2,16 @@
 
 
 This is an implementation of PEP 557, Data Classes.  It is a backport
-for Python 3.6.  Version 0.4 matches Python 3.7 beta 1.
+for Python 3.6.  Version 0.4 of this repo matches Python 3.7 beta 1.
+Because dataclasses will be included in Python 3.7, any discussion of
+dataclass features should occur in the python-dev mailing list at
+https://mail.python.org/mailman/listinfo/python-dev.  At this point
+this repo should only be used for historical purposes (it's where the
+original dataclasses discussions took place) and for discussion the
+actual backport to Python 3.6.
 
-See https://www.python.org/dev/peps/pep-0557/ for the details.
+See https://www.python.org/dev/peps/pep-0557/ for the details of how
+Data Classes work.
 
 A test file can be found at
 https://github.com/ericvsmith/dataclasses/blob/master/test_dataclasses.py,
@@ -48,7 +55,8 @@ is true in the language spec for Python 3.7 and greater.  Since this
 is a backport to Python 3.6, it raises an interesting question: does
 that guarantee apply to 3.6?  For CPython 3.6 it does.  As of the time
 of this writing, it's also true for all other Python implementations
-that claim to be 3.6 compatible, of which there are none.  See the
+that claim to be 3.6 compatible, of which there are none.  Any new
+3.6 implementations are expected to have ordered dicts.  See the
 analysis at the end of this email:
 
 https://mail.python.org/pipermail/python-dev/2017-December/151325.html
