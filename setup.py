@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='dataclasses',
-    version='0.4',
+    version='0.5',
     description='An implementation of PEP 557: Data Classes',
     url='https://github.com/ericvsmith/dataclasses',
     author='Eric V. Smith',
