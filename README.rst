@@ -28,7 +28,7 @@ Installation
 Example Usage
 -------------
 
-.. code-block::
+.. code-block:: python
 
   from dataclasses import dataclass, field
 
