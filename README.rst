@@ -30,7 +30,7 @@ Example Usage
 
 .. code-block:: python
 
-  from dataclasses import dataclass, field
+  from dataclasses import dataclass
 
   @dataclass
   class InventoryItem:
