@@ -7,7 +7,7 @@ setup(
     url='https://github.com/ericvsmith/dataclasses',
     author='Eric V. Smith',
     author_email='eric@python.org',
-    license='MIT',
+    license='Apache',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
