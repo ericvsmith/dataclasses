@@ -262,11 +262,11 @@ class Field:
     #  the default value, so the end result is a descriptor that had
     #  __set_name__ called on it at the right time.
     def __set_name__(self, owner, name):
-        func = getattr(self.default, '__set_name__', None)
+        func = getattr(type(self.default), '__set_name__', None)
         if func:
             # There is a __set_name__ method on the descriptor,
             #  call it.
-            func(owner, name)
+            func(self.default, owner, name)
 
 
 class _DataclassParams:
@@ -1017,7 +1017,9 @@ def make_dataclass(cls_name, fields, *, bases=(), namespace=None, init=True,
         anns[name] = tp
 
     namespace['__annotations__'] = anns
-    cls = type(cls_name, bases, namespace)
+    # We use `types.new_class()` instead of simply `type()` to allow dynamic creation
+    # of generic dataclassses.
+    cls = types.new_class(cls_name, bases, {}, lambda ns: ns.update(namespace))
     return dataclass(cls, init=init, repr=repr, eq=eq, order=order,
                      unsafe_hash=unsafe_hash, frozen=frozen)
 
