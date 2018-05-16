@@ -1,2 +1,5 @@
-include test_dataclasses.py
+include test/*
 include dataclass_tools.py
+include LICENSE.txt
+include README.rst
+include MANIFEST.in
