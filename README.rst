@@ -2,13 +2,12 @@
 
 
 This is an implementation of PEP 557, Data Classes.  It is a backport
-for Python 3.6.  Version 0.5 of this repo matches Python 3.7 beta 3.
-Because dataclasses will be included in Python 3.7, any discussion of
-dataclass features should occur on the python-dev mailing list at
-https://mail.python.org/mailman/listinfo/python-dev.  At this point
-this repo should only be used for historical purposes (it's where the
-original dataclasses discussions took place) and for discussion of the
-actual backport to Python 3.6.
+for Python 3.6.  Because dataclasses will be included in Python 3.7,
+any discussion of dataclass features should occur on the python-dev
+mailing list at https://mail.python.org/mailman/listinfo/python-dev.
+At this point this repo should only be used for historical purposes
+(it's where the original dataclasses discussions took place) and for
+discussion of the actual backport to Python 3.6.
 
 See https://www.python.org/dev/peps/pep-0557/ for the details of how
 Data Classes work.
@@ -63,3 +62,14 @@ https://mail.python.org/pipermail/python-dev/2017-December/151325.html
 
 As of version 0.4, this code no longer works with Python 3.7. For 3.7,
 use the built-in dataclasses module.
+
+Release History
+---------------
+
++---------+------------+-------------------------------------+
+| Version | Date       | Description                         |
++=========+============+=====================================+
+| 0.6     | 2018-05-17 | Equivalent to Python 3.7.0rc1       |
++---------+------------+-------------------------------------+
+| 0.5     | 2018-03-28 | Equivalent to Python 3.7.0b3        |
++---------+------------+-------------------------------------+

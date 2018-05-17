@@ -5,8 +5,8 @@ with open('README.rst') as readme:
 
 setup(
     name='dataclasses',
-    version='0.5+',
-    description='An implementation of PEP 557: Data Classes',
+    version='0.6',
+    description='A backport of the dataclasses module for Python 3.6',
     long_description=README,
     url='https://github.com/ericvsmith/dataclasses',
     author='Eric V. Smith',
