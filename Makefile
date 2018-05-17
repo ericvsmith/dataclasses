@@ -19,3 +19,7 @@ diff:
 	-diff -u $(PYTHON37_SRC)/Lib/test/dataclass_module_1_str.py test
 	-diff -u $(PYTHON37_SRC)/Lib/test/dataclass_module_2.py test
 	-diff -u $(PYTHON37_SRC)/Lib/test/dataclass_module_2_str.py test
+
+clean:
+	-rm -rf dataclasses.egg-info/ __pycache__/ build/ dist/ test/__pycache__/
+
