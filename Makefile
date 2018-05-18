@@ -1,10 +1,12 @@
 PYTHON37_SRC = ../python/cpython
+PYTHON = ~/venv/wheel-tools/bin/python
+TWINE = ~/venv/wheel-tools/bin/twine
 
 sdist:
-	python3 setup.py sdist
+	$(PYTHON) setup.py sdist
 
 wheel:
-	python3 setup.py bdist_wheel
+	$(PYTHON) setup.py bdist_wheel
 
 run-tests:
 	PYTHONPATH=. python3 test/test_dataclasses.py
@@ -23,3 +25,5 @@ diff:
 clean:
 	-rm -rf dataclasses.egg-info/ __pycache__/ build/ dist/ test/__pycache__/
 
+upload:	clean sdist wheel
+	$(TWINE) upload dist/*
