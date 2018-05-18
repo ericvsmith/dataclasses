@@ -6,7 +6,7 @@ sdist:
 wheel:
 	python3 setup.py bdist_wheel
 
-tests:
+run-tests:
 	PYTHONPATH=. python3 test/test_dataclasses.py
 
 diff:
