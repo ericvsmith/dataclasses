@@ -13,7 +13,7 @@ See https://www.python.org/dev/peps/pep-0557/ for the details of how
 Data Classes work.
 
 A test file can be found at
-https://github.com/ericvsmith/dataclasses/blob/master/test_dataclasses.py,
+https://github.com/ericvsmith/dataclasses/blob/master/test/test_dataclasses.py,
 or in the sdist file.
 
 Installation
