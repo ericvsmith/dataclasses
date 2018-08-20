@@ -195,12 +195,17 @@ _POST_INIT_NAME = '__post_init__'
 # https://bugs.python.org/issue33453 for details.
 _MODULE_IDENTIFIER_RE = re.compile(r'^(?:\s*(\w+)\s*\.)?\s*(\w+)')
 
+
 class _InitVarMeta(type):
     def __getitem__(self, params):
-        return self
+        return InitVar(params)
+
 
 class InitVar(metaclass=_InitVarMeta):
-    pass
+    __slots__ = ('type', )
+
+    def __init__(self, type):
+         self.type = type
 
 
 # Instances of Field are only ever created from within this module,
@@ -553,7 +558,7 @@ def _is_classvar(a_type, typing):
 def _is_initvar(a_type, dataclasses):
     # The module we're checking against is the module we're
     # currently in (dataclasses.py).
-    return a_type is dataclasses.InitVar
+    return type(a_type) is dataclasses.InitVar
 
 
 def _is_type(annotation, cls, a_module, a_type, is_type_predicate):
