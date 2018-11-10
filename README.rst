@@ -1,4 +1,5 @@
 .. image:: https://img.shields.io/pypi/v/dataclasses.svg
+   :target: https://pypi.org/project/dataclasses/
 
 
 This is an implementation of PEP 557, Data Classes.  It is a backport
