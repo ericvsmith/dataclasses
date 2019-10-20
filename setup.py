@@ -5,7 +5,7 @@ with open("README.rst") as readme:
 
 setup(
     name="dataclasses",
-    version="0.6",
+    version="0.7",
     description="A backport of the dataclasses module for Python 3.6",
     long_description=README,
     url="https://github.com/ericvsmith/dataclasses",
@@ -20,4 +20,5 @@ setup(
         "Programming Language :: Python :: 3.6",
     ],
     py_modules=["dataclasses"],
+    python_requires=">=3.6, <3.7",
 )
