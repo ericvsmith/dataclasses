@@ -6,6 +6,8 @@ from dataclasses import *
 
 import pickle
 import inspect
+import os
+import sys
 import unittest
 from unittest.mock import Mock
 from typing import ClassVar, Any, List, Union, Tuple, Dict, Generic, TypeVar, Optional
@@ -3055,6 +3057,15 @@ class TestReplace(unittest.TestCase):
     ##     self.assertEqual(c, replace(c, y=5))
 
     ##     replace(c, x=5)
+
+    def test_import_shadows_builtin(self):
+        mod_path = dataclasses.__file__
+        self.assertTrue(mod_path.endswith('dataclasses.py'))
+        py36_suffix = os.path.join('dataclasses', 'dataclasses.py')
+        if sys.version_info < (3, 7):
+            self.assertTrue(mod_path.endswith(py36_suffix))
+        else:
+            self.assertFalse(mod_path.endswith(py36_suffix))
 
 
 if __name__ == '__main__':
