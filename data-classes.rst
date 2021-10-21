@@ -138,7 +138,7 @@ Issues
 - Use inheritance, metaclasses, or decorators?  Implementation detail,
   decide after we finalize our goals.
 
-- Should we explicitely support "shared" mutable defaults?  Like
+- Should we explicitly support "shared" mutable defaults?  Like
   __init__(self, x=[]).  I think so.  That is, we shouldn't do
   something like try to detect mutable defaults and implicitly copy
   them.
