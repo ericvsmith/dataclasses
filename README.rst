@@ -1,6 +1,7 @@
 .. image:: https://img.shields.io/pypi/v/dataclasses.svg
    :target: https://pypi.org/project/dataclasses/
 
+Copyright 2017-2022 Eric V. Smith, all rights reserved.
 
 This is an implementation of PEP 557, Data Classes.  It is a backport
 for Python 3.6.  Because dataclasses will be included in Python 3.7,

@@ -1,5 +1,3 @@
-Copyright 2017-2022 Eric V. Smith, all rights reserved.
-
 Start of discussion on python-ideas
 https://mail.python.org/pipermail/python-ideas/2017-May/045618.html
 
